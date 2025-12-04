@@ -89,7 +89,7 @@ export function AddonsBooking() {
                             </div>
                              <div className="flex items-center gap-2">
                                 <span className="text-sm font-semibold">₹{person.price}</span>
-                                <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => handleQuantityChange(person.id, -1)} disabled={!person.available || quantity === 0}><Minus className="h-4 w-4" /></Button>
+                                <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => handleQuantityChange(person.id, -1)} disabled={quantity === 0}><Minus className="h-4 w-4" /></Button>
                                 <span className="w-4 text-center">{quantity}</span>
                                 <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => handleQuantityChange(person.id, 1)} disabled={!person.available || quantity > 0}><Plus className="h-4 w-4" /></Button>
                             </div>

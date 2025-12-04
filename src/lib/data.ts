@@ -1,5 +1,5 @@
 import type { User, Booking, Addon, Manpower } from '@/lib/types';
-import { Hammer, Baseball, Shield, Award, ToyBrick, Whistle, User as UserIcon } from 'lucide-react';
+import { Hammer, Orbit, Shield, Award, ToyBrick, Megaphone, User as UserIcon } from 'lucide-react';
 
 export const mockUser: User = {
   name: 'Alex Johnson',
@@ -41,14 +41,14 @@ export const mockBookings: Booking[] = [
 
 export const mockAddons: Addon[] = [
   { id: 'bat', name: 'Cricket Bat', price: 150, stock: 5, icon: Hammer },
-  { id: 'ball', name: 'Leather Ball', price: 50, stock: 20, icon: Baseball },
+  { id: 'ball', name: 'Leather Ball', price: 50, stock: 20, icon: Orbit },
   { id: 'stumps', name: 'Stumps', price: 75, stock: 15, icon: ToyBrick },
   { id: 'helmet', name: 'Helmet', price: 100, stock: 10, icon: Shield },
   { id: 'pads', name: 'Pads & Gloves', price: 120, stock: 10, icon: Award },
 ];
 
 export const mockManpower: Manpower[] = [
-    { id: 'umpire', name: 'Umpire', price: 300, available: true, icon: Whistle },
+    { id: 'umpire', name: 'Umpire', price: 300, available: true, icon: Megaphone },
     { id: 'coach', name: 'Coach', price: 500, available: false, icon: UserIcon },
 ];
 
