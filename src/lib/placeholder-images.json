@@ -1,3 +1,22 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "avit-ground-1",
+      "description": "AVIT cricket ground from a distance",
+      "imageUrl": "https://images.unsplash.com/photo-1585822754398-04873d4e1f50?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxjcmlja2V0JTIwZ3JvdW5kfGVufDB8fHx8MTc2NDg0MDQxN3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "cricket ground"
+    },
+    {
+      "id": "avit-ground-2",
+      "description": "Close up of the cricket pitch",
+      "imageUrl": "https://images.unsplash.com/photo-1563184956-7a02a2852738?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxjcmlja2V0JTIwcGl0Y2h8ZW58MHx8fHwxNzY0ODQwNDE3fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "cricket pitch"
+    },
+    {
+      "id": "avit-ground-3",
+      "description": "Players on the AVIT cricket field",
+      "imageUrl": "https://images.unsplash.com/photo-1745180266685-939a99b553fa?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxjcmlja2V0JTIwcGxheWVyc3xlbnwwfHx8fDE3NjQ4NDA0MTd8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "cricket players"
+    }
+  ]
 }
