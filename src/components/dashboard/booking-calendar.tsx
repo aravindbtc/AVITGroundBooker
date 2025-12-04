@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
-import { Button } from "@/components/ui/button";
+import { Button }from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { addDays, format, isSameDay } from "date-fns";
-import { Clock } from "lucide-react";
+import { Clock, Zap } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 
 // Mock data for slots
 const availableSlots = [
@@ -29,15 +30,16 @@ export function BookingCalendar() {
   const todaysSlots = date ? availableSlots.find(day => isSameDay(day.date, date))?.slots || [] : [];
 
   return (
-    <Card>
+    <Card className="shadow-lg rounded-xl">
       <CardHeader>
-        <CardTitle className="font-headline flex items-center gap-2">
-            <Clock />
-            Book a Slot
+        <CardTitle className="font-headline text-3xl flex items-center gap-2">
+            <Clock className="h-8 w-8"/>
+            Book Your Slot
         </CardTitle>
+        <CardDescription>Select a date and time to reserve the cricket ground.</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-6 md:grid-cols-2">
-        <div>
+        <div className="flex justify-center">
           <Calendar
             mode="single"
             selected={date}
@@ -53,41 +55,47 @@ export function BookingCalendar() {
           />
         </div>
         <div className="space-y-4">
-          <h3 className="font-semibold">
+          <h3 className="font-semibold text-lg font-headline">
             Available Slots for {date ? format(date, "PPP") : "..."}
           </h3>
+          <Separator />
           {todaysSlots.length > 0 ? (
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-3">
               {todaysSlots.map((slot) => (
                 <Button
                   key={slot}
                   variant={selectedSlot === slot ? "default" : "outline"}
                   onClick={() => setSelectedSlot(slot)}
-                  className="relative"
+                  className="relative h-12 text-base"
                 >
                   {slot}
                   {peakHours.includes(slot) && (
-                     <Badge variant="destructive" className="absolute -top-2 -right-2 scale-75 border-2 border-background">Peak</Badge>
+                     <Badge className="absolute -top-2 -right-2 scale-90 bg-amber-500 text-white font-bold border-2 border-background">
+                        <Zap className="h-3 w-3 mr-1"/>
+                        Peak
+                     </Badge>
                   )}
                 </Button>
               ))}
             </div>
           ) : (
-            <div className="flex h-full items-center justify-center rounded-md border border-dashed py-10">
-              <p className="text-sm text-muted-foreground">No slots available for this day.</p>
+            <div className="flex h-full items-center justify-center rounded-md border-2 border-dashed py-10">
+              <p className="text-lg text-muted-foreground">No slots available.</p>
             </div>
           )}
         </div>
       </CardContent>
-      <CardFooter className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <CardFooter className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between -mx-6 -mb-6 p-6 bg-slate-50 mt-6">
         <div>
-            {selectedSlot && date && (
-                <p className="text-sm font-medium">
-                    Selected: <span className="text-primary">{format(date, "MMM d, yyyy")}</span> at <span className="text-primary">{selectedSlot}</span>
+            {selectedSlot && date ? (
+                <p className="text-md font-medium">
+                    Selected: <span className="text-primary font-bold">{format(date, "MMM d, yyyy")}</span> at <span className="text-primary font-bold">{selectedSlot}</span>
                 </p>
+            ) : (
+                <p className="text-md text-muted-foreground">Please select a slot to continue.</p>
             )}
         </div>
-        <Button disabled={!selectedSlot}>
+        <Button disabled={!selectedSlot} size="lg" className="font-bold text-lg bg-accent hover:bg-accent/90 text-accent-foreground">
           Proceed to Book
         </Button>
       </CardFooter>

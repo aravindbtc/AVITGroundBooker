@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Map } from "./map";
 import { avit_details } from "@/lib/data";
 import { Button } from "@/components/ui/button";
-import { MapPin, Star, Navigation, Phone } from "lucide-react";
+import { MapPin, Star, Navigation, Phone, Clock } from "lucide-react";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import Image from "next/image";
 import {
@@ -17,16 +17,13 @@ export function VenueInfo() {
   const venueImages = PlaceHolderImages.filter(img => img.id.startsWith("avit-ground"));
   
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="font-headline">{avit_details.fullName}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <Carousel className="w-full">
+    <Card className="shadow-lg rounded-xl overflow-hidden">
+      <CardHeader className="p-0">
+         <Carousel className="w-full">
           <CarouselContent>
             {venueImages.map((image, index) => (
               <CarouselItem key={index}>
-                <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg">
+                <div className="relative aspect-video w-full">
                   <Image
                     src={image.imageUrl}
                     alt={image.description}
@@ -34,53 +31,55 @@ export function VenueInfo() {
                     className="object-cover"
                     data-ai-hint={image.imageHint}
                   />
+                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                 </div>
               </CarouselItem>
             ))}
           </CarouselContent>
-          <CarouselPrevious className="left-2" />
-          <CarouselNext className="right-2" />
+          <CarouselPrevious className="left-4" />
+          <CarouselNext className="right-4" />
         </Carousel>
-
-        <div className="space-y-2 text-sm">
-            <div className="flex items-start gap-2 text-muted-foreground">
-                <MapPin className="mt-1 h-4 w-4 flex-shrink-0 text-primary" />
-                <span>{avit_details.address}</span>
+      </CardHeader>
+      <CardContent className="p-6 space-y-4">
+        <CardTitle className="font-headline text-2xl">{avit_details.fullName}</CardTitle>
+       
+        <div className="space-y-3 text-sm">
+            <div className="flex items-start gap-3 text-muted-foreground">
+                <MapPin className="mt-1 h-5 w-5 flex-shrink-0 text-primary" />
+                <span className="font-medium">{avit_details.address}</span>
             </div>
             <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1 text-accent">
-                    {[...Array(Math.floor(avit_details.rating))].map((_, i) => (
-                        <Star key={i} className="h-4 w-4 fill-current" />
-                    ))}
-                    {avit_details.rating % 1 !== 0 && <Star key="half" className="h-4 w-4 fill-current" style={{ clipPath: 'inset(0 50% 0 0)' }} />}
-                    {[...Array(5 - Math.ceil(avit_details.rating))].map((_, i) => (
-                         <Star key={`empty-${i}`} className="h-4 w-4 stroke-current" />
+                    {[...Array(5)].map((_, i) => (
+                        <Star key={i} className={`h-5 w-5 ${i < Math.floor(avit_details.rating) ? 'fill-current' : 'stroke-current text-muted-foreground/50'}`} />
                     ))}
                 </div>
-                <span className="font-semibold">{avit_details.rating}/5.0</span>
+                <span className="font-bold text-base">{avit_details.rating}/5.0</span>
+                <span className="text-muted-foreground text-xs">(342 Reviews)</span>
+            </div>
+             <div className="flex items-center gap-3 text-muted-foreground">
+                <Clock className="h-5 w-5 flex-shrink-0 text-primary" />
+                <span className="font-medium">5:00 AM - 10:00 PM</span>
             </div>
         </div>
 
-        <div className="h-48 w-full">
+        <div className="h-48 w-full rounded-lg overflow-hidden border">
           <Map />
         </div>
       </CardContent>
-      <CardFooter className="flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex gap-2">
-            <Button asChild size="sm">
-                <a href={`https://www.google.com/maps/dir/?api=1&destination=${avit_details.gps.lat},${avit_details.gps.lng}`} target="_blank" rel="noopener noreferrer">
-                    <Navigation />
-                    Navigate
-                </a>
-            </Button>
-             <Button asChild variant="outline" size="sm">
-                <a href={`tel:${avit_details.contact.general}`}>
-                    <Phone />
-                    Call
-                </a>
-            </Button>
-        </div>
-        <p className="text-xs text-muted-foreground">Operating Hours: 5 AM - 10 PM</p>
+      <CardFooter className="grid grid-cols-2 gap-3 p-6 pt-0">
+        <Button asChild size="lg" className="font-bold">
+            <a href={`https://www.google.com/maps/dir/?api=1&destination=${avit_details.gps.lat},${avit_details.gps.lng}`} target="_blank" rel="noopener noreferrer">
+                <Navigation />
+                Directions
+            </a>
+        </Button>
+         <Button asChild variant="outline" size="lg" className="font-bold">
+            <a href={`tel:${avit_details.contact.general}`}>
+                <Phone />
+                Call Venue
+            </a>
+        </Button>
       </CardFooter>
     </Card>
   );
