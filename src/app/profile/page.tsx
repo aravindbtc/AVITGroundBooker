@@ -3,8 +3,7 @@ import { User } from "lucide-react";
 
 export default function ProfilePage() {
   return (
-    <div className="flex min-h-screen w-full items-center justify-center p-4">
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-md mx-auto">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 font-headline">
             <User className="h-6 w-6 text-primary" />
@@ -17,6 +16,5 @@ export default function ProfilePage() {
           </p>
         </CardContent>
       </Card>
-    </div>
   );
 }
