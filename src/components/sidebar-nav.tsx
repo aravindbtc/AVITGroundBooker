@@ -3,17 +3,13 @@
 import {
   SidebarMenu,
   SidebarMenuItem,
-  SidebarMenuButton,
   SidebarHeader,
   SidebarFooter,
   SidebarContent,
-  SidebarGroup,
-  SidebarGroupLabel,
+  SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { Home, CalendarDays, User, Shield, Gem, LogOut } from "lucide-react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Button } from "./ui/button";
+import { LogOut } from "lucide-react";
+import { SidebarLinks } from "./sidebar-links";
 
 const CricketBallIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
@@ -25,10 +21,6 @@ const CricketBallIcon = () => (
 )
 
 export function SidebarNav() {
-  const pathname = usePathname();
-
-  const isActive = (path: string) => pathname === path;
-
   return (
     <>
       <SidebarHeader>
@@ -42,55 +34,7 @@ export function SidebarNav() {
         </div>
       </SidebarHeader>
       <SidebarContent className="p-2">
-        <SidebarGroup>
-            <SidebarMenu>
-            <SidebarMenuItem>
-                <Link href="/" passHref>
-                <SidebarMenuButton isActive={isActive("/")} tooltip="Dashboard">
-                    <Home />
-                    <span>Dashboard</span>
-                </SidebarMenuButton>
-                </Link>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-                <Link href="#" passHref>
-                <SidebarMenuButton isActive={isActive("/bookings")} tooltip="My Bookings">
-                    <CalendarDays />
-                    <span>My Bookings</span>
-                </SidebarMenuButton>
-                </Link>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-                <Link href="#" passHref>
-                <SidebarMenuButton isActive={isActive("/profile")} tooltip="Profile">
-                    <User />
-                    <span>Profile</span>
-                </SidebarMenuButton>
-                </Link>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-                <Link href="#" passHref>
-                <SidebarMenuButton isActive={isActive("/loyalty")} tooltip="Loyalty Program">
-                    <Gem />
-                    <span>Loyalty</span>
-                </SidebarMenuButton>
-                </Link>
-            </SidebarMenuItem>
-            </SidebarMenu>
-        </SidebarGroup>
-        <SidebarGroup>
-            <SidebarGroupLabel>Admin</SidebarGroupLabel>
-            <SidebarMenu>
-            <SidebarMenuItem>
-                <Link href="/admin" passHref>
-                <SidebarMenuButton isActive={isActive("/admin")} tooltip="Admin Dashboard">
-                    <Shield />
-                    <span>Admin Panel</span>
-                </SidebarMenuButton>
-                </Link>
-            </SidebarMenuItem>
-            </SidebarMenu>
-        </SidebarGroup>
+        <SidebarLinks />
       </SidebarContent>
       <SidebarFooter className="p-2">
         <SidebarMenu>
