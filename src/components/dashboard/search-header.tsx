@@ -1,19 +1,19 @@
 
 "use client"
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, MapPin, Calendar, Clock } from "lucide-react";
+import { Search } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
-import { useState } from "react";
+import { Calendar } from "lucide-react";
 import { format } from "date-fns";
 
 type SearchHeaderProps = {
-  onFindAvailability: (date: Date | undefined) => void;
+  selectedDate: Date | undefined;
+  onDateChange: (date: Date | undefined) => void;
+  onFindAvailability: () => void;
 };
 
-export function SearchHeader({ onFindAvailability }: SearchHeaderProps) {
-    const [date, setDate] = useState<Date | undefined>(new Date());
+export function SearchHeader({ selectedDate, onDateChange, onFindAvailability }: SearchHeaderProps) {
 
     return (
         <div className="relative w-full h-80 rounded-2xl overflow-hidden bg-gradient-to-br from-green-100 via-purple-50 to-orange-100 p-8 flex flex-col justify-center items-start text-left">
@@ -41,21 +41,21 @@ export function SearchHeader({ onFindAvailability }: SearchHeaderProps) {
                             <PopoverTrigger asChild>
                                 <Button variant="outline" className="h-12 text-base rounded-full text-muted-foreground font-normal justify-start bg-white/50 border-gray-200 hover:bg-white">
                                     <Calendar className="mr-2 h-5 w-5 text-primary" />
-                                    <span>{date ? format(date, "PPP") : "Select date"}</span>
+                                    <span>{selectedDate ? format(selectedDate, "PPP") : "Select date"}</span>
                                 </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0" align="start">
                                 <CalendarPicker
                                     mode="single"
-                                    selected={date}
-                                    onSelect={setDate}
+                                    selected={selectedDate}
+                                    onSelect={onDateChange}
                                     disabled={(day) => day < new Date(new Date().toDateString())}
                                     initialFocus
                                 />
                             </PopoverContent>
                         </Popover>
 
-                        <Button size="lg" className="h-12 rounded-full font-bold text-lg bg-primary hover:bg-primary/90" onClick={() => onFindAvailability(date)}>
+                        <Button size="lg" className="h-12 rounded-full font-bold text-lg bg-primary hover:bg-primary/90" onClick={onFindAvailability}>
                             <Search className="mr-2 h-5 w-5" />
                             Find Availability
                         </Button>
