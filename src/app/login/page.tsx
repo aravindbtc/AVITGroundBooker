@@ -10,7 +10,7 @@ import {
     signOut,
     sendPasswordResetEmail,
 } from 'firebase/auth';
-import { setDoc, doc } from 'firebase/firestore';
+import { setDoc, doc, writeBatch } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,7 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Mail } from 'lucide-react';
+import { Loader2, Mail, ShieldCheck } from 'lucide-react';
 
 export default function LoginPage() {
     const auth = useAuth();
@@ -29,23 +29,72 @@ export default function LoginPage() {
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [adminEmail, setAdminEmail] = useState('admin@avit.ac.in');
+    const [adminPassword, setAdminPassword] = useState('AVIT@cgb');
     const [isProcessing, setIsProcessing] = useState(false);
     const [resetEmail, setResetEmail] = useState('');
 
-    const handleLogin = async () => {
+    const handleLogin = async (loginEmail = email, loginPassword = password) => {
         setIsProcessing(true);
         try {
-            await signInWithEmailAndPassword(auth, email, password);
+            await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
             toast({ title: "Login Successful", description: "Welcome back!" });
             router.push('/');
         } catch (error: any) {
-            toast({ variant: "destructive", title: "Login Failed", description: error.message });
+            // If user not found, try to sign them up with admin credentials for the first time
+            if (error.code === 'auth/user-not-found' && loginEmail === 'admin@avit.ac.in') {
+                await handleAdminFirstLogin();
+            } else {
+                toast({ variant: "destructive", title: "Login Failed", description: error.message });
+            }
         } finally {
             setIsProcessing(false);
         }
     };
+    
+    const handleAdminFirstLogin = async () => {
+         if (!firestore) return;
+        try {
+            const userCredential = await createUserWithEmailAndPassword(auth, 'admin@avit.ac.in', 'AVIT@cgb');
+            const user = userCredential.user;
+            
+            const batch = writeBatch(firestore);
+
+            const userProfileRef = doc(firestore, 'users', user.uid);
+            batch.set(userProfileRef, {
+                id: user.uid,
+                email: user.email,
+                name: 'AVIT Admin',
+                collegeId: 'ADMIN001',
+                role: 'admin',
+                loyaltyPoints: 0
+            });
+            
+            const adminRoleRef = doc(firestore, 'roles_admin', user.uid);
+            batch.set(adminRoleRef, { grantedAt: new Date() });
+
+            await batch.commit();
+
+            toast({ title: "Admin Account Created", description: "Welcome, Admin! You are now being logged in." });
+            router.push('/');
+
+        } catch (error: any) {
+            // If admin already exists, just log in.
+            if(error.code === 'auth/email-already-in-use') {
+                await signInWithEmailAndPassword(auth, 'admin@avit.ac.in', 'AVIT@cgb');
+                router.push('/');
+            } else {
+                toast({ variant: "destructive", title: "Admin Setup Failed", description: error.message });
+            }
+        }
+    }
+
 
     const handleSignUp = async () => {
+        if (!firestore) {
+             toast({ variant: "destructive", title: "Database not ready", description: "Please try again in a moment."});
+             return;
+        }
         setIsProcessing(true);
         try {
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -64,7 +113,15 @@ export default function LoginPage() {
             toast({ title: "Sign Up Successful", description: "Your account has been created." });
             router.push('/');
         } catch (error: any) {
-            toast({ variant: "destructive", title: "Sign Up Failed", description: error.message });
+             if (error.code === 'auth/email-already-in-use' && email === 'admin@avit.ac.in') {
+                toast({
+                    variant: "destructive",
+                    title: "Use Admin Login",
+                    description: "This is the admin email. Please use the 'Admin Login' tab.",
+                });
+            } else {
+                toast({ variant: "destructive", title: "Sign Up Failed", description: error.message });
+            }
         } finally {
             setIsProcessing(false);
         }
@@ -107,14 +164,15 @@ export default function LoginPage() {
     return (
         <div className="flex justify-center items-center py-12">
             <Tabs defaultValue="login" className="w-[400px]">
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="login">Login</TabsTrigger>
                     <TabsTrigger value="signup">Sign Up</TabsTrigger>
+                    <TabsTrigger value="admin" className="gap-1"><ShieldCheck className="h-4 w-4" /> Admin</TabsTrigger>
                 </TabsList>
                 <TabsContent value="login">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Login</CardTitle>
+                            <CardTitle>User Login</CardTitle>
                             <CardDescription>Access your account to view and manage your bookings.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
@@ -128,7 +186,7 @@ export default function LoginPage() {
                             </div>
                         </CardContent>
                         <CardFooter>
-                            <Button onClick={handleLogin} disabled={isProcessing}>
+                            <Button onClick={() => handleLogin()} disabled={isProcessing}>
                                 {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                 Login
                             </Button>
@@ -176,7 +234,33 @@ export default function LoginPage() {
                         </CardFooter>
                     </Card>
                 </TabsContent>
+                 <TabsContent value="admin">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Admin Login</CardTitle>
+                            <CardDescription>Enter admin credentials to access the dashboard.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="admin-email">Admin Email</Label>
+                                <Input id="admin-email" type="email" value={adminEmail} readOnly disabled />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="admin-password">Admin Password</Label>
+                                <Input id="admin-password" type="password" value={adminPassword} readOnly disabled />
+                            </div>
+                        </CardContent>
+                        <CardFooter>
+                             <Button onClick={() => handleLogin(adminEmail, adminPassword)} disabled={isProcessing}>
+                                {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Login as Admin
+                            </Button>
+                        </CardFooter>
+                    </Card>
+                </TabsContent>
             </Tabs>
         </div>
     );
 }
+
+    
