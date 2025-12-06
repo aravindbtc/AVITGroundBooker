@@ -12,11 +12,11 @@ const CricketBallIcon = () => (
 
 export function Footer() {
   return (
-    <footer className="border-t bg-card text-card-foreground">
+    <footer className="border-t bg-card text-card-foreground mt-12">
       <div className="container mx-auto px-4 py-8 md:px-6">
         <div className="grid gap-8 md:grid-cols-3">
           <div>
-            <div className="mb-4 flex items-center gap-2">
+            <div className="mb-4 flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                     <CricketBallIcon />
                 </div>
@@ -37,8 +37,8 @@ export function Footer() {
               <h3 className="mb-2 font-semibold">Quick Links</h3>
               <ul className="space-y-2">
                 <li><Link href="/" className="text-muted-foreground hover:text-primary">Home</Link></li>
-                <li><Link href="#" className="text-muted-foreground hover:text-primary">Bookings</Link></li>
-                <li><Link href="#" className="text-muted-foreground hover:text-primary">Profile</Link></li>
+                <li><Link href="/bookings" className="text-muted-foreground hover:text-primary">Bookings</Link></li>
+                <li><Link href="/profile" className="text-muted-foreground hover:text-primary">Profile</Link></li>
               </ul>
             </div>
             <div>
