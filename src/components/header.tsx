@@ -12,7 +12,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { mockUser } from "@/lib/data";
-import { LogOut, User, Settings, LayoutGrid, CalendarDays, Gem, MapPin } from "lucide-react";
+import { LogOut, User, Settings, LayoutGrid, CalendarDays, Gem, MapPin, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 
@@ -98,6 +98,9 @@ export function Header() {
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                  <Link href="/loyalty"><Gem className="mr-2 h-4 w-4" /><span>Loyalty</span></Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                 <Link href="/admin"><Shield className="mr-2 h-4 w-4" /><span>Admin</span></Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem>
