@@ -1,3 +1,4 @@
+
 import type { Timestamp } from 'firebase/firestore';
 
 export type User = {
@@ -61,4 +62,12 @@ export type Venue = {
     };
     rating: number;
     basePrice: number;
+}
+
+export type BookingItem = {
+    id: string;
+    name: string;
+    quantity: number;
+    price: number;
+    type: 'slot' | 'addon';
 }

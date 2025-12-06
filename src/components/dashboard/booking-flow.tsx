@@ -10,8 +10,14 @@ import { addDays, format, isValid } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Calendar as CalendarIcon, CalendarDays } from 'lucide-react';
 
-export function BookingFlow() {
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>();
+interface BookingFlowProps {
+    selectedDate: Date;
+    onDateChange: (date: Date) => void;
+    selectedSlots: string[];
+    onSlotsChange: (slots: string[]) => void;
+}
+
+export function BookingFlow({ selectedDate, onDateChange, selectedSlots, onSlotsChange }: BookingFlowProps) {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   
   const today = new Date();
@@ -19,7 +25,7 @@ export function BookingFlow() {
 
   const handleDateSelect = (date: Date | undefined) => {
     if (date && isValid(date)) {
-        setSelectedDate(date);
+        onDateChange(date);
         setIsCalendarOpen(false); // Close calendar on date select
     }
   };
@@ -60,7 +66,13 @@ export function BookingFlow() {
             </div>
         </CardHeader>
         <CardContent>
-            {selectedDate && <TimeSlotSelection selectedDate={selectedDate} />}
+            {selectedDate && (
+                <TimeSlotSelection 
+                    selectedDate={selectedDate} 
+                    selectedSlots={selectedSlots}
+                    onSlotsChange={onSlotsChange}
+                />
+            )}
         </CardContent>
     </Card>
   );

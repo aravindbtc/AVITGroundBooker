@@ -1,25 +1,25 @@
 
 "use client";
-import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { mockAddons, mockManpower } from "@/lib/data";
 import { ShoppingBasket, Minus, Plus, Users, ShieldCheck } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
+import type { BookingItem, Addon, Manpower } from "@/lib/types";
 
+interface AddonsBookingProps {
+  bookingAddons: BookingItem[];
+  onAddonsChange: (addons: BookingItem[]) => void;
+}
 
-type CartItem = {
-  id: string;
-  quantity: number;
-};
+export function AddonsBooking({ bookingAddons, onAddonsChange }: AddonsBookingProps) {
 
-export function AddonsBooking() {
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const allItems: (Addon | Manpower)[] = [...mockAddons, ...mockManpower];
 
-  const handleQuantityChange = (id: string, delta: number) => {
-    setCart(currentCart => {
-      const itemIndex = currentCart.findIndex(item => item.id === id);
+  const handleQuantityChange = (item: Addon | Manpower, delta: number) => {
+    onAddonsChange(currentCart => {
+      const itemIndex = currentCart.findIndex(cartItem => cartItem.id === item.id);
       if (itemIndex > -1) {
         const newQuantity = currentCart[itemIndex].quantity + delta;
         if (newQuantity > 0) {
@@ -27,24 +27,21 @@ export function AddonsBooking() {
           newCart[itemIndex] = { ...newCart[itemIndex], quantity: newQuantity };
           return newCart;
         } else {
-          return currentCart.filter(item => item.id !== id);
+          return currentCart.filter(cartItem => cartItem.id !== item.id);
         }
       } else if (delta > 0) {
-        return [...currentCart, { id, quantity: 1 }];
+        return [...currentCart, { id: item.id, name: item.name, quantity: 1, price: item.price, type: 'addon' }];
       }
       return currentCart;
     });
   };
 
   const getItemQuantity = (id: string) => {
-    return cart.find(item => item.id === id)?.quantity || 0;
+    return bookingAddons.find(item => item.id === id)?.quantity || 0;
   };
   
-  const allItems = [...mockAddons, ...mockManpower];
-
-  const totalPrice = cart.reduce((total, cartItem) => {
-    const item = allItems.find(i => i.id === cartItem.id);
-    return total + (item ? item.price * cartItem.quantity : 0);
+  const totalPrice = bookingAddons.reduce((total, cartItem) => {
+    return total + (cartItem.price * cartItem.quantity);
   }, 0);
 
   return (
@@ -79,9 +76,9 @@ export function AddonsBooking() {
                             </div>
                             <div className="flex items-center gap-2">
                                 <span className="text-sm font-semibold w-20 text-right">RS.{addon.price}</span>
-                                <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleQuantityChange(addon.id, -1)} disabled={quantity === 0}><Minus className="h-4 w-4" /></Button>
+                                <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleQuantityChange(addon, -1)} disabled={quantity === 0}><Minus className="h-4 w-4" /></Button>
                                 <span className="w-5 text-center font-bold">{quantity}</span>
-                                <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleQuantityChange(addon.id, 1)} disabled={isSoldOut || isMaxed}><Plus className="h-4 w-4" /></Button>
+                                <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleQuantityChange(addon, 1)} disabled={isSoldOut || isMaxed}><Plus className="h-4 w-4" /></Button>
                             </div>
                         </div>
                     )
@@ -110,9 +107,9 @@ export function AddonsBooking() {
                             </div>
                              <div className="flex items-center gap-2">
                                 <span className="text-sm font-semibold w-20 text-right">RS.{person.price}</span>
-                                <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleQuantityChange(person.id, -1)} disabled={quantity === 0}><Minus className="h-4 w-4" /></Button>
+                                <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleQuantityChange(person, -1)} disabled={quantity === 0}><Minus className="h-4 w-4" /></Button>
                                 <span className="w-5 text-center font-bold">{quantity}</span>
-                                <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleQuantityChange(person.id, 1)} disabled={isSoldOut || isMaxed}><Plus className="h-4 w-4" /></Button>
+                                <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleQuantityChange(person, 1)} disabled={isSoldOut || isMaxed}><Plus className="h-4 w-4" /></Button>
                             </div>
                         </div>
                     )
@@ -121,12 +118,6 @@ export function AddonsBooking() {
           </AccordionItem>
         </Accordion>
       </CardContent>
-       {totalPrice > 0 && (
-        <CardFooter className="flex items-center justify-between mt-4 bg-slate-50 -mx-6 -mb-6 p-6">
-            <span className="text-xl font-bold font-headline">Total: RS.{totalPrice.toFixed(2)}</span>
-            <Button size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground font-bold">Add to Booking</Button>
-        </CardFooter>
-      )}
     </Card>
   );
 }

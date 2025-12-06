@@ -8,16 +8,53 @@ import { SportSelector } from "./sport-selector";
 import { VenueGrid } from "./venue-grid";
 import { Separator } from "../ui/separator";
 import { BookingFlow } from "./booking-flow";
+import { BookingSummary } from "./booking-summary";
+import type { BookingItem, Slot } from "@/lib/types";
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
+import { collection, query, where } from "firebase/firestore";
 
-export function Dashboard() {
+interface DashboardProps {
+    selectedDate: Date;
+    onDateChange: (date: Date) => void;
+    selectedSlots: string[];
+    onSlotsChange: (slots: string[]) => void;
+    bookingAddons: BookingItem[];
+    onAddonsChange: (addons: BookingItem[]) => void;
+}
+
+export function Dashboard({
+    selectedDate,
+    onDateChange,
+    selectedSlots,
+    onSlotsChange,
+    bookingAddons,
+    onAddonsChange
+}: DashboardProps) {
+
+  const firestore = useFirestore();
+  const slotsQuery = useMemoFirebase(() => {
+    if (!firestore || selectedSlots.length === 0) return null;
+    return query(collection(firestore, 'slots'), where('__name__', 'in', selectedSlots));
+  }, [firestore, selectedSlots]);
+
+  const { data: slotDetails } = useCollection<Slot>(slotsQuery);
+
   return (
     <div className="flex flex-col gap-8">
         <SportSelector />
         <Separator />
-        <BookingFlow />
+        <BookingFlow 
+            selectedDate={selectedDate}
+            onDateChange={onDateChange}
+            selectedSlots={selectedSlots}
+            onSlotsChange={onSlotsChange}
+        />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-8">
-                 <AddonsBooking />
+                 <AddonsBooking 
+                    bookingAddons={bookingAddons}
+                    onAddonsChange={onAddonsChange}
+                 />
             </div>
             <div className="space-y-8">
                 <LoyaltyStatus />
@@ -26,7 +63,13 @@ export function Dashboard() {
         </div>
         <VenueGrid />
         <VenueInfo />
-
+        
+        {(selectedSlots.length > 0 || bookingAddons.length > 0) && (
+            <BookingSummary 
+                slotDetails={slotDetails ?? []}
+                bookingAddons={bookingAddons}
+            />
+        )}
     </div>
   );
 }
