@@ -12,7 +12,7 @@ import { ShieldAlert, Save, CalendarPlus, Loader2 } from "lucide-react";
 import { useFirestore } from '@/firebase';
 import { writeBatch, doc, collection, Timestamp } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
-import { addDays, startOfDay } from 'date-fns';
+import { addDays, format, startOfDay } from 'date-fns';
 import { VenueManagement } from '@/components/admin/venue-management';
 
 
@@ -36,18 +36,20 @@ function SlotGenerator() {
             for (let i = 0; i < 30; i++) {
                 const day = addDays(today, i);
                 const firestoreDate = Timestamp.fromDate(day);
+                const dateString = format(day, 'yyyy-MM-dd');
 
                 for (let hour = 5; hour < 22; hour++) {
                     const startTime = `${hour.toString().padStart(2, '0')}:00`;
                     const endTime = `${(hour + 1).toString().padStart(2, '0')}:00`;
                     const isPeak = hour >= 17; // 5 PM onwards is peak
 
-                    const slotId = `${day.toISOString().split('T')[0]}_${hour}`;
+                    const slotId = `${dateString}_${hour}`;
                     const slotRef = doc(firestore, 'slots', slotId);
 
                     batch.set(slotRef, {
                         id: slotId,
                         date: firestoreDate,
+                        dateString: dateString,
                         startTime,
                         endTime,
                         isPeak,

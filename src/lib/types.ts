@@ -43,6 +43,7 @@ export type Slot = {
   isPeak: boolean;
   status: 'available' | 'booked';
   date: Timestamp;
+  dateString: string;
 };
 
 export type Venue = {

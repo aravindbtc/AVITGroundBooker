@@ -4,10 +4,10 @@ import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Clock, Zap, Sun, Moon, Sparkles, CheckCircle2 } from "lucide-react";
-import { format, startOfDay, endOfDay } from "date-fns";
+import { format } from "date-fns";
 import { cn } from '@/lib/utils';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, where, doc, Timestamp } from 'firebase/firestore';
+import { collection, query, where, doc } from 'firebase/firestore';
 import type { Slot } from '@/lib/types';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Skeleton } from '../ui/skeleton';
@@ -23,10 +23,9 @@ export function TimeSlotSelection({ selectedDate }: TimeSlotSelectionProps) {
     const slotsQuery = useMemoFirebase(() => {
         if (!firestore || !selectedDate) return null;
         
-        const start = Timestamp.fromDate(startOfDay(selectedDate));
-        const end = Timestamp.fromDate(endOfDay(selectedDate));
+        const dateString = format(selectedDate, 'yyyy-MM-dd');
+        return query(collection(firestore, 'slots'), where('dateString', '==', dateString));
 
-        return query(collection(firestore, 'slots'), where('date', '>=', start), where('date', '<=', end));
     }, [firestore, selectedDate]);
 
     const { data: timeSlots, isLoading } = useCollection<Slot>(slotsQuery);
