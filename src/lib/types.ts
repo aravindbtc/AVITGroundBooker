@@ -36,7 +36,7 @@ export type Manpower = {
   id: string;
   name: string;
   price: number;
-  quantity: number;
+  availability: boolean;
 };
 
 export type Slot = {

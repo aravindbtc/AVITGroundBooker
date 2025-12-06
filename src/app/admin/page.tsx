@@ -14,6 +14,8 @@ import { useToast } from "@/hooks/use-toast";
 import { addDays, format, startOfDay } from 'date-fns';
 import { VenueManagement } from '@/components/admin/venue-management';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 
 function SlotGenerator() {
@@ -127,15 +129,20 @@ function PriceStockManagement() {
         if (manpowerData) setManpower(manpowerData);
     }, [manpowerData]);
 
-    const handleUpdate = (type: 'addon' | 'manpower', id: string, field: 'price' | 'quantity', value: string) => {
+    const handleAddonUpdate = (id: string, field: 'price' | 'quantity', value: string) => {
         const numValue = parseInt(value, 10);
-        if (isNaN(numValue)) return;
+        if (isNaN(numValue) || numValue < 0) return;
+        setAddons(current => current.map(a => a.id === id ? { ...a, [field]: numValue } : a));
+    };
 
-        if (type === 'addon') {
-            setAddons(current => current.map(a => a.id === id ? { ...a, [field]: numValue } : a));
-        } else {
-            setManpower(current => current.map(m => m.id === id ? { ...m, [field]: numValue } : m));
-        }
+    const handleManpowerPriceUpdate = (id: string, value: string) => {
+        const numValue = parseInt(value, 10);
+        if (isNaN(numValue) || numValue < 0) return;
+        setManpower(current => current.map(m => m.id === id ? { ...m, price: numValue } : m));
+    };
+
+    const handleManpowerAvailabilityUpdate = (id: string, checked: boolean) => {
+        setManpower(current => current.map(m => m.id === id ? { ...m, availability: checked } : m));
     };
     
     const handleSaveChanges = async () => {
@@ -153,7 +160,7 @@ function PriceStockManagement() {
 
             manpower.forEach(person => {
                 const docRef = doc(firestore, 'manpower', person.id);
-                batch.update(docRef, { price: person.price, quantity: person.quantity });
+                batch.update(docRef, { price: person.price, availability: person.availability });
             });
 
             await batch.commit();
@@ -209,7 +216,7 @@ function PriceStockManagement() {
                                 <Input
                                 type="number"
                                 value={addon.price}
-                                onChange={(e) => handleUpdate('addon', addon.id, 'price', e.target.value)}
+                                onChange={(e) => handleAddonUpdate(addon.id, 'price', e.target.value)}
                                 className="h-9 w-24"
                                 />
                             </TableCell>
@@ -217,7 +224,7 @@ function PriceStockManagement() {
                                 <Input
                                 type="number"
                                 value={addon.quantity}
-                                onChange={(e) => handleUpdate('addon', addon.id, 'quantity', e.target.value)}
+                                onChange={(e) => handleAddonUpdate(addon.id, 'quantity', e.target.value)}
                                 className="h-9 w-24"
                                 />
                             </TableCell>
@@ -232,7 +239,7 @@ function PriceStockManagement() {
                         <TableRow>
                             <TableHead>Service</TableHead>
                             <TableHead>Price (RS.)</TableHead>
-                            <TableHead>Available</TableHead>
+                            <TableHead>Availability</TableHead>
                         </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -245,17 +252,21 @@ function PriceStockManagement() {
                                 <Input
                                 type="number"
                                 value={person.price}
-                                onChange={(e) => handleUpdate('manpower', person.id, 'price', e.target.value)}
+                                onChange={(e) => handleManpowerPriceUpdate(person.id, e.target.value)}
                                 className="h-9 w-24"
                                 />
                             </TableCell>
                             <TableCell>
-                                <Input
-                                type="number"
-                                value={person.quantity}
-                                onChange={(e) => handleUpdate('manpower', person.id, 'quantity', e.target.value)}
-                                className="h-9 w-24"
-                                />
+                                <div className="flex items-center space-x-2">
+                                    <Switch
+                                        id={`availability-${person.id}`}
+                                        checked={person.availability}
+                                        onCheckedChange={(checked) => handleManpowerAvailabilityUpdate(person.id, checked)}
+                                    />
+                                    <Label htmlFor={`availability-${person.id}`} className={person.availability ? "text-green-600" : "text-red-600"}>
+                                        {person.availability ? "Available" : "Unavailable"}
+                                    </Label>
+                                </div>
                             </TableCell>
                             </TableRow>
                         ))}
@@ -278,12 +289,13 @@ function PriceStockManagement() {
 
 export default function AdminPage() {
   return (
-    <div className="space-y-8">
-        <h1 className="text-3xl font-bold font-headline">Admin Dashboard</h1>
-        <VenueManagement />
-        <SlotGenerator />
-        <PriceStockManagement />
+    <div className="container mx-auto px-4 py-8">
+      <div className="space-y-8">
+          <h1 className="text-3xl font-bold font-headline">Admin Dashboard</h1>
+          <VenueManagement />
+          <SlotGenerator />
+          <PriceStockManagement />
+      </div>
     </div>
   );
 }
-

@@ -9,7 +9,7 @@ import type { BookingItem, Slot, Venue, UserProfile } from "@/lib/types";
 import { Badge } from "../ui/badge";
 import { Ticket, Calendar, Clock, CreditCard, Loader2 } from "lucide-react";
 import { useDoc, useFirestore, useMemoFirebase, useUser } from "@/firebase";
-import { doc, writeBatch, collection, serverTimestamp, runTransaction } from "firebase/firestore";
+import { doc, writeBatch, collection, serverTimestamp, runTransaction, Timestamp } from "firebase/firestore";
 import { useState } from "react";
 import { format } from "date-fns";
 
@@ -79,8 +79,10 @@ export function BookingSummary({ slotDetails, bookingAddons, onBookingSuccess }:
 
                 // 2. Decrement stock for addons
                 bookingAddons.forEach(item => {
-                    const itemRef = doc(firestore, item.type === 'addon' ? 'accessories' : 'manpower', item.id);
-                    transaction.update(itemRef, { quantity: -item.quantity });
+                    if (item.type === 'addon') {
+                        const itemRef = doc(firestore, 'accessories', item.id);
+                        transaction.update(itemRef, { quantity: -item.quantity });
+                    }
                 });
 
                 // 3. Create the main booking document
@@ -95,8 +97,8 @@ export function BookingSummary({ slotDetails, bookingAddons, onBookingSuccess }:
                 });
 
                 // 4. Update user's loyalty points (1 point per RS. spent)
-                const userProfile = await transaction.get(userProfileRef);
-                const currentPoints = userProfile.data()?.loyaltyPoints ?? 0;
+                const userProfileDoc = await transaction.get(userProfileRef);
+                const currentPoints = userProfileDoc.data()?.loyaltyPoints ?? 0;
                 transaction.update(userProfileRef, { loyaltyPoints: currentPoints + total });
             });
 

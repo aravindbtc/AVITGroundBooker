@@ -7,7 +7,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Badge } from "@/components/ui/badge";
 import type { BookingItem, Addon, Manpower } from "@/lib/types";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
+import { collection, query, where } from "firebase/firestore";
 import { Skeleton } from "../ui/skeleton";
 import React from "react";
 
@@ -33,7 +33,10 @@ export function AddonsBooking({ bookingAddons, onAddonsChange }: AddonsBookingPr
   const accessoriesQuery = useMemoFirebase(() => firestore && collection(firestore, 'accessories'), [firestore]);
   const { data: accessoriesData, isLoading: accessoriesLoading } = useCollection<Addon>(accessoriesQuery);
   
-  const manpowerQuery = useMemoFirebase(() => firestore && collection(firestore, 'manpower'), [firestore]);
+  const manpowerQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'manpower'), where("availability", "==", true));
+  }, [firestore]);
   const { data: manpowerData, isLoading: manpowerLoading } = useCollection<Manpower>(manpowerQuery);
 
   const handleQuantityChange = (item: Addon | Manpower, delta: number) => {
@@ -49,7 +52,7 @@ export function AddonsBooking({ bookingAddons, onAddonsChange }: AddonsBookingPr
           return currentCart.filter(cartItem => cartItem.id !== item.id);
         }
       } else if (delta > 0) {
-        const type = 'price' in item ? 'addon' : 'manpower';
+        const type = 'quantity' in item ? 'addon' : 'manpower';
         return [...currentCart, { id: item.id, name: item.name, quantity: 1, price: item.price, type }];
       }
       return currentCart;
@@ -79,7 +82,7 @@ export function AddonsBooking({ bookingAddons, onAddonsChange }: AddonsBookingPr
 
       return items.map((item: Addon | Manpower) => {
           const quantity = getItemQuantity(item.id);
-          const stock = item.quantity;
+          const stock = 'quantity' in item ? item.quantity : 1;
           const isSoldOut = stock <= 0;
           const isMaxed = quantity >= stock;
           const Icon = iconMap[item.id] || ShieldCheck;
