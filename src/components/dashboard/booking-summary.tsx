@@ -5,11 +5,11 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import type { BookingItem, Slot, Venue } from "@/lib/types";
+import type { BookingItem, Slot, Venue, UserProfile } from "@/lib/types";
 import { Badge } from "../ui/badge";
 import { Ticket, Calendar, Clock, CreditCard, Loader2 } from "lucide-react";
 import { useDoc, useFirestore, useMemoFirebase, useUser } from "@/firebase";
-import { doc, writeBatch, collection, serverTimestamp } from "firebase/firestore";
+import { doc, writeBatch, collection, serverTimestamp, runTransaction } from "firebase/firestore";
 import { useState } from "react";
 import { format } from "date-fns";
 
@@ -67,27 +67,38 @@ export function BookingSummary({ slotDetails, bookingAddons, onBookingSuccess }:
         });
 
         try {
-            const batch = writeBatch(firestore);
+            await runTransaction(firestore, async (transaction) => {
+                const bookingRef = doc(collection(firestore, 'bookings'));
+                const userProfileRef = doc(firestore, "users", user.uid);
 
-            // 1. Mark slots as booked
-            slotDetails.forEach(slot => {
-                const slotRef = doc(firestore, 'slots', slot.id);
-                batch.update(slotRef, { status: 'booked', bookedById: user.uid });
-            });
+                // 1. Mark slots as booked
+                slotDetails.forEach(slot => {
+                    const slotRef = doc(firestore, 'slots', slot.id);
+                    transaction.update(slotRef, { status: 'booked', bookedById: user.uid });
+                });
 
-            // 2. Create the main booking document
-            const bookingRef = doc(collection(firestore, 'bookings'));
-            batch.set(bookingRef, {
-                id: bookingRef.id,
-                userId: user.uid,
-                bookingDate: serverTimestamp(), // Use server timestamp for creation date
-                total,
-                status: 'Confirmed',
-                slotIds: slotDetails.map(s => s.id),
-                addonIds: bookingAddons.map(a => ({ id: a.id, quantity: a.quantity })),
+                // 2. Decrement stock for addons
+                bookingAddons.forEach(item => {
+                    const itemRef = doc(firestore, item.type === 'addon' ? 'accessories' : 'manpower', item.id);
+                    transaction.update(itemRef, { quantity: -item.quantity });
+                });
+
+                // 3. Create the main booking document
+                transaction.set(bookingRef, {
+                    id: bookingRef.id,
+                    userId: user.uid,
+                    bookingDate: serverTimestamp(),
+                    total,
+                    status: 'Confirmed',
+                    slotIds: slotDetails.map(s => s.id),
+                    addons: bookingAddons.map(a => ({ id: a.id, name: a.name, quantity: a.quantity, price: a.price })),
+                });
+
+                // 4. Update user's loyalty points (1 point per RS. spent)
+                const userProfile = await transaction.get(userProfileRef);
+                const currentPoints = userProfile.data()?.loyaltyPoints ?? 0;
+                transaction.update(userProfileRef, { loyaltyPoints: currentPoints + total });
             });
-            
-            await batch.commit();
 
             toast({
                 title: "Booking Confirmed!",
@@ -99,12 +110,15 @@ export function BookingSummary({ slotDetails, bookingAddons, onBookingSuccess }:
             toast({
                 variant: 'destructive',
                 title: 'Booking Failed',
-                description: 'Could not complete the booking. Please try again.',
+                description: 'Could not complete the booking. One of the items may have become unavailable. Please try again.',
             });
         } finally {
             setIsBooking(false);
         }
     }
+
+    const firstSlotDate = slotDetails[0]?.date;
+    const dateDisplay = firstSlotDate ? format(firstSlotDate.toDate(), 'do MMMM yyyy') : 'No date selected';
 
 
     return (
@@ -141,7 +155,7 @@ export function BookingSummary({ slotDetails, bookingAddons, onBookingSuccess }:
                         <p className="text-2xl font-bold font-headline">Total: RS.{total.toFixed(2)}</p>
                         {slotDetails.length > 0 && (
                             <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                <Calendar className="h-3 w-3"/> {format(slotDetails[0].date.toDate(), 'do MMMM yyyy')}
+                                <Calendar className="h-3 w-3"/> {dateDisplay}
                                 <Clock className="h-3 w-3 ml-2"/> {slotDetails.length} hour(s) booked
                             </p>
                         )}

@@ -1,40 +1,42 @@
 
 import type { Timestamp } from 'firebase/firestore';
 
-export type User = {
-  name: string;
+export type UserProfile = {
+  id: string;
   email: string;
-  avatarUrl: string;
+  name: string;
   collegeId: string;
-  loyalty: {
-    points: number;
-    tier: 'Bronze' | 'Silver' | 'Gold';
-  };
+  role: 'user' | 'admin';
+  loyaltyPoints: number;
 };
 
 export type Booking = {
   id: string;
-  date: Timestamp;
-  startTime: string;
-  endTime: string;
+  userId: string;
+  bookingDate: Timestamp;
+  total: number;
   status: 'Confirmed' | 'Pending' | 'Cancelled';
-  qrCodeUrl: string;
+  slotIds: string[];
+  addons: {
+    id: string;
+    name: string;
+    quantity: number;
+    price: number;
+  }[];
 };
 
 export type Addon = {
   id: string;
   name: string;
   price: number;
-  stock: number;
-  icon: React.ComponentType<{ className?: string }>;
+  quantity: number;
 };
 
 export type Manpower = {
   id: string;
   name: string;
   price: number;
-  stock: number;
-  icon: React.ComponentType<{ className?: string }>;
+  quantity: number;
 };
 
 export type Slot = {
@@ -45,6 +47,7 @@ export type Slot = {
   status: 'available' | 'booked';
   date: Timestamp;
   dateString: string;
+  bookedById?: string;
 };
 
 export type Venue = {
@@ -69,5 +72,5 @@ export type BookingItem = {
     name: string;
     quantity: number;
     price: number;
-    type: 'slot' | 'addon';
+    type: 'slot' | 'addon' | 'manpower';
 }

@@ -1,21 +1,40 @@
 
 "use client";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { mockAddons, mockManpower } from "@/lib/data";
-import { ShoppingBasket, Minus, Plus, Users, ShieldCheck } from "lucide-react";
+import { ShoppingBasket, Minus, Plus, Users, ShieldCheck, Hammer, Orbit, ToyBrick, Shield, Award, Megaphone, User as UserIcon } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import type { BookingItem, Addon, Manpower } from "@/lib/types";
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
+import { collection } from "firebase/firestore";
+import { Skeleton } from "../ui/skeleton";
+import React from "react";
 
 interface AddonsBookingProps {
   bookingAddons: BookingItem[];
   onAddonsChange: (addons: BookingItem[]) => void;
 }
 
-export function AddonsBooking({ bookingAddons, onAddonsChange }: AddonsBookingProps) {
+const iconMap: { [key: string]: React.ComponentType<{ className?: string }> } = {
+    'bat': Hammer,
+    'ball': Orbit,
+    'stumps': ToyBrick,
+    'helmet': Shield,
+    'pads': Award,
+    'umpire': Megaphone,
+    'coach': UserIcon,
+};
 
-  const allItems: (Addon | Manpower)[] = [...mockAddons, ...mockManpower];
+
+export function AddonsBooking({ bookingAddons, onAddonsChange }: AddonsBookingProps) {
+  const firestore = useFirestore();
+
+  const accessoriesQuery = useMemoFirebase(() => firestore && collection(firestore, 'accessories'), [firestore]);
+  const { data: accessoriesData, isLoading: accessoriesLoading } = useCollection<Addon>(accessoriesQuery);
+  
+  const manpowerQuery = useMemoFirebase(() => firestore && collection(firestore, 'manpower'), [firestore]);
+  const { data: manpowerData, isLoading: manpowerLoading } = useCollection<Manpower>(manpowerQuery);
 
   const handleQuantityChange = (item: Addon | Manpower, delta: number) => {
     onAddonsChange(currentCart => {
@@ -30,7 +49,8 @@ export function AddonsBooking({ bookingAddons, onAddonsChange }: AddonsBookingPr
           return currentCart.filter(cartItem => cartItem.id !== item.id);
         }
       } else if (delta > 0) {
-        return [...currentCart, { id: item.id, name: item.name, quantity: 1, price: item.price, type: 'addon' }];
+        const type = 'price' in item ? 'addon' : 'manpower';
+        return [...currentCart, { id: item.id, name: item.name, quantity: 1, price: item.price, type }];
       }
       return currentCart;
     });
@@ -39,10 +59,50 @@ export function AddonsBooking({ bookingAddons, onAddonsChange }: AddonsBookingPr
   const getItemQuantity = (id: string) => {
     return bookingAddons.find(item => item.id === id)?.quantity || 0;
   };
-  
-  const totalPrice = bookingAddons.reduce((total, cartItem) => {
-    return total + (cartItem.price * cartItem.quantity);
-  }, 0);
+
+  const renderItems = (items: (Addon[] | Manpower[] | null | undefined), type: 'accessory' | 'manpower') => {
+      if (!items) {
+          return (
+             <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <Skeleton className="h-6 w-6 rounded-full" />
+                    <Skeleton className="h-4 w-24" />
+                </div>
+                <div className="flex items-center gap-2">
+                    <Skeleton className="h-7 w-20" />
+                    <Skeleton className="h-7 w-7" />
+                    <Skeleton className="h-7 w-7" />
+                </div>
+            </div>
+          )
+      }
+
+      return items.map((item: Addon | Manpower) => {
+          const quantity = getItemQuantity(item.id);
+          const stock = item.quantity;
+          const isSoldOut = stock <= 0;
+          const isMaxed = quantity >= stock;
+          const Icon = iconMap[item.id] || ShieldCheck;
+
+          return (
+              <div key={item.id} className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                      <Icon className="h-6 w-6 text-primary/80" />
+                      <span className="font-medium">{item.name}</span>
+                       {isSoldOut && <Badge variant="destructive" className="text-xs">
+                        {type === 'accessory' ? 'Sold Out' : 'Unavailable'}
+                        </Badge>}
+                  </div>
+                  <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold w-20 text-right">RS.{item.price}</span>
+                      <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleQuantityChange(item, -1)} disabled={quantity === 0}><Minus className="h-4 w-4" /></Button>
+                      <span className="w-5 text-center font-bold">{quantity}</span>
+                      <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleQuantityChange(item, 1)} disabled={isSoldOut || isMaxed}><Plus className="h-4 w-4" /></Button>
+                  </div>
+              </div>
+          )
+      });
+  }
 
   return (
     <Card className="shadow-lg rounded-xl">
@@ -62,27 +122,7 @@ export function AddonsBooking({ bookingAddons, onAddonsChange }: AddonsBookingPr
                 </div>
             </AccordionTrigger>
             <AccordionContent className="pt-4 space-y-4">
-                {mockAddons.map(addon => {
-                    const quantity = getItemQuantity(addon.id);
-                    const isSoldOut = addon.stock <= 0;
-                    const isMaxed = quantity >= addon.stock;
-
-                    return (
-                        <div key={addon.id} className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <addon.icon className="h-6 w-6 text-primary/80" />
-                                <span className="font-medium">{addon.name}</span>
-                                 {isSoldOut && <Badge variant="destructive" className="text-xs">Sold Out</Badge>}
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <span className="text-sm font-semibold w-20 text-right">RS.{addon.price}</span>
-                                <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleQuantityChange(addon, -1)} disabled={quantity === 0}><Minus className="h-4 w-4" /></Button>
-                                <span className="w-5 text-center font-bold">{quantity}</span>
-                                <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleQuantityChange(addon, 1)} disabled={isSoldOut || isMaxed}><Plus className="h-4 w-4" /></Button>
-                            </div>
-                        </div>
-                    )
-                })}
+                {renderItems(accessoriesData, 'accessory')}
             </AccordionContent>
           </AccordionItem>
           <AccordionItem value="manpower">
@@ -93,27 +133,7 @@ export function AddonsBooking({ bookingAddons, onAddonsChange }: AddonsBookingPr
                 </div>
             </AccordionTrigger>
             <AccordionContent className="pt-4 space-y-4">
-                {mockManpower.map(person => {
-                    const quantity = getItemQuantity(person.id);
-                    const isSoldOut = person.stock <= 0;
-                    const isMaxed = quantity >= person.stock;
-
-                    return (
-                        <div key={person.id} className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <person.icon className="h-6 w-6 text-primary/80" />
-                                <span className="font-medium">{person.name}</span>
-                                {isSoldOut && <Badge variant="destructive" className="text-xs">Unavailable</Badge>}
-                            </div>
-                             <div className="flex items-center gap-2">
-                                <span className="text-sm font-semibold w-20 text-right">RS.{person.price}</span>
-                                <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleQuantityChange(person, -1)} disabled={quantity === 0}><Minus className="h-4 w-4" /></Button>
-                                <span className="w-5 text-center font-bold">{quantity}</span>
-                                <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleQuantityChange(person, 1)} disabled={isSoldOut || isMaxed}><Plus className="h-4 w-4" /></Button>
-                            </div>
-                        </div>
-                    )
-                })}
+                {renderItems(manpowerData, 'manpower')}
             </AccordionContent>
           </AccordionItem>
         </Accordion>

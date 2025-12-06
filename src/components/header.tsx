@@ -1,7 +1,7 @@
 
 "use client"
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,9 +12,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { useUser } from "@/firebase";
-import { LogOut, User, Settings, LayoutGrid, CalendarDays, Gem, MapPin, Shield } from "lucide-react";
+import { useAuth, useUser } from "@/firebase";
+import { LogOut, User, LayoutGrid, CalendarDays, Gem, MapPin, Shield, LogIn } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { signOut } from "firebase/auth";
+import { useToast } from "@/hooks/use-toast";
 
 
 const CricketBallIcon = () => (
@@ -28,7 +30,11 @@ const CricketBallIcon = () => (
 
 export function Header() {
   const { user, isUserLoading } = useUser();
-  const userInitials = user?.displayName?.split(' ').map(n => n[0]).join('') || 'G';
+  const auth = useAuth();
+  const { toast } = useToast();
+  const router = useRouter();
+
+  const userInitials = user?.displayName?.split(' ').map(n => n[0]).join('').toUpperCase() || (user?.email ? user.email[0].toUpperCase() : 'G');
   const pathname = usePathname();
 
   const navLinks = [
@@ -36,6 +42,17 @@ export function Header() {
     { href: "/bookings", label: "My Bookings" },
     { href: "/profile", label: "Profile" },
   ]
+
+  const handleLogout = async () => {
+    try {
+        await signOut(auth);
+        toast({ title: "Logged out successfully." });
+        router.push('/login');
+    } catch (error) {
+        console.error("Error logging out:", error);
+        toast({ variant: 'destructive', title: "Logout Failed", description: "An error occurred while logging out." });
+    }
+  }
 
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur-sm">
@@ -68,52 +85,61 @@ export function Header() {
               <MapPin className="h-4 w-4 text-primary" />
               <span>Paiyanoor, Chennai</span>
             </div>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="secondary" className="relative h-10 w-10 rounded-full">
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={user?.photoURL || ''} alt={user?.displayName || 'Guest'} />
-                  <AvatarFallback>{userInitials}</AvatarFallback>
+            
+            {isUserLoading ? (
+                 <Avatar className="h-10 w-10">
+                    <AvatarFallback>?</AvatarFallback>
                 </Avatar>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="end">
-              <DropdownMenuLabel className="font-normal">
-                <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">{isUserLoading ? 'Loading...' : user?.displayName || 'Guest User'}</p>
-                  <p className="text-xs leading-none text-muted-foreground">
-                    {user?.email}
-                  </p>
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-               <DropdownMenuItem asChild>
-                 <Link href="/"><LayoutGrid className="mr-2 h-4 w-4" /><span>Dashboard</span></Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                 <Link href="/bookings"><CalendarDays className="mr-2 h-4 w-4" /><span>My Bookings</span></Link>
-              </DropdownMenuItem>
-               <DropdownMenuItem asChild>
-                 <Link href="/profile"><User className="mr-2 h-4 w-4" /><span>Profile</span></Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                 <Link href="/loyalty"><Gem className="mr-2 h-4 w-4" /><span>Loyalty</span></Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                 <Link href="/admin"><Shield className="mr-2 h-4 w-4" /><span>Admin</span></Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Log out</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-           <Button className="hidden sm:inline-flex bg-accent hover:bg-accent/90 text-accent-foreground font-bold">
-                Login
-            </Button>
+            ) : user ? (
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                    <Button variant="secondary" className="relative h-10 w-10 rounded-full">
+                        <Avatar className="h-10 w-10">
+                        <AvatarImage src={user?.photoURL || ''} alt={user?.displayName || 'User'} />
+                        <AvatarFallback>{userInitials}</AvatarFallback>
+                        </Avatar>
+                    </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-56" align="end">
+                    <DropdownMenuLabel className="font-normal">
+                        <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium leading-none">{user?.displayName || 'User'}</p>
+                        <p className="text-xs leading-none text-muted-foreground">
+                            {user?.email}
+                        </p>
+                        </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                        <Link href="/"><LayoutGrid className="mr-2 h-4 w-4" /><span>Dashboard</span></Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                        <Link href="/bookings"><CalendarDays className="mr-2 h-4 w-4" /><span>My Bookings</span></Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                        <Link href="/profile"><User className="mr-2 h-4 w-4" /><span>Profile</span></Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                        <Link href="/loyalty"><Gem className="mr-2 h-4 w-4" /><span>Loyalty</span></Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                        <Link href="/admin"><Shield className="mr-2 h-4 w-4" /><span>Admin</span></Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout}>
+                        <LogOut className="mr-2 h-4 w-4" />
+                        <span>Log out</span>
+                    </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+             ) : (
+                <Button asChild>
+                    <Link href="/login">
+                        <LogIn className="mr-2 h-4 w-4"/>
+                        Login
+                    </Link>
+                </Button>
+             )}
         </div>
       </div>
     </header>

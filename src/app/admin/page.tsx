@@ -1,19 +1,19 @@
 
 "use client"
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { mockAddons, mockManpower } from '@/lib/data';
 import type { Addon, Manpower } from '@/lib/types';
 import { ShieldAlert, Save, CalendarPlus, Loader2 } from "lucide-react";
-import { useFirestore } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { writeBatch, doc, collection, Timestamp } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
 import { addDays, format, startOfDay } from 'date-fns';
 import { VenueManagement } from '@/components/admin/venue-management';
+import { Skeleton } from '@/components/ui/skeleton';
 
 
 function SlotGenerator() {
@@ -49,7 +49,7 @@ function SlotGenerator() {
                     batch.set(slotRef, {
                         id: slotId,
                         date: firestoreDate,
-                        dateString: dateString, // This was the missing field
+                        dateString: dateString,
                         startTime,
                         endTime,
                         isPeak,
@@ -105,30 +105,71 @@ function SlotGenerator() {
     );
 }
 
+function PriceStockManagement() {
+    const firestore = useFirestore();
+    const { toast } = useToast();
 
-export default function AdminPage() {
-  const [addons, setAddons] = useState<Addon[]>(mockAddons);
-  const [manpower, setManpower] = useState<Manpower[]>(mockManpower);
+    const accessoriesQuery = useMemoFirebase(() => firestore && collection(firestore, 'accessories'), [firestore]);
+    const { data: accessoriesData, isLoading: accessoriesLoading } = useCollection<Addon>(accessoriesQuery);
+    
+    const manpowerQuery = useMemoFirebase(() => firestore && collection(firestore, 'manpower'), [firestore]);
+    const { data: manpowerData, isLoading: manpowerLoading } = useCollection<Manpower>(manpowerQuery);
 
-  const handleAddonUpdate = (id: string, field: 'price' | 'stock', value: string) => {
-    const numValue = parseInt(value, 10);
-    if (!isNaN(numValue)) {
-      setAddons(addons.map(a => a.id === id ? { ...a, [field]: numValue } : a));
-    }
-  };
+    const [addons, setAddons] = useState<Addon[]>([]);
+    const [manpower, setManpower] = useState<Manpower[]>([]);
+    const [isSaving, setIsSaving] = useState(false);
 
-  const handleManpowerUpdate = (id: string, field: 'price' | 'stock', value: string) => {
-    const numValue = parseInt(value, 10);
-    if (!isNaN(numValue)) {
-      setManpower(manpower.map(m => m.id === id ? { ...m, [field]: numValue } : m));
-    }
-  };
+    useEffect(() => {
+        if (accessoriesData) setAddons(accessoriesData);
+    }, [accessoriesData]);
 
-  return (
-    <div className="space-y-8">
-        <VenueManagement />
-        <SlotGenerator />
-        <Card className="w-full max-w-4xl mx-auto shadow-lg rounded-xl">
+    useEffect(() => {
+        if (manpowerData) setManpower(manpowerData);
+    }, [manpowerData]);
+
+    const handleUpdate = (type: 'addon' | 'manpower', id: string, field: 'price' | 'quantity', value: string) => {
+        const numValue = parseInt(value, 10);
+        if (isNaN(numValue)) return;
+
+        if (type === 'addon') {
+            setAddons(current => current.map(a => a.id === id ? { ...a, [field]: numValue } : a));
+        } else {
+            setManpower(current => current.map(m => m.id === id ? { ...m, [field]: numValue } : m));
+        }
+    };
+    
+    const handleSaveChanges = async () => {
+        if (!firestore) return;
+        setIsSaving(true);
+        toast({ title: "Saving changes..." });
+
+        try {
+            const batch = writeBatch(firestore);
+
+            addons.forEach(addon => {
+                const docRef = doc(firestore, 'accessories', addon.id);
+                batch.update(docRef, { price: addon.price, quantity: addon.quantity });
+            });
+
+            manpower.forEach(person => {
+                const docRef = doc(firestore, 'manpower', person.id);
+                batch.update(docRef, { price: person.price, quantity: person.quantity });
+            });
+
+            await batch.commit();
+            toast({ title: "Success!", description: "All changes have been saved." });
+        } catch (error) {
+            console.error("Error saving changes:", error);
+            toast({ variant: 'destructive', title: "Error", description: "Could not save changes." });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const isLoading = accessoriesLoading || manpowerLoading;
+
+    return (
+         <Card className="w-full max-w-4xl mx-auto shadow-lg rounded-xl">
             <CardHeader>
             <CardTitle className="flex items-center gap-2 font-headline">
                 <ShieldAlert className="h-6 w-6 text-primary" />
@@ -136,94 +177,113 @@ export default function AdminPage() {
             </CardTitle>
             </CardHeader>
             <CardContent>
-            <Tabs defaultValue="accessories">
-                <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="accessories">Accessories</TabsTrigger>
-                <TabsTrigger value="manpower">Manpower</TabsTrigger>
-                </TabsList>
-                <TabsContent value="accessories">
-                <Table>
-                    <TableHeader>
-                    <TableRow>
-                        <TableHead>Item</TableHead>
-                        <TableHead>Price (RS.)</TableHead>
-                        <TableHead>Stock</TableHead>
-                    </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                    {addons.map((addon) => (
-                        <TableRow key={addon.id}>
-                        <TableCell className="font-medium flex items-center gap-2">
-                            <addon.icon className="h-5 w-5 text-muted-foreground" />
-                            {addon.name}
-                        </TableCell>
-                        <TableCell>
-                            <Input
-                            type="number"
-                            defaultValue={addon.price}
-                            onChange={(e) => handleAddonUpdate(addon.id, 'price', e.target.value)}
-                            className="h-9 w-24"
-                            />
-                        </TableCell>
-                        <TableCell>
-                            <Input
-                            type="number"
-                            defaultValue={addon.stock}
-                            onChange={(e) => handleAddonUpdate(addon.id, 'stock', e.target.value)}
-                            className="h-9 w-24"
-                            />
-                        </TableCell>
+            {isLoading ? (
+                <div className="space-y-4">
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-20 w-full" />
+                    <Skeleton className="h-20 w-full" />
+                </div>
+            ) : (
+                <>
+                <Tabs defaultValue="accessories">
+                    <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="accessories">Accessories</TabsTrigger>
+                    <TabsTrigger value="manpower">Manpower</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="accessories">
+                    <Table>
+                        <TableHeader>
+                        <TableRow>
+                            <TableHead>Item</TableHead>
+                            <TableHead>Price (RS.)</TableHead>
+                            <TableHead>Stock</TableHead>
                         </TableRow>
-                    ))}
-                    </TableBody>
-                </Table>
-                </TabsContent>
-                <TabsContent value="manpower">
-                <Table>
-                    <TableHeader>
-                    <TableRow>
-                        <TableHead>Service</TableHead>
-                        <TableHead>Price (RS.)</TableHead>
-                        <TableHead>Available</TableHead>
-                    </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                    {manpower.map((person) => (
-                        <TableRow key={person.id}>
-                        <TableCell className="font-medium flex items-center gap-2">
-                            <person.icon className="h-5 w-5 text-muted-foreground" />
-                            {person.name}
-                        </TableCell>
-                        <TableCell>
-                            <Input
-                            type="number"
-                            defaultValue={person.price}
-                            onChange={(e) => handleManpowerUpdate(person.id, 'price', e.target.value)}
-                            className="h-9 w-24"
-                            />
-                        </TableCell>
-                        <TableCell>
-                            <Input
-                            type="number"
-                            defaultValue={person.stock}
-                            onChange={(e) => handleManpowerUpdate(person.id, 'stock', e.target.value)}
-                            className="h-9 w-24"
-                            />
-                        </TableCell>
+                        </TableHeader>
+                        <TableBody>
+                        {addons.map((addon) => (
+                            <TableRow key={addon.id}>
+                            <TableCell className="font-medium flex items-center gap-2">
+                                {addon.name}
+                            </TableCell>
+                            <TableCell>
+                                <Input
+                                type="number"
+                                value={addon.price}
+                                onChange={(e) => handleUpdate('addon', addon.id, 'price', e.target.value)}
+                                className="h-9 w-24"
+                                />
+                            </TableCell>
+                            <TableCell>
+                                <Input
+                                type="number"
+                                value={addon.quantity}
+                                onChange={(e) => handleUpdate('addon', addon.id, 'quantity', e.target.value)}
+                                className="h-9 w-24"
+                                />
+                            </TableCell>
+                            </TableRow>
+                        ))}
+                        </TableBody>
+                    </Table>
+                    </TabsContent>
+                    <TabsContent value="manpower">
+                    <Table>
+                        <TableHeader>
+                        <TableRow>
+                            <TableHead>Service</TableHead>
+                            <TableHead>Price (RS.)</TableHead>
+                            <TableHead>Available</TableHead>
                         </TableRow>
-                    ))}
-                    </TableBody>
-                </Table>
-                </TabsContent>
-            </Tabs>
-            <div className="flex justify-end mt-6">
-                <Button>
-                <Save className="mr-2 h-4 w-4" />
-                Save All Changes
-                </Button>
-            </div>
+                        </TableHeader>
+                        <TableBody>
+                        {manpower.map((person) => (
+                            <TableRow key={person.id}>
+                            <TableCell className="font-medium flex items-center gap-2">
+                                {person.name}
+                            </TableCell>
+                            <TableCell>
+                                <Input
+                                type="number"
+                                value={person.price}
+                                onChange={(e) => handleUpdate('manpower', person.id, 'price', e.target.value)}
+                                className="h-9 w-24"
+                                />
+                            </TableCell>
+                            <TableCell>
+                                <Input
+                                type="number"
+                                value={person.quantity}
+                                onChange={(e) => handleUpdate('manpower', person.id, 'quantity', e.target.value)}
+                                className="h-9 w-24"
+                                />
+                            </TableCell>
+                            </TableRow>
+                        ))}
+                        </TableBody>
+                    </Table>
+                    </TabsContent>
+                </Tabs>
+                <div className="flex justify-end mt-6">
+                    <Button onClick={handleSaveChanges} disabled={isSaving}>
+                        {isSaving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : <><Save className="mr-2 h-4 w-4" /> Save All Changes</>}
+                    </Button>
+                </div>
+                </>
+            )}
             </CardContent>
         </Card>
+    );
+}
+
+
+export default function AdminPage() {
+  return (
+    <div className="space-y-8">
+        <h1 className="text-3xl font-bold font-headline">Admin Dashboard</h1>
+        <VenueManagement />
+        <SlotGenerator />
+        <PriceStockManagement />
     </div>
   );
 }
+
