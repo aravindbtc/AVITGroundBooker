@@ -1,7 +1,6 @@
 
 "use client";
-import { useState, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Clock, Zap, Sun, Moon, Sparkles, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
@@ -11,6 +10,7 @@ import { collection, query, where, doc } from 'firebase/firestore';
 import type { Slot } from '@/lib/types';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Skeleton } from '../ui/skeleton';
+import { Card, CardFooter } from '../ui/card';
 
 type TimeSlotSelectionProps = {
     selectedDate: Date;
@@ -23,6 +23,7 @@ export function TimeSlotSelection({ selectedDate }: TimeSlotSelectionProps) {
     const slotsQuery = useMemoFirebase(() => {
         if (!firestore || !selectedDate) return null;
         
+        // **FIX:** Format the date to a string to match the 'dateString' field in Firestore.
         const dateString = format(selectedDate, 'yyyy-MM-dd');
         return query(collection(firestore, 'slots'), where('dateString', '==', dateString));
 
@@ -49,10 +50,10 @@ export function TimeSlotSelection({ selectedDate }: TimeSlotSelectionProps) {
         setSelectedSlots([]);
     };
 
-
-    const morningSlots = timeSlots?.filter(s => parseInt(s.startTime) < 12).sort((a,b) => a.startTime.localeCompare(b.startTime));
-    const afternoonSlots = timeSlots?.filter(s => parseInt(s.startTime) >= 12 && parseInt(s.startTime) < 17).sort((a,b) => a.startTime.localeCompare(b.startTime));
-    const eveningSlots = timeSlots?.filter(s => parseInt(s.startTime) >= 17).sort((a,b) => a.startTime.localeCompare(b.startTime));
+    const sortedSlots = timeSlots?.sort((a,b) => a.startTime.localeCompare(b.startTime));
+    const morningSlots = sortedSlots?.filter(s => parseInt(s.startTime) < 12);
+    const afternoonSlots = sortedSlots?.filter(s => parseInt(s.startTime) >= 12 && parseInt(s.startTime) < 17);
+    const eveningSlots = sortedSlots?.filter(s => parseInt(s.startTime) >= 17);
     
     const totalHours = selectedSlots.length;
     // TODO: Get price from venue data
@@ -64,11 +65,8 @@ export function TimeSlotSelection({ selectedDate }: TimeSlotSelectionProps) {
     }, 0);
 
     const renderSlotButtons = (slots: Slot[] | undefined) => {
-        if (isLoading) {
-            return Array.from({length: 4}).map((_, i) => <Skeleton key={i} className="h-12 w-full" />);
-        }
         if (!slots || slots.length === 0) {
-            return <p className="col-span-full text-muted-foreground text-sm p-4 text-center">No slots available for this period.</p>
+             return <p className="col-span-full text-muted-foreground text-sm p-4 text-center">No slots available for this period.</p>
         }
         return slots.map(slot => (
             <Button
@@ -86,6 +84,31 @@ export function TimeSlotSelection({ selectedDate }: TimeSlotSelectionProps) {
                 {slot.startTime}
             </Button>
         ));
+    }
+
+    if (isLoading) {
+        return (
+            <div className="space-y-6">
+                 <div className="space-y-3">
+                    <h3 className="font-semibold text-lg flex items-center gap-2"><Sun className="text-amber-500" /> Morning</h3>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+                        {Array.from({length: 4}).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+                    </div>
+                </div>
+                 <div className="space-y-3">
+                    <h3 className="font-semibold text-lg flex items-center gap-2"><Sparkles className="text-sky-500" /> Afternoon</h3>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+                        {Array.from({length: 4}).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+                    </div>
+                </div>
+                 <div className="space-y-3">
+                    <h3 className="font-semibold text-lg flex items-center gap-2"><Moon className="text-indigo-500" /> Evening</h3>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+                        {Array.from({length: 4}).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+                    </div>
+                </div>
+            </div>
+        );
     }
 
     return (
