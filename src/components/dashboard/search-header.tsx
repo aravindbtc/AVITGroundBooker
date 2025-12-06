@@ -8,7 +8,11 @@ import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { useState } from "react";
 import { format } from "date-fns";
 
-export function SearchHeader() {
+type SearchHeaderProps = {
+  onFindAvailability: (date: Date | undefined) => void;
+};
+
+export function SearchHeader({ onFindAvailability }: SearchHeaderProps) {
     const [date, setDate] = useState<Date | undefined>(new Date());
 
     return (
@@ -51,7 +55,7 @@ export function SearchHeader() {
                             </PopoverContent>
                         </Popover>
 
-                        <Button size="lg" className="h-12 rounded-full font-bold text-lg bg-primary hover:bg-primary/90">
+                        <Button size="lg" className="h-12 rounded-full font-bold text-lg bg-primary hover:bg-primary/90" onClick={() => onFindAvailability(date)}>
                             <Search className="mr-2 h-5 w-5" />
                             Find Availability
                         </Button>
