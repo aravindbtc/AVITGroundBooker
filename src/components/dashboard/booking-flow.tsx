@@ -6,14 +6,23 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { TimeSlotSelection } from "./time-slot-selection";
-import { addDays, format } from 'date-fns';
+import { addDays, format, isValid } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Calendar as CalendarIcon, CalendarDays } from 'lucide-react';
 
 export function BookingFlow() {
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>();
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  
   const today = new Date();
   const nextMonth = addDays(new Date(), 30);
+
+  const handleDateSelect = (date: Date | undefined) => {
+    if (date && isValid(date)) {
+        setSelectedDate(date);
+        setIsCalendarOpen(false); // Close calendar on date select
+    }
+  };
 
   return (
     <Card className="shadow-lg rounded-xl w-full">
@@ -23,7 +32,7 @@ export function BookingFlow() {
                 Book Your Slot
             </CardTitle>
              <div className="pt-4">
-                <Popover>
+                <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                     <PopoverTrigger asChild>
                         <Button
                             variant={"outline"}
@@ -40,7 +49,7 @@ export function BookingFlow() {
                         <Calendar
                             mode="single"
                             selected={selectedDate}
-                            onSelect={(date) => date && setSelectedDate(date)}
+                            onSelect={handleDateSelect}
                             initialFocus
                             fromDate={today}
                             toDate={nextMonth}
