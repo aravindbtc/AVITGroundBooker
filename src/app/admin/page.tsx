@@ -49,7 +49,7 @@ function SlotGenerator() {
                     batch.set(slotRef, {
                         id: slotId,
                         date: firestoreDate,
-                        dateString: dateString,
+                        dateString: dateString, // This was the missing field
                         startTime,
                         endTime,
                         isPeak,

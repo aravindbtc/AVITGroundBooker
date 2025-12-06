@@ -3,41 +3,17 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { TimeSlotSelection } from "./time-slot-selection";
 import { addDays, format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { CalendarDays } from 'lucide-react';
-
-function DateScroller({ selectedDate, onDateSelect }: { selectedDate: Date, onDateSelect: (date: Date) => void }) {
-    const dates = Array.from({ length: 7 }).map((_, i) => addDays(new Date(), i));
-
-    return (
-        <div className="flex items-center space-x-2 overflow-x-auto pb-2 -mx-1 px-1">
-            {dates.map(date => {
-                const isSelected = selectedDate.toDateString() === date.toDateString();
-                return (
-                    <Button 
-                        key={date.toString()} 
-                        variant={isSelected ? "default" : "outline"}
-                        className={cn(
-                            "flex flex-col h-auto p-3 rounded-lg border-2 shrink-0 w-20 transition-all duration-200",
-                            isSelected && "bg-primary text-primary-foreground border-primary"
-                        )}
-                        onClick={() => onDateSelect(date)}
-                    >
-                        <span className="text-sm font-semibold">{format(date, 'E')}</span>
-                        <span className="text-2xl font-bold">{format(date, 'd')}</span>
-                        <span className="text-xs">{format(date, 'MMM')}</span>
-                    </Button>
-                )
-            })}
-        </div>
-    )
-}
-
+import { Calendar as CalendarIcon, CalendarDays } from 'lucide-react';
 
 export function BookingFlow() {
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const today = new Date();
+  const nextMonth = addDays(new Date(), 30);
 
   return (
     <Card className="shadow-lg rounded-xl w-full">
@@ -46,8 +22,32 @@ export function BookingFlow() {
                 <CalendarDays className="h-6 w-6 text-primary" />
                 Book Your Slot
             </CardTitle>
-            <div className="pt-4">
-                 <DateScroller selectedDate={selectedDate} onDateSelect={setSelectedDate} />
+             <div className="pt-4">
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button
+                            variant={"outline"}
+                            className={cn(
+                                "w-[280px] justify-start text-left font-normal",
+                                !selectedDate && "text-muted-foreground"
+                            )}
+                        >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                        <Calendar
+                            mode="single"
+                            selected={selectedDate}
+                            onSelect={(date) => date && setSelectedDate(date)}
+                            initialFocus
+                            fromDate={today}
+                            toDate={nextMonth}
+                            disabled={{ before: today }}
+                        />
+                    </PopoverContent>
+                </Popover>
             </div>
         </CardHeader>
         <CardContent>
