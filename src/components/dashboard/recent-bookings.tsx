@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -6,7 +7,7 @@ import { format } from "date-fns";
 import { CalendarDays } from "lucide-react";
 
 export function RecentBookings() {
-  const hasBookings = mockBookings.length > 0;
+  const hasBookings = false; // Always false for now, will be replaced with real data
 
   return (
     <Card>
@@ -15,7 +16,7 @@ export function RecentBookings() {
             <CalendarDays />
             Recent Bookings
         </CardTitle>
-        <CardDescription>Your past 3 bookings.</CardDescription>
+        <CardDescription>Your upcoming and past bookings.</CardDescription>
       </CardHeader>
       <CardContent>
         {hasBookings ? (

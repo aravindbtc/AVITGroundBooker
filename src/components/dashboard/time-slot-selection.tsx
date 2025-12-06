@@ -56,6 +56,7 @@ export function TimeSlotSelection({ selectedDate }: TimeSlotSelectionProps) {
     const eveningSlots = timeSlots?.filter(s => parseInt(s.startTime) >= 17).sort((a,b) => a.startTime.localeCompare(b.startTime));
     
     const totalHours = selectedSlots.length;
+    // TODO: Get price from venue data
     const pricePerHour = 500;
     const peakHourSurcharge = 150;
     const totalPrice = selectedSlots.reduce((total, slotId) => {
@@ -76,9 +77,9 @@ export function TimeSlotSelection({ selectedDate }: TimeSlotSelectionProps) {
                 variant={selectedSlots.includes(slot.id) ? "default" : "outline"}
                 disabled={slot.status === 'booked'}
                 onClick={() => handleSlotClick(slot.id, slot.status === 'booked')}
-                className={cn("relative h-12 text-xs md:text-sm", 
-                    { 'ring-2 ring-primary': selectedSlots.includes(slot.id),
-                      'bg-muted hover:bg-muted text-muted-foreground cursor-not-allowed': slot.status === 'booked'
+                className={cn("relative h-12 text-xs md:text-sm transition-all duration-200", 
+                    { 'ring-2 ring-primary ring-offset-2': selectedSlots.includes(slot.id),
+                      'bg-muted hover:bg-muted text-muted-foreground/60 cursor-not-allowed line-through': slot.status === 'booked'
                     }
                 )}
             >
@@ -89,19 +90,15 @@ export function TimeSlotSelection({ selectedDate }: TimeSlotSelectionProps) {
     }
 
     return (
-        <Card className="shadow-lg rounded-xl w-full">
-            <CardHeader>
-                <CardTitle className="font-headline flex items-center gap-3">
-                    <Clock className="h-6 w-6 text-primary" />
-                    Select Time Slots for {format(selectedDate, "PPP")}
-                </CardTitle>
-                 <div className="flex items-center gap-4 text-sm text-muted-foreground pt-2">
-                    <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-card border border-primary"></div><span>Available</span></div>
-                    <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-muted"></div><span>Booked</span></div>
-                    <div className="flex items-center gap-2"><Zap className="h-4 w-4 text-accent" /><span>Peak Hour (+RS.150)</span></div>
+        <>
+            <div className="space-y-6">
+                <div className="flex items-center gap-4 text-sm text-muted-foreground pt-2">
+                    <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm bg-card border-2 border-primary"></div><span>Available</span></div>
+                    <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm bg-primary"></div><span>Selected</span></div>
+                    <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm bg-muted line-through"></div><span>Booked</span></div>
+                    <div className="flex items-center gap-2"><Zap className="h-4 w-4 text-accent fill-accent" /><span>Peak Hour (+RS.150)</span></div>
                 </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
+
                 <div className="space-y-3">
                     <h3 className="font-semibold text-lg flex items-center gap-2"><Sun className="text-amber-500" /> Morning</h3>
                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
@@ -120,20 +117,22 @@ export function TimeSlotSelection({ selectedDate }: TimeSlotSelectionProps) {
                         {renderSlotButtons(eveningSlots)}
                     </div>
                 </div>
-            </CardContent>
+            </div>
 
              {totalPrice > 0 && (
-                <CardFooter className="flex flex-col sm:flex-row items-center justify-between mt-4 bg-slate-50 -mx-6 -mb-6 p-6 gap-4">
-                    <div>
-                        <span className="text-xl font-bold font-headline">Total: RS.{totalPrice.toFixed(2)}</span>
-                        <p className="text-sm text-muted-foreground">For {totalHours} hour(s) of ground booking</p>
-                    </div>
-                    <Button size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground font-bold w-full sm:w-auto" onClick={handleConfirmSlots}>
-                        <CheckCircle2 className="mr-2 h-5 w-5" />
-                        Confirm Slots
-                    </Button>
-                </CardFooter>
+                <div className="mt-6 sticky bottom-0">
+                    <CardFooter className="flex flex-col sm:flex-row items-center justify-between mt-4 bg-slate-100/80 dark:bg-slate-900/80 backdrop-blur-sm p-4 rounded-xl border shadow-lg gap-4">
+                        <div>
+                            <span className="text-xl font-bold font-headline">Total: RS.{totalPrice.toFixed(2)}</span>
+                            <p className="text-sm text-muted-foreground">For {totalHours} hour(s) of ground booking</p>
+                        </div>
+                        <Button size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground font-bold w-full sm:w-auto shadow-md" onClick={handleConfirmSlots}>
+                            <CheckCircle2 className="mr-2 h-5 w-5" />
+                            Confirm Slots
+                        </Button>
+                    </CardFooter>
+                </div>
             )}
-        </Card>
+        </>
     );
 }
