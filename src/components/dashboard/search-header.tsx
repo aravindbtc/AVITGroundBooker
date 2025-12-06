@@ -1,11 +1,13 @@
 
 "use client"
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
-import { Calendar } from "lucide-react";
+import { Calendar as CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
+import { cn } from '@/lib/utils';
 
 type SearchHeaderProps = {
   selectedDate: Date | undefined;
@@ -14,6 +16,18 @@ type SearchHeaderProps = {
 };
 
 export function SearchHeader({ selectedDate, onDateChange, onFindAvailability }: SearchHeaderProps) {
+    const [popoverOpen, setPopoverOpen] = useState(false);
+    const [provisionalDate, setProvisionalDate] = useState<Date | undefined>(selectedDate);
+
+    const handleOkay = () => {
+        onDateChange(provisionalDate);
+        setPopoverOpen(false);
+    };
+    
+    const handleCancel = () => {
+        setProvisionalDate(selectedDate);
+        setPopoverOpen(false);
+    };
 
     return (
         <div className="relative w-full h-80 rounded-2xl overflow-hidden bg-gradient-to-br from-green-100 via-purple-50 to-orange-100 p-8 flex flex-col justify-center items-start text-left">
@@ -37,21 +51,31 @@ export function SearchHeader({ selectedDate, onDateChange, onFindAvailability }:
                 <p className="mt-4 text-lg text-gray-600">Ready to start the game together? Book the AVIT ground with ease.</p>
                 <div className="mt-8 w-full max-w-md bg-white/80 p-3 rounded-full shadow-lg backdrop-blur-sm">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2 items-center">
-                        <Popover>
+                        <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
                             <PopoverTrigger asChild>
-                                <Button variant="outline" className="h-12 text-base rounded-full text-muted-foreground font-normal justify-start bg-white/50 border-gray-200 hover:bg-white">
-                                    <Calendar className="mr-2 h-5 w-5 text-primary" />
+                                <Button 
+                                    variant="outline" 
+                                    className={cn(
+                                        "h-12 text-base rounded-full font-normal justify-start bg-white/50 border-gray-200 hover:bg-white",
+                                        !selectedDate && "text-muted-foreground"
+                                    )}
+                                >
+                                    <CalendarIcon className="mr-2 h-5 w-5 text-primary" />
                                     <span>{selectedDate ? format(selectedDate, "PPP") : "Select date"}</span>
                                 </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0" align="start">
                                 <CalendarPicker
                                     mode="single"
-                                    selected={selectedDate}
-                                    onSelect={onDateChange}
+                                    selected={provisionalDate}
+                                    onSelect={setProvisionalDate}
                                     disabled={(day) => day < new Date(new Date().toDateString())}
                                     initialFocus
                                 />
+                                <div className="flex justify-end gap-2 p-2 border-t">
+                                    <Button variant="ghost" size="sm" onClick={handleCancel}>Cancel</Button>
+                                    <Button size="sm" onClick={handleOkay}>Okay</Button>
+                                </div>
                             </PopoverContent>
                         </Popover>
 
