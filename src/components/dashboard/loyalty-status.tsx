@@ -45,7 +45,7 @@ export function LoyaltyStatus() {
                     <p className="text-sm opacity-80">{loyalty.points.toLocaleString()} Points</p>
                 </div>
             </div>
-            <p className="font-bold text-2xl">₹{loyalty.points}</p>
+            <p className="font-bold text-2xl">&#8377;{loyalty.points}</p>
         </div>
         <div>
             <Progress value={progress} className="h-3 [&>*]:bg-accent" />

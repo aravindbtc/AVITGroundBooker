@@ -47,7 +47,7 @@ export function VenueGrid() {
                         <span className="text-muted-foreground text-xs">(342 Reviews)</span>
                     </div>
                     <div className="text-right">
-                        <p className="font-semibold text-lg text-primary">₹500/hour</p>
+                        <p className="font-semibold text-lg text-primary">&#8377;500/hour</p>
                         <p className="text-xs text-muted-foreground">starts from</p>
                     </div>
                 </CardContent>
