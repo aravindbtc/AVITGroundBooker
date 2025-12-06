@@ -14,7 +14,7 @@
  * - Admin Role: A user is considered an admin if a corresponding document exists for them in the
  *   `/roles_admin/{userId}` collection. This role grants write access to managed data.
  * - User Data Privacy: Users can only read and write their own profile and booking data. Listing all
- *   users in the system is explicitly disabled to protect privacy.
+ *   users in the system is explicitly disabled to protect user privacy.
  * - Catalogue Management: Data like slots, accessories, and manpower are publicly readable to allow
  *   users to browse options, but can only be modified by administrators to maintain data integrity.
  * - Default Deny: All operations are denied by default. Access is only granted through explicit
@@ -65,6 +65,21 @@ service cloud.firestore {
     function isUserIdImmutable() {
       return request.resource.data.userId == resource.data.userId;
     }
+    
+    /**
+     * @description Publicly readable venue information, writable only by admins.
+     * @path /venue/{venueId}
+     * @allow (get) Anyone can read venue details.
+     * @allow (create/update/delete) Only admins can modify venue information.
+     */
+    match /venue/{venueId} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
 
     /**
      * @description Controls access to a user's private profile.

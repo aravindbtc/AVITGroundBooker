@@ -2,41 +2,18 @@ import type { User, Booking, Addon, Manpower } from '@/lib/types';
 import { Hammer, Orbit, Shield, Award, ToyBrick, Megaphone, User as UserIcon } from 'lucide-react';
 
 export const mockUser: User = {
-  name: 'Alex Johnson',
-  email: 'alex.j@avit.ac.in',
-  avatarUrl: 'https://i.pravatar.cc/150?u=a042581f4e29026704d',
-  collegeId: 'AVT12345',
+  name: 'Guest User',
+  email: 'guest@avit.ac.in',
+  avatarUrl: '',
+  collegeId: 'AVT00000',
   loyalty: {
-    points: 780,
-    tier: 'Gold',
+    points: 0,
+    tier: 'Bronze',
   },
 };
 
 export const mockBookings: Booking[] = [
-  {
-    id: 'BK001',
-    date: new Date(new Date().setDate(new Date().getDate() - 2)),
-    startTime: '16:00',
-    endTime: '18:00',
-    status: 'Confirmed',
-    qrCodeUrl: '/qr-code.svg',
-  },
-  {
-    id: 'BK002',
-    date: new Date(new Date().setDate(new Date().getDate() - 5)),
-    startTime: '17:00',
-    endTime: '18:00',
-    status: 'Confirmed',
-    qrCodeUrl: '/qr-code.svg',
-  },
-    {
-    id: 'BK003',
-    date: new Date(new Date().setDate(new Date().getDate() - 10)),
-    startTime: '07:00',
-    endTime: '09:00',
-    status: 'Confirmed',
-    qrCodeUrl: '/qr-code.svg',
-  },
+  // Mock data is removed to avoid confusion. Real data will be fetched from Firestore.
 ];
 
 export const mockAddons: Addon[] = [
@@ -49,7 +26,7 @@ export const mockAddons: Addon[] = [
 
 export const mockManpower: Manpower[] = [
     { id: 'umpire', name: 'Umpire', price: 300, stock: 2, icon: Megaphone },
-    { id: 'coach', name: 'Coach', price: 500, stock: 1, icon: UserIcon },
+    { id: 'coach', name: 'Coach', price: 500, stock: 2, icon: UserIcon },
 ];
 
 export const avit_details = {
@@ -63,4 +40,5 @@ export const avit_details = {
         info: "info@avit.ac.in",
     },
     rating: 4.5,
+    basePrice: 500
 };

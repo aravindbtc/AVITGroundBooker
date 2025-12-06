@@ -249,6 +249,54 @@
         "rating",
         "reviewDate"
       ]
+    },
+     "Venue": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Venue",
+      "type": "object",
+      "description": "Represents the cricket ground venue details.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the venue (e.g., 'avit-ground')."
+        },
+        "fullName": {
+          "type": "string",
+          "description": "Full name of the venue."
+        },
+        "address": {
+          "type": "string",
+          "description": "Physical address of the venue."
+        },
+        "gps": {
+          "type": "object",
+          "description": "GPS coordinates.",
+          "properties": {
+            "lat": { "type": "number" },
+            "lng": { "type": "number" }
+          },
+           "required": ["lat", "lng"]
+        },
+        "contact": {
+            "type": "object",
+            "description": "Contact details.",
+            "properties": {
+                "general": { "type": "string" },
+                "admissions": { "type": "string" },
+                "email": { "type": "string" }
+            },
+            "required": ["general", "email"]
+        },
+        "rating": {
+            "type": "number",
+            "description": "Average user rating (1-5)."
+        },
+        "basePrice": {
+            "type": "number",
+            "description": "Base price per hour for booking."
+        }
+      },
+      "required": ["id", "fullName", "address", "gps", "contact", "basePrice"]
     }
   },
   "auth": {
@@ -259,6 +307,22 @@
   },
   "firestore": {
     "structure": [
+        {
+        "path": "/venue/{venueId}",
+        "definition": {
+          "entityName": "Venue",
+          "schema": {
+            "$ref": "#/backend/entities/Venue"
+          },
+          "description": "Stores venue-specific information. As there's only one ground, this will likely be a single document, but is structured for future scalability.",
+          "params": [
+            {
+              "name": "venueId",
+              "description": "The unique identifier of the venue (e.g. 'avit-ground')."
+            }
+          ]
+        }
+      },
       {
         "path": "/users/{userId}",
         "definition": {

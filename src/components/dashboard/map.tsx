@@ -1,10 +1,12 @@
 "use client";
 
 import { APIProvider, Map as GoogleMap, AdvancedMarker, Pin } from "@vis.gl/react-google-maps";
-import { avit_details } from "@/lib/data";
 
-export function Map() {
-    const position = avit_details.gps;
+type MapProps = {
+    position: { lat: number, lng: number }
+};
+
+export function Map({ position }: MapProps) {
     // IMPORTANT: You need to create a .env.local file in the root of your project
     // and add your Google Maps API key like this:
     // NEXT_PUBLIC_GOOGLE_MAPS_API_KEY="YOUR_API_KEY"
@@ -23,6 +25,7 @@ export function Map() {
             <div className="h-full w-full">
                 <GoogleMap
                     defaultCenter={position}
+                    center={position}
                     defaultZoom={15}
                     mapId="avit-cricket-map"
                     className="rounded-lg"

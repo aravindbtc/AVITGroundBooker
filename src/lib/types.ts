@@ -44,3 +44,20 @@ export type Slot = {
   status: 'available' | 'booked';
   date: Timestamp;
 };
+
+export type Venue = {
+    id: string;
+    fullName: string;
+    address: string;
+    gps: {
+        lat: number;
+        lng: number;
+    };
+    contact: {
+        general: string;
+        admissions: string;
+        email: string;
+    };
+    rating: number;
+    basePrice: number;
+}

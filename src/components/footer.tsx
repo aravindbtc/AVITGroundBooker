@@ -1,5 +1,9 @@
-import { avit_details } from '@/lib/data';
+"use client"
 import Link from 'next/link';
+import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { doc } from 'firebase/firestore';
+import type { Venue } from '@/lib/types';
+import { Skeleton } from './ui/skeleton';
 
 const CricketBallIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
@@ -11,6 +15,10 @@ const CricketBallIcon = () => (
 )
 
 export function Footer() {
+  const firestore = useFirestore();
+  const venueRef = useMemoFirebase(() => firestore && doc(firestore, 'venue', 'avit-ground'), [firestore]);
+  const { data: venue, isLoading } = useDoc<Venue>(venueRef);
+
   return (
     <footer className="border-t bg-card text-card-foreground mt-12">
       <div className="container mx-auto px-4 py-8 md:px-6">
@@ -22,16 +30,26 @@ export function Footer() {
                 </div>
                 <span className="font-headline text-xl font-bold">AVIT Cricket Booker</span>
             </div>
-            <p className="text-sm text-muted-foreground">{avit_details.address}</p>
+            {isLoading ? <Skeleton className="h-10 w-full" /> : <p className="text-sm text-muted-foreground">{venue?.address}</p>}
           </div>
           <div className="grid grid-cols-2 gap-8 text-sm md:col-span-2 md:grid-cols-3">
             <div>
               <h3 className="mb-2 font-semibold">Contact</h3>
-              <ul className="space-y-2 text-muted-foreground">
-                <li>General: {avit_details.contact.general}</li>
-                <li>Support: {avit_details.contact.admissions}</li>
-                <li>Email: <a href={`mailto:${avit_details.contact.email}`} className="hover:text-primary">{avit_details.contact.email}</a></li>
-              </ul>
+              {isLoading ? (
+                <ul className="space-y-2">
+                    <li><Skeleton className="h-4 w-32" /></li>
+                    <li><Skeleton className="h-4 w-32" /></li>
+                    <li><Skeleton className="h-4 w-40" /></li>
+                </ul>
+              ) : venue ? (
+                <ul className="space-y-2 text-muted-foreground">
+                    <li>General: {venue.contact.general}</li>
+                    <li>Support: {venue.contact.admissions}</li>
+                    <li>Email: <a href={`mailto:${venue.contact.email}`} className="hover:text-primary">{venue.contact.email}</a></li>
+                </ul>
+              ) : (
+                <p className="text-sm text-muted-foreground">Contact info not available.</p>
+              )}
             </div>
             <div>
               <h3 className="mb-2 font-semibold">Quick Links</h3>

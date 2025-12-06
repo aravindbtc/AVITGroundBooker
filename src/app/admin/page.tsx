@@ -13,6 +13,7 @@ import { useFirestore } from '@/firebase';
 import { writeBatch, doc, collection, Timestamp } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
 import { addDays, startOfDay } from 'date-fns';
+import { VenueManagement } from '@/components/admin/venue-management';
 
 
 function SlotGenerator() {
@@ -45,6 +46,7 @@ function SlotGenerator() {
                     const slotRef = doc(firestore, 'slots', slotId);
 
                     batch.set(slotRef, {
+                        id: slotId,
                         date: firestoreDate,
                         startTime,
                         endTime,
@@ -122,6 +124,7 @@ export default function AdminPage() {
 
   return (
     <div className="space-y-8">
+        <VenueManagement />
         <SlotGenerator />
         <Card className="w-full max-w-4xl mx-auto shadow-lg rounded-xl">
             <CardHeader>
@@ -222,4 +225,3 @@ export default function AdminPage() {
     </div>
   );
 }
-

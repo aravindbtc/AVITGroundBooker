@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { mockUser } from "@/lib/data";
+import { useUser } from "@/firebase";
 import { LogOut, User, Settings, LayoutGrid, CalendarDays, Gem, MapPin, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -26,7 +26,8 @@ const CricketBallIcon = () => (
 )
 
 export function Header() {
-  const userInitials = mockUser.name.split(' ').map(n => n[0]).join('');
+  const { user, isUserLoading } = useUser();
+  const userInitials = user?.displayName?.split(' ').map(n => n[0]).join('') || 'G';
   const pathname = usePathname();
 
   const navLinks = [
@@ -72,7 +73,7 @@ export function Header() {
             <DropdownMenuTrigger asChild>
               <Button variant="secondary" className="relative h-10 w-10 rounded-full">
                 <Avatar className="h-10 w-10">
-                  <AvatarImage src={mockUser.avatarUrl} alt={mockUser.name} />
+                  <AvatarImage src={user?.photoURL || ''} alt={user?.displayName || 'Guest'} />
                   <AvatarFallback>{userInitials}</AvatarFallback>
                 </Avatar>
               </Button>
@@ -80,9 +81,9 @@ export function Header() {
             <DropdownMenuContent className="w-56" align="end">
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">{mockUser.name}</p>
+                  <p className="text-sm font-medium leading-none">{isUserLoading ? 'Loading...' : user?.displayName || 'Guest User'}</p>
                   <p className="text-xs leading-none text-muted-foreground">
-                    {mockUser.email}
+                    {user?.email}
                   </p>
                 </div>
               </DropdownMenuLabel>
