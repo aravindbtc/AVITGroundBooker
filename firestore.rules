@@ -104,15 +104,16 @@ service cloud.firestore {
      * @description Manages the available time slots for booking.
      * @path /slots/{slotId}
      * @allow (get/list) Anyone, including unauthenticated users, can view available slots.
-     * @allow (create/update/delete) Only administrators can add, modify, or remove slots.
+     * @allow (create/delete) Only administrators can add or remove slots.
+     * @allow (update) Signed-in users can book an available slot. Admins can make any update.
      * @deny (create) A regular user cannot create a new slot.
-     * @principle Provides public read access for core app functionality but restricts writes to trusted admins.
+     * @principle Provides public read access for core app functionality but restricts writes.
      */
     match /slots/{slotId} {
       allow get: if true;
       allow list: if true;
       allow create: if isAdmin();
-      allow update: if isAdmin() && isExistingDoc();
+      allow update: if (isSignedIn() && request.resource.data.status == 'booked' && resource.data.status == 'available') || isAdmin();
       allow delete: if isAdmin() && isExistingDoc();
     }
 

@@ -1,3 +1,5 @@
+import type { Timestamp } from 'firebase/firestore';
+
 export type User = {
   name: string;
   email: string;
@@ -32,4 +34,13 @@ export type Manpower = {
   price: number;
   stock: number;
   icon: React.ComponentType<{ className?: string }>;
+};
+
+export type Slot = {
+  id: string;
+  startTime: string;
+  endTime: string;
+  isPeak: boolean;
+  status: 'available' | 'booked';
+  date: Timestamp;
 };
