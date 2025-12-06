@@ -32,9 +32,8 @@ export function Header() {
 
   const navLinks = [
     { href: "/", label: "Home" },
-    { href: "/bookings", label: "Find Ground" },
-    { href: "/profile", label: "Categories" },
-    { href: "/loyalty", label: "Contact" },
+    { href: "/bookings", label: "My Bookings" },
+    { href: "/profile", label: "Profile" },
   ]
 
   return (
