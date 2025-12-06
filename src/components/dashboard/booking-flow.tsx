@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { TimeSlotSelection } from "./time-slot-selection";
-import { addDays, format, isValid } from 'date-fns';
+import { addDays, format, isValid, startOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Calendar as CalendarIcon, CalendarDays } from 'lucide-react';
 
@@ -20,13 +20,13 @@ interface BookingFlowProps {
 export function BookingFlow({ selectedDate, onDateChange, selectedSlots, onSlotsChange }: BookingFlowProps) {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   
-  const today = new Date();
-  const nextMonth = addDays(new Date(), 30);
+  const today = startOfDay(new Date());
+  const nextMonth = addDays(today, 30);
 
   const handleDateSelect = (date: Date | undefined) => {
     if (date && isValid(date)) {
-        onDateChange(date);
-        setIsCalendarOpen(false); // Close calendar on date select
+        onDateChange(startOfDay(date));
+        setIsCalendarOpen(false);
     }
   };
 
