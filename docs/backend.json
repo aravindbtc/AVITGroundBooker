@@ -1,0 +1,377 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the AVIT Cricket Booker app.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user entity."
+        },
+        "email": {
+          "type": "string",
+          "description": "User's email address.",
+          "format": "email"
+        },
+        "name": {
+          "type": "string",
+          "description": "User's full name."
+        },
+        "phone": {
+          "type": "string",
+          "description": "User's phone number."
+        },
+        "collegeId": {
+          "type": "string",
+          "description": "User's college ID. Used for student/faculty verification."
+        },
+        "role": {
+          "type": "string",
+          "description": "User's role (e.g., 'user', 'admin')."
+        },
+        "bookingIds": {
+          "type": "array",
+          "description": "References to Bookings. (Relationship: User 1:N Booking)",
+          "items": {
+            "type": "string"
+          }
+        },
+        "loyaltyPoints": {
+          "type": "number",
+          "description": "User's current loyalty points balance."
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "name",
+        "collegeId",
+        "role"
+      ]
+    },
+    "Booking": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Booking",
+      "type": "object",
+      "description": "Represents a booking made by a user for a cricket ground slot.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the booking entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N Booking)"
+        },
+        "slotId": {
+          "type": "string",
+          "description": "Reference to Slot. (Relationship: Slot 1:N Booking)"
+        },
+        "accessoryIds": {
+          "type": "array",
+          "description": "References to Accessories. (Relationship: Booking 1:N Accessory). Array of IDs of accessories booked.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "manpowerIds": {
+          "type": "array",
+          "description": "References to Manpower. (Relationship: Booking 1:N Manpower). Array of IDs of manpower booked.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "total": {
+          "type": "number",
+          "description": "Total cost of the booking."
+        },
+        "status": {
+          "type": "string",
+          "description": "Status of the booking (e.g., 'pending', 'paid', 'cancelled')."
+        },
+        "bookingDate": {
+          "type": "string",
+          "description": "The date and time the booking was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "slotId",
+        "total",
+        "status",
+        "bookingDate"
+      ]
+    },
+    "Slot": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Slot",
+      "type": "object",
+      "description": "Represents a time slot for booking the cricket ground.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the slot entity."
+        },
+        "venueId": {
+          "type": "string",
+          "description": "Identifier of the venue (e.g., 'avit-ground')."
+        },
+        "date": {
+          "type": "string",
+          "description": "Date of the slot (YYYY-MM-DD)."
+        },
+        "time": {
+          "type": "string",
+          "description": "Start time of the slot (HH:MM)."
+        },
+        "duration": {
+          "type": "number",
+          "description": "Duration of the slot in hours."
+        },
+        "status": {
+          "type": "string",
+          "description": "Status of the slot ('available', 'booked', 'held')."
+        },
+        "bookedById": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N Slot).  ID of the user who booked the slot (if booked)."
+        }
+      },
+      "required": [
+        "id",
+        "venueId",
+        "date",
+        "time",
+        "duration",
+        "status"
+      ]
+    },
+    "Accessory": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Accessory",
+      "type": "object",
+      "description": "Represents an accessory that can be booked (e.g., bat, ball, helmet).",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the accessory entity."
+        },
+        "type": {
+          "type": "string",
+          "description": "Type of accessory (e.g., 'bat', 'ball')."
+        },
+        "quantity": {
+          "type": "number",
+          "description": "Available quantity of the accessory."
+        },
+        "price": {
+          "type": "number",
+          "description": "Price per unit of the accessory."
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "quantity",
+        "price"
+      ]
+    },
+    "Manpower": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Manpower",
+      "type": "object",
+      "description": "Represents a manpower resource that can be booked (e.g., umpire, coach).",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the manpower entity."
+        },
+        "type": {
+          "type": "string",
+          "description": "Type of manpower (e.g., 'umpire', 'coach')."
+        },
+        "availability": {
+          "type": "boolean",
+          "description": "Whether the manpower is currently available."
+        },
+        "price": {
+          "type": "number",
+          "description": "Price per unit of time for the manpower."
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "availability",
+        "price"
+      ]
+    },
+    "Review": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Review",
+      "type": "object",
+      "description": "Represents a review given by a user for a booking.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the review entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N Review)"
+        },
+        "bookingId": {
+          "type": "string",
+          "description": "Reference to Booking. (Relationship: Booking 1:N Review)"
+        },
+        "rating": {
+          "type": "number",
+          "description": "Rating given by the user (1-5)."
+        },
+        "comment": {
+          "type": "string",
+          "description": "User's comment on the booking experience."
+        },
+        "reviewDate": {
+          "type": "string",
+          "description": "Date of the review submission.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "bookingId",
+        "rating",
+        "reviewDate"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profile data. Uses path-based ownership: only the user with the matching userId can access their profile.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/bookings/{bookingId}",
+        "definition": {
+          "entityName": "Booking",
+          "schema": {
+            "$ref": "#/backend/entities/Booking"
+          },
+          "description": "Stores booking information. Includes 'userId' for querying bookings by user.",
+          "params": [
+            {
+              "name": "bookingId",
+              "description": "The unique identifier of the booking."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/slots/{slotId}",
+        "definition": {
+          "entityName": "Slot",
+          "schema": {
+            "$ref": "#/backend/entities/Slot"
+          },
+          "description": "Stores slot availability information. Includes 'bookedById' to directly query booked slots.",
+          "params": [
+            {
+              "name": "slotId",
+              "description": "The unique identifier of the slot."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/accessories/{accessoryId}",
+        "definition": {
+          "entityName": "Accessory",
+          "schema": {
+            "$ref": "#/backend/entities/Accessory"
+          },
+          "description": "Stores information about available accessories.",
+          "params": [
+            {
+              "name": "accessoryId",
+              "description": "The unique identifier of the accessory."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/manpower/{manpowerId}",
+        "definition": {
+          "entityName": "Manpower",
+          "schema": {
+            "$ref": "#/backend/entities/Manpower"
+          },
+          "description": "Stores information about available manpower.",
+          "params": [
+            {
+              "name": "manpowerId",
+              "description": "The unique identifier of the manpower."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/reviews/{reviewId}",
+        "definition": {
+          "entityName": "Review",
+          "schema": {
+            "$ref": "#/backend/entities/Review"
+          },
+          "description": "Stores reviews given by users for bookings.",
+          "params": [
+            {
+              "name": "reviewId",
+              "description": "The unique identifier of the review."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/roles_admin/{userId}",
+        "definition": {
+          "entityName": "role",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Indicates admin role. Existence of document grants admin access.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to support a real-time cricket ground booking system with a focus on authorization independence, scalability, and clear security rules.  \n\nAuthorization Independence: To avoid hierarchical authorization dependencies and enable atomic operations, we denormalize relevant data. For example, `slots` store the `bookedById` to allow direct querying of booked slots without needing to fetch user data. Similarly, bookings include redundant but vital user and slot information. Also, any members map in a higher-level collection will be copied down. This eliminates the need for `get()` calls in security rules, ensuring that authorization checks are atomic and independent.\n\nStructural Segregation: Data with different access requirements are stored in separate collections. User profiles are stored under `/users/{userId}` for path-based ownership. Bookings are stored in a top-level `/bookings` collection, but include the userId to enable listing bookings by user. Slots are stored in `/slots` to allow for public querying of available slots. Access to sensitive data, such as admin functionalities, is controlled by checking for the existence of a document in the `/roles_admin/{userId}` collection.\n\nAccess Modeling: Path-based ownership is used for user profiles (`/users/{userId}`). Collaborative data (if any) would use membership maps. Global roles are managed via existence checks on dedicated collections like `/roles_admin/{userId}`.\n\nQAPs Support: The structure supports secure `list` operations. The `/slots` collection can be queried to list available slots without exposing sensitive booking details. Bookings can be listed by user ID using a collection group query on the `/bookings` collection, secured by rules that check the `userId` against `request.auth.uid`. This structure, combined with denormalized authorization data, ensures that rules are not used as filters, which is a critical QAP requirement.\n\nInvariants: Ownership is enforced using path-based rules (e.g., only the user with the matching `userId` can read/write their profile). Timestamps can be enforced using serverTimestamp() and security rules to validate the data."
+  }
+}

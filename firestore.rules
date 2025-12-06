@@ -1,0 +1,183 @@
+/**
+ * Core Philosophy: This ruleset enforces a hybrid security model tailored for a booking application.
+ * It combines strict user-ownership for personal data (profiles, bookings) with a global 'admin' role
+ * for managing shared, system-level data (available slots, accessories, manpower). Publicly viewable
+ * data like reviews and available slots are readable by anyone, but writable only by authorized users.
+ *
+ * Data Structure: The data is organized into top-level collections for each primary entity (users,
+ * bookings, slots, etc.). This flat structure prevents complex nested permissions. User-specific data
+
+ * is secured either by path (`/users/{userId}`) or by a `userId` field within the document itself
+ * (`/bookings/{bookingId}`), which is crucial for enabling secure queries.
+ *
+ * Key Security Decisions:
+ * - Admin Role: A user is considered an admin if a corresponding document exists for them in the
+ *   `/roles_admin/{userId}` collection. This role grants write access to managed data.
+ * - User Data Privacy: Users can only read and write their own profile and booking data. Listing all
+ *   users in the system is explicitly disabled to protect privacy.
+ * - Catalogue Management: Data like slots, accessories, and manpower are publicly readable to allow
+ *   users to browse options, but can only be modified by administrators to maintain data integrity.
+ * - Default Deny: All operations are denied by default. Access is only granted through explicit
+ *   `allow` statements.
+ *
+ * Denormalization for Authorization: To ensure performant and secure rules, authorization data is
+ * denormalized. For instance, a `booking` document contains a `userId` field, and a `review` contains
+ * a `userId`. This avoids costly and slow `get()` calls in rules, allowing for direct ownership checks
+ * against the document being accessed.
+ *
+ * Structural Segregation: Different data types have their own top-level collections. For example,
+ * user profiles (`/users`) are separate from user-created content like bookings (`/bookings`) and
+ * reviews (`/reviews`). This separation simplifies the rules for each collection based on its unique
+ * access requirements.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions to promote reusable and readable rules.
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    function isAdmin() {
+      return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    }
+    function isExistingDoc() {
+      return resource != null;
+    }
+    function isExistingOwner(userId) {
+      return isExistingDoc() && isOwner(userId);
+    }
+    function isCreatingOwnProfile(userId) {
+      return isOwner(userId) && request.resource.data.id == userId;
+    }
+    function isCreatingOwnContent() {
+      return isSignedIn() && request.resource.data.userId == request.auth.uid;
+    }
+    function isContentOwner(doc) {
+      return isOwner(doc.userId);
+    }
+    function isExistingContentOwner() {
+      return isExistingDoc() && isContentOwner(resource.data);
+    }
+    function isUserIdImmutable() {
+      return request.resource.data.userId == resource.data.userId;
+    }
+
+    /**
+     * @description Controls access to a user's private profile.
+     * @path /users/{userId}
+     * @allow (get/update/delete) The user with UID matching {userId} can manage their own document.
+     * @allow (create) A new user can create their own profile document.
+     * @deny (list) Listing all users is forbidden to protect user privacy.
+     * @deny (get) A user cannot read another user's profile.
+     * @principle Restricts access to a user's own data tree (Path-based Ownership).
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isCreatingOwnProfile(userId);
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Manages user bookings. Only the user who created the booking can access it.
+     * @path /bookings/{bookingId}
+     * @allow (get) The user with UID matching the booking's 'userId' field can read it.
+     * @allow (list) Any signed-in user can query the collection, but client-side code must filter by their UID.
+     * @allow (create) A signed-in user can create a booking for themselves.
+     * @deny (get) A user cannot read another user's booking.
+     * @principle Enforces document ownership for all operations based on an internal 'userId' field.
+     */
+    match /bookings/{bookingId} {
+      allow get: if isExistingContentOwner();
+      allow list: if isSignedIn();
+      allow create: if isCreatingOwnContent();
+      allow update: if isExistingContentOwner() && isUserIdImmutable();
+      allow delete: if isExistingContentOwner();
+    }
+
+    /**
+     * @description Manages the available time slots for booking.
+     * @path /slots/{slotId}
+     * @allow (get/list) Anyone, including unauthenticated users, can view available slots.
+     * @allow (create/update/delete) Only administrators can add, modify, or remove slots.
+     * @deny (create) A regular user cannot create a new slot.
+     * @principle Provides public read access for core app functionality but restricts writes to trusted admins.
+     */
+    match /slots/{slotId} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if isAdmin();
+      allow update: if isAdmin() && isExistingDoc();
+      allow delete: if isAdmin() && isExistingDoc();
+    }
+
+    /**
+     * @description Manages catalogue data for bookable accessories.
+     * @path /accessories/{accessoryId}
+     * @allow (get/list) Anyone can view the available accessories.
+     * @allow (create/update/delete) Only administrators can manage the accessory catalogue.
+     * @deny (update) A regular user cannot change the price or quantity of an accessory.
+     * @principle Provides public read access for core app functionality but restricts writes to trusted admins.
+     */
+    match /accessories/{accessoryId} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if isAdmin();
+      allow update: if isAdmin() && isExistingDoc();
+      allow delete: if isAdmin() && isExistingDoc();
+    }
+
+    /**
+     * @description Manages catalogue data for bookable manpower (e.g., umpires).
+     * @path /manpower/{manpowerId}
+     * @allow (get/list) Anyone can view the available manpower resources.
+     * @allow (create/update/delete) Only administrators can manage the manpower catalogue.
+     * @deny (create) A regular user cannot add a new umpire to the system.
+     * @principle Provides public read access for core app functionality but restricts writes to trusted admins.
+     */
+    match /manpower/{manpowerId} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if isAdmin();
+      allow update: if isAdmin() && isExistingDoc();
+      allow delete: if isAdmin() && isExistingDoc();
+    }
+
+    /**
+     * @description Manages user-submitted reviews for bookings.
+     * @path /reviews/{reviewId}
+     * @allow (get/list) Anyone can read reviews submitted by other users.
+     * @allow (create) A signed-in user can create a review and must be the author.
+     * @allow (update/delete) Only the original author of a review can modify or delete it.
+     * @deny (update) A user cannot edit a review left by another user.
+     * @principle Implements public read with owner-only writes, a common pattern for user-generated content.
+     */
+    match /reviews/{reviewId} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if isCreatingOwnContent();
+      allow update: if isExistingContentOwner() && isUserIdImmutable();
+      allow delete: if isExistingContentOwner();
+    }
+
+    /**
+     * @description Manages admin role assignments. Document existence confers admin rights.
+     * @path /roles_admin/{userId}
+     * @allow (create/delete) An existing admin can grant or revoke admin privileges for another user.
+     * @deny (get/list) Reading or listing this collection is forbidden to prevent enumeration of administrators.
+     * @principle Secures role management by restricting access to current admins and preventing information leaks.
+     */
+    match /roles_admin/{userId} {
+      allow get: if false;
+      allow list: if false;
+      allow create: if isAdmin();
+      allow update: if false;
+      allow delete: if isAdmin() && isExistingDoc();
+    }
+  }
+}
