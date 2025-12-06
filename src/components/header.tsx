@@ -12,7 +12,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { useAuth, useUser } from "@/firebase";
+import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
+import { doc } from "firebase/firestore";
+import type { UserProfile } from "@/lib/types";
 import { LogOut, User, LayoutGrid, CalendarDays, Gem, MapPin, Shield, LogIn } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { signOut } from "firebase/auth";
@@ -31,10 +33,18 @@ const CricketBallIcon = () => (
 export function Header() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
+  const firestore = useFirestore();
   const { toast } = useToast();
   const router = useRouter();
 
-  const userInitials = user?.displayName?.split(' ').map(n => n[0]).join('').toUpperCase() || (user?.email ? user.email[0].toUpperCase() : 'G');
+  const userProfileRef = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return doc(firestore, "users", user.uid);
+  }, [firestore, user]);
+
+  const { data: userProfile } = useDoc<UserProfile>(userProfileRef);
+
+  const userInitials = userProfile?.name?.split(' ').map(n => n[0]).join('').toUpperCase() || (user?.email ? user.email[0].toUpperCase() : 'G');
   const pathname = usePathname();
 
   const navLinks = [
@@ -95,7 +105,7 @@ export function Header() {
                     <DropdownMenuTrigger asChild>
                     <Button variant="secondary" className="relative h-10 w-10 rounded-full">
                         <Avatar className="h-10 w-10">
-                        <AvatarImage src={user?.photoURL || ''} alt={user?.displayName || 'User'} />
+                        <AvatarImage src={user?.photoURL || ''} alt={userProfile?.name || 'User'} />
                         <AvatarFallback>{userInitials}</AvatarFallback>
                         </Avatar>
                     </Button>
@@ -103,7 +113,7 @@ export function Header() {
                     <DropdownMenuContent className="w-56" align="end">
                     <DropdownMenuLabel className="font-normal">
                         <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">{user?.displayName || 'User'}</p>
+                        <p className="text-sm font-medium leading-none">{userProfile?.name || 'User'}</p>
                         <p className="text-xs leading-none text-muted-foreground">
                             {user?.email}
                         </p>
@@ -122,9 +132,11 @@ export function Header() {
                     <DropdownMenuItem asChild>
                         <Link href="/loyalty"><Gem className="mr-2 h-4 w-4" /><span>Loyalty</span></Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                        <Link href="/admin"><Shield className="mr-2 h-4 w-4" /><span>Admin</span></Link>
-                    </DropdownMenuItem>
+                    {userProfile?.role === 'admin' && (
+                      <DropdownMenuItem asChild>
+                          <Link href="/admin"><Shield className="mr-2 h-4 w-4" /><span>Admin</span></Link>
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={handleLogout}>
                         <LogOut className="mr-2 h-4 w-4" />
