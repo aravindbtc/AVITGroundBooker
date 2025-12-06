@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { mockAddons, mockManpower } from '@/lib/data';
@@ -15,10 +14,10 @@ export default function AdminPage() {
   const [addons, setAddons] = useState<Addon[]>(mockAddons);
   const [manpower, setManpower] = useState<Manpower[]>(mockManpower);
 
-  const handleAddonPriceChange = (id: string, newPrice: string) => {
-    const price = parseFloat(newPrice);
-    if (!isNaN(price)) {
-      setAddons(addons.map(a => a.id === id ? { ...a, price } : a));
+  const handleAddonUpdate = (id: string, field: 'price' | 'stock', value: string) => {
+    const numValue = parseInt(value, 10);
+    if (!isNaN(numValue)) {
+      setAddons(addons.map(a => a.id === id ? { ...a, [field]: numValue } : a));
     }
   };
 
@@ -34,7 +33,7 @@ export default function AdminPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 font-headline">
             <ShieldAlert className="h-6 w-6 text-primary" />
-            Admin Panel: Price Management
+            Admin Panel: Price & Stock Management
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -48,8 +47,8 @@ export default function AdminPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Item</TableHead>
-                    <TableHead className="w-48">Current Price (RS.)</TableHead>
-                    <TableHead className="w-48">New Price (RS.)</TableHead>
+                    <TableHead>Price (RS.)</TableHead>
+                    <TableHead>Stock</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -59,13 +58,20 @@ export default function AdminPage() {
                         <addon.icon className="h-5 w-5 text-muted-foreground" />
                         {addon.name}
                       </TableCell>
-                      <TableCell>RS.{addon.price.toFixed(2)}</TableCell>
                       <TableCell>
                         <Input
                           type="number"
                           defaultValue={addon.price}
-                          onChange={(e) => handleAddonPriceChange(addon.id, e.target.value)}
-                          className="h-9"
+                          onChange={(e) => handleAddonUpdate(addon.id, 'price', e.target.value)}
+                          className="h-9 w-24"
+                        />
+                      </TableCell>
+                       <TableCell>
+                        <Input
+                          type="number"
+                          defaultValue={addon.stock}
+                          onChange={(e) => handleAddonUpdate(addon.id, 'stock', e.target.value)}
+                          className="h-9 w-24"
                         />
                       </TableCell>
                     </TableRow>

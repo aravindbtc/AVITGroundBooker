@@ -3,10 +3,10 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { mockAddons, mockManpower } from "@/lib/data";
 import { ShoppingBasket, Minus, Plus, Users, ShieldCheck } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
 
 
 type CartItem = {
@@ -52,7 +52,7 @@ export function AddonsBooking() {
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="font-headline flex items-center gap-3">
             <ShoppingBasket className="h-6 w-6 text-primary" />
-            Add-Ons
+            Book Add-Ons
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -67,17 +67,21 @@ export function AddonsBooking() {
             <AccordionContent className="pt-4 space-y-4">
                 {mockAddons.map(addon => {
                     const quantity = getItemQuantity(addon.id);
+                    const isSoldOut = addon.stock <= 0;
+                    const isMaxed = quantity >= addon.stock;
+
                     return (
                         <div key={addon.id} className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <addon.icon className="h-6 w-6 text-primary/80" />
                                 <span className="font-medium">{addon.name}</span>
+                                 {isSoldOut && <Badge variant="destructive" className="text-xs">Sold Out</Badge>}
                             </div>
                             <div className="flex items-center gap-2">
-                                <span className="text-sm font-semibold w-16 text-right">RS.{addon.price}</span>
-                                <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleQuantityChange(addon.id, -1)}><Minus className="h-4 w-4" /></Button>
+                                <span className="text-sm font-semibold w-20 text-right">RS.{addon.price}</span>
+                                <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleQuantityChange(addon.id, -1)} disabled={quantity === 0}><Minus className="h-4 w-4" /></Button>
                                 <span className="w-5 text-center font-bold">{quantity}</span>
-                                <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleQuantityChange(addon.id, 1)}><Plus className="h-4 w-4" /></Button>
+                                <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleQuantityChange(addon.id, 1)} disabled={isSoldOut || isMaxed}><Plus className="h-4 w-4" /></Button>
                             </div>
                         </div>
                     )
@@ -99,9 +103,10 @@ export function AddonsBooking() {
                             <div className="flex items-center gap-3">
                                 <person.icon className="h-6 w-6 text-primary/80" />
                                 <span className="font-medium">{person.name}</span>
+                                {!person.available && <Badge variant="destructive" className="text-xs">Unavailable</Badge>}
                             </div>
                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-semibold w-16 text-right">RS.{person.price}</span>
+                                <span className="text-sm font-semibold w-20 text-right">RS.{person.price}</span>
                                 <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleQuantityChange(person.id, -1)} disabled={quantity === 0}><Minus className="h-4 w-4" /></Button>
                                 <span className="w-5 text-center font-bold">{quantity}</span>
                                 <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleQuantityChange(person.id, 1)} disabled={!person.available || quantity > 0}><Plus className="h-4 w-4" /></Button>
@@ -115,7 +120,7 @@ export function AddonsBooking() {
       </CardContent>
        {totalPrice > 0 && (
         <CardFooter className="flex items-center justify-between mt-4 bg-slate-50 -mx-6 -mb-6 p-6">
-            <span className="text-xl font-bold font-headline">Total: RS.{totalPrice}</span>
+            <span className="text-xl font-bold font-headline">Total: RS.{totalPrice.toFixed(2)}</span>
             <Button size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground font-bold">Add to Booking</Button>
         </CardFooter>
       )}
