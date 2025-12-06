@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { mockUser } from "@/lib/data";
@@ -45,7 +46,7 @@ export function LoyaltyStatus() {
                     <p className="text-sm opacity-80">{loyalty.points.toLocaleString()} Points</p>
                 </div>
             </div>
-            <p className="font-bold text-2xl">&#8377;{loyalty.points}</p>
+            <p className="font-bold text-2xl">RS.{loyalty.points}</p>
         </div>
         <div>
             <Progress value={progress} className="h-3 [&>*]:bg-accent" />

@@ -48,8 +48,8 @@ export default function AdminPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Item</TableHead>
-                    <TableHead className="w-48">Current Price (&#8377;)</TableHead>
-                    <TableHead className="w-48">New Price (&#8377;)</TableHead>
+                    <TableHead className="w-48">Current Price (RS.)</TableHead>
+                    <TableHead className="w-48">New Price (RS.)</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -59,7 +59,7 @@ export default function AdminPage() {
                         <addon.icon className="h-5 w-5 text-muted-foreground" />
                         {addon.name}
                       </TableCell>
-                      <TableCell>&#8377;{addon.price.toFixed(2)}</TableCell>
+                      <TableCell>RS.{addon.price.toFixed(2)}</TableCell>
                       <TableCell>
                         <Input
                           type="number"
@@ -78,8 +78,8 @@ export default function AdminPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Service</TableHead>
-                    <TableHead className="w-48">Current Price (&#8377;)</TableHead>
-                    <TableHead className="w-48">New Price (&#8377;)</TableHead>
+                    <TableHead className="w-48">Current Price (RS.)</TableHead>
+                    <TableHead className="w-48">New Price (RS.)</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -89,7 +89,7 @@ export default function AdminPage() {
                          <person.icon className="h-5 w-5 text-muted-foreground" />
                         {person.name}
                       </TableCell>
-                      <TableCell>&#8377;{person.price.toFixed(2)}</TableCell>
+                      <TableCell>RS.{person.price.toFixed(2)}</TableCell>
                       <TableCell>
                         <Input
                           type="number"

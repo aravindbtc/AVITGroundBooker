@@ -1,3 +1,4 @@
+
 "use client";
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -73,7 +74,7 @@ export function AddonsBooking() {
                                 <span className="font-medium">{addon.name}</span>
                             </div>
                             <div className="flex items-center gap-2">
-                                <span className="text-sm font-semibold w-16 text-right">&#8377;{addon.price}</span>
+                                <span className="text-sm font-semibold w-16 text-right">RS.{addon.price}</span>
                                 <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleQuantityChange(addon.id, -1)}><Minus className="h-4 w-4" /></Button>
                                 <span className="w-5 text-center font-bold">{quantity}</span>
                                 <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleQuantityChange(addon.id, 1)}><Plus className="h-4 w-4" /></Button>
@@ -100,7 +101,7 @@ export function AddonsBooking() {
                                 <span className="font-medium">{person.name}</span>
                             </div>
                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-semibold w-16 text-right">&#8377;{person.price}</span>
+                                <span className="text-sm font-semibold w-16 text-right">RS.{person.price}</span>
                                 <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleQuantityChange(person.id, -1)} disabled={quantity === 0}><Minus className="h-4 w-4" /></Button>
                                 <span className="w-5 text-center font-bold">{quantity}</span>
                                 <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleQuantityChange(person.id, 1)} disabled={!person.available || quantity > 0}><Plus className="h-4 w-4" /></Button>
@@ -114,7 +115,7 @@ export function AddonsBooking() {
       </CardContent>
        {totalPrice > 0 && (
         <CardFooter className="flex items-center justify-between mt-4 bg-slate-50 -mx-6 -mb-6 p-6">
-            <span className="text-xl font-bold font-headline">Total: &#8377;{totalPrice}</span>
+            <span className="text-xl font-bold font-headline">Total: RS.{totalPrice}</span>
             <Button size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground font-bold">Add to Booking</Button>
         </CardFooter>
       )}
