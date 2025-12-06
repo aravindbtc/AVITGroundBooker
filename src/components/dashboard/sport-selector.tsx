@@ -1,3 +1,4 @@
+
 "use client"
 
 const CricketIcon = () => (
@@ -29,7 +30,7 @@ export function SportSelector() {
             <h2 className="text-2xl font-bold font-headline mb-4">Select a Sport</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                 {sports.map(sport => (
-                    <div key={sport.name} className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 border-transparent bg-card shadow-sm hover:border-primary hover:shadow-lg transition-all cursor-pointer">
+                    <div key={sport.name} className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 border-primary bg-card shadow-lg transition-all cursor-pointer">
                         <div className="h-12 w-12 text-primary">
                             {sport.icon}
                         </div>
