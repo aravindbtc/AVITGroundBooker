@@ -8,17 +8,18 @@ import { useToast } from "@/hooks/use-toast";
 import type { BookingItem, Slot, Venue } from "@/lib/types";
 import { Badge } from "../ui/badge";
 import { Ticket, Calendar, Clock, CreditCard, Loader2 } from "lucide-react";
-import { useDoc, useFirestore, useMemoFirebase, setDocumentNonBlocking, addDocumentNonBlocking, useUser } from "@/firebase";
-import { doc, writeBatch, collection } from "firebase/firestore";
+import { useDoc, useFirestore, useMemoFirebase, useUser } from "@/firebase";
+import { doc, writeBatch, collection, serverTimestamp } from "firebase/firestore";
 import { useState } from "react";
 import { format } from "date-fns";
 
 interface BookingSummaryProps {
     slotDetails: Slot[];
     bookingAddons: BookingItem[];
+    onBookingSuccess: () => void;
 }
 
-export function BookingSummary({ slotDetails, bookingAddons }: BookingSummaryProps) {
+export function BookingSummary({ slotDetails, bookingAddons, onBookingSuccess }: BookingSummaryProps) {
     const firestore = useFirestore();
     const { user } = useUser();
     const { toast } = useToast();
@@ -51,29 +52,39 @@ export function BookingSummary({ slotDetails, bookingAddons }: BookingSummaryPro
             return;
         }
 
+        if (slotDetails.length === 0) {
+             toast({
+                variant: 'destructive',
+                title: 'No Slots Selected',
+                description: 'Please select at least one time slot to book.',
+            });
+            return;
+        }
+
         setIsBooking(true);
         toast({
             title: "Processing your booking...",
         });
 
-        const batch = writeBatch(firestore);
-
-        // 1. Mark slots as booked
-        slotDetails.forEach(slot => {
-            const slotRef = doc(firestore, 'slots', slot.id);
-            batch.update(slotRef, { status: 'booked', bookedById: user.uid });
-        });
-
         try {
+            const batch = writeBatch(firestore);
+
+            // 1. Mark slots as booked
+            slotDetails.forEach(slot => {
+                const slotRef = doc(firestore, 'slots', slot.id);
+                batch.update(slotRef, { status: 'booked', bookedById: user.uid });
+            });
+
             // 2. Create the main booking document
             const bookingRef = doc(collection(firestore, 'bookings'));
             batch.set(bookingRef, {
+                id: bookingRef.id,
                 userId: user.uid,
-                bookingDate: new Date(),
+                bookingDate: serverTimestamp(), // Use server timestamp for creation date
                 total,
                 status: 'Confirmed',
-                slots: slotDetails.map(s => s.id),
-                addons: bookingAddons.map(a => ({ id: a.id, quantity: a.quantity })),
+                slotIds: slotDetails.map(s => s.id),
+                addonIds: bookingAddons.map(a => ({ id: a.id, quantity: a.quantity })),
             });
             
             await batch.commit();
@@ -82,7 +93,7 @@ export function BookingSummary({ slotDetails, bookingAddons }: BookingSummaryPro
                 title: "Booking Confirmed!",
                 description: "Your cricket session is locked in. See you on the field!",
             });
-             // TODO: Clear the cart/selections after successful booking
+            onBookingSuccess(); // Clear selections in parent component
         } catch (error) {
             console.error("Error creating booking:", error);
             toast({
@@ -108,7 +119,7 @@ export function BookingSummary({ slotDetails, bookingAddons }: BookingSummaryPro
                 <CardContent>
                     <ScrollArea className="h-48">
                         <div className="space-y-4 pr-6">
-                            {allItems.map(item => (
+                            {allItems.length > 0 ? allItems.map(item => (
                                 <div key={item.id} className="flex justify-between items-center text-sm">
                                     <p className="font-medium">{item.name} {item.quantity > 1 && `(x${item.quantity})`}</p>
                                     <div className="flex items-center gap-2">
@@ -118,7 +129,9 @@ export function BookingSummary({ slotDetails, bookingAddons }: BookingSummaryPro
                                         <p className="font-semibold w-20 text-right">RS.{item.price.toFixed(2)}</p>
                                     </div>
                                 </div>
-                            ))}
+                            )) : (
+                                <div className="text-center text-muted-foreground p-4">Select slots and add-ons to see them here.</div>
+                            )}
                         </div>
                     </ScrollArea>
                 </CardContent>
@@ -133,7 +146,7 @@ export function BookingSummary({ slotDetails, bookingAddons }: BookingSummaryPro
                             </p>
                         )}
                     </div>
-                     <Button size="lg" className="w-full md:w-auto font-bold text-lg" onClick={handleConfirmBooking} disabled={isBooking}>
+                     <Button size="lg" className="w-full md:w-auto font-bold text-lg" onClick={handleConfirmBooking} disabled={isBooking || allItems.length === 0}>
                         {isBooking ? (
                             <>
                                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />

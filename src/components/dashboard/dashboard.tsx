@@ -20,6 +20,7 @@ interface DashboardProps {
     onSlotsChange: (slots: string[]) => void;
     bookingAddons: BookingItem[];
     onAddonsChange: (addons: BookingItem[]) => void;
+    onBookingSuccess: () => void;
 }
 
 export function Dashboard({
@@ -28,13 +29,16 @@ export function Dashboard({
     selectedSlots,
     onSlotsChange,
     bookingAddons,
-    onAddonsChange
+    onAddonsChange,
+    onBookingSuccess
 }: DashboardProps) {
 
   const firestore = useFirestore();
   const slotsQuery = useMemoFirebase(() => {
     if (!firestore || selectedSlots.length === 0) return null;
-    return query(collection(firestore, 'slots'), where('__name__', 'in', selectedSlots));
+    // Firestore 'in' queries are limited to 30 items. 
+    // If you expect users to book more, this would need batching.
+    return query(collection(firestore, 'slots'), where('id', 'in', selectedSlots));
   }, [firestore, selectedSlots]);
 
   const { data: slotDetails } = useCollection<Slot>(slotsQuery);
@@ -68,6 +72,7 @@ export function Dashboard({
             <BookingSummary 
                 slotDetails={slotDetails ?? []}
                 bookingAddons={bookingAddons}
+                onBookingSuccess={onBookingSuccess}
             />
         )}
     </div>

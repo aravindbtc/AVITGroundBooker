@@ -14,7 +14,7 @@ export type User = {
 
 export type Booking = {
   id: string;
-  date: Date;
+  date: Timestamp;
   startTime: string;
   endTime: string;
   status: 'Confirmed' | 'Pending' | 'Cancelled';
