@@ -48,8 +48,8 @@ export const mockAddons: Addon[] = [
 ];
 
 export const mockManpower: Manpower[] = [
-    { id: 'umpire', name: 'Umpire', price: 300, available: true, icon: Megaphone },
-    { id: 'coach', name: 'Coach', price: 500, available: false, icon: UserIcon },
+    { id: 'umpire', name: 'Umpire', price: 300, stock: 2, icon: Megaphone },
+    { id: 'coach', name: 'Coach', price: 500, stock: 1, icon: UserIcon },
 ];
 
 export const avit_details = {

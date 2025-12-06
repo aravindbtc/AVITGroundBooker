@@ -30,6 +30,6 @@ export type Manpower = {
   id: string;
   name: string;
   price: number;
-  available: boolean;
+  stock: number;
   icon: React.ComponentType<{ className?: string }>;
 };

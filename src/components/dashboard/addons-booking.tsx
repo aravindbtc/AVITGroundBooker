@@ -98,18 +98,21 @@ export function AddonsBooking() {
             <AccordionContent className="pt-4 space-y-4">
                 {mockManpower.map(person => {
                     const quantity = getItemQuantity(person.id);
+                    const isSoldOut = person.stock <= 0;
+                    const isMaxed = quantity >= person.stock;
+
                     return (
                         <div key={person.id} className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <person.icon className="h-6 w-6 text-primary/80" />
                                 <span className="font-medium">{person.name}</span>
-                                {!person.available && <Badge variant="destructive" className="text-xs">Unavailable</Badge>}
+                                {isSoldOut && <Badge variant="destructive" className="text-xs">Unavailable</Badge>}
                             </div>
                              <div className="flex items-center gap-2">
                                 <span className="text-sm font-semibold w-20 text-right">RS.{person.price}</span>
                                 <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleQuantityChange(person.id, -1)} disabled={quantity === 0}><Minus className="h-4 w-4" /></Button>
                                 <span className="w-5 text-center font-bold">{quantity}</span>
-                                <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleQuantityChange(person.id, 1)} disabled={!person.available || quantity > 0}><Plus className="h-4 w-4" /></Button>
+                                <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleQuantityChange(person.id, 1)} disabled={isSoldOut || isMaxed}><Plus className="h-4 w-4" /></Button>
                             </div>
                         </div>
                     )

@@ -21,10 +21,10 @@ export default function AdminPage() {
     }
   };
 
-  const handleManpowerPriceChange = (id: string, newPrice: string) => {
-    const price = parseFloat(newPrice);
-    if (!isNaN(price)) {
-      setManpower(manpower.map(m => m.id === id ? { ...m, price } : m));
+  const handleManpowerUpdate = (id: string, field: 'price' | 'stock', value: string) => {
+    const numValue = parseInt(value, 10);
+    if (!isNaN(numValue)) {
+      setManpower(manpower.map(m => m.id === id ? { ...m, [field]: numValue } : m));
     }
   };
 
@@ -84,8 +84,8 @@ export default function AdminPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Service</TableHead>
-                    <TableHead className="w-48">Current Price (RS.)</TableHead>
-                    <TableHead className="w-48">New Price (RS.)</TableHead>
+                    <TableHead>Price (RS.)</TableHead>
+                    <TableHead>Available</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -95,13 +95,20 @@ export default function AdminPage() {
                          <person.icon className="h-5 w-5 text-muted-foreground" />
                         {person.name}
                       </TableCell>
-                      <TableCell>RS.{person.price.toFixed(2)}</TableCell>
                       <TableCell>
                         <Input
                           type="number"
                           defaultValue={person.price}
-                          onChange={(e) => handleManpowerPriceChange(person.id, e.target.value)}
-                          className="h-9"
+                          onChange={(e) => handleManpowerUpdate(person.id, 'price', e.target.value)}
+                          className="h-9 w-24"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          defaultValue={person.stock}
+                          onChange={(e) => handleManpowerUpdate(person.id, 'stock', e.target.value)}
+                          className="h-9 w-24"
                         />
                       </TableCell>
                     </TableRow>
