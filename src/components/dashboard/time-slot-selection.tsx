@@ -1,3 +1,4 @@
+
 "use client";
 import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -6,9 +7,9 @@ import { Clock, Zap, Sun, Moon, Sparkles, CheckCircle2 } from "lucide-react";
 import { format, startOfDay } from "date-fns";
 import { cn } from '@/lib/utils';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, where, doc } from 'firebase/firestore';
+import { collection, query, where, doc, Timestamp } from 'firebase/firestore';
 import type { Slot } from '@/lib/types';
-import { setDocumentNonBlocking } from '@/firebase';
+import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Skeleton } from '../ui/skeleton';
 
 type TimeSlotSelectionProps = {
@@ -21,7 +22,9 @@ export function TimeSlotSelection({ selectedDate }: TimeSlotSelectionProps) {
 
     const slotsQuery = useMemoFirebase(() => {
         if (!firestore || !selectedDate) return null;
-        const startOfSelectedDay = startOfDay(selectedDate);
+        // Queries in Firestore use Timestamp objects.
+        // Convert the JavaScript Date to a Firestore Timestamp.
+        const startOfSelectedDay = Timestamp.fromDate(startOfDay(selectedDate));
         return query(collection(firestore, 'slots'), where('date', '==', startOfSelectedDay));
     }, [firestore, selectedDate]);
 
@@ -40,6 +43,7 @@ export function TimeSlotSelection({ selectedDate }: TimeSlotSelectionProps) {
         if (!firestore) return;
         selectedSlots.forEach(slotId => {
             const slotRef = doc(firestore, 'slots', slotId);
+            // Non-blocking update to Firestore
             setDocumentNonBlocking(slotRef, { status: 'booked' }, { merge: true });
         });
         setSelectedSlots([]);
@@ -63,7 +67,7 @@ export function TimeSlotSelection({ selectedDate }: TimeSlotSelectionProps) {
             return Array.from({length: 4}).map((_, i) => <Skeleton key={i} className="h-12 w-full" />);
         }
         if (!slots || slots.length === 0) {
-            return <p className="col-span-full text-muted-foreground">No slots available for this period.</p>
+            return <p className="col-span-full text-muted-foreground text-sm p-4 text-center">No slots available for this period.</p>
         }
         return slots.map(slot => (
             <Button
@@ -71,7 +75,11 @@ export function TimeSlotSelection({ selectedDate }: TimeSlotSelectionProps) {
                 variant={selectedSlots.includes(slot.id) ? "default" : "outline"}
                 disabled={slot.status === 'booked'}
                 onClick={() => handleSlotClick(slot.id, slot.status === 'booked')}
-                className={cn("relative h-12 text-xs md:text-sm", { 'ring-2 ring-primary': selectedSlots.includes(slot.id) })}
+                className={cn("relative h-12 text-xs md:text-sm", 
+                    { 'ring-2 ring-primary': selectedSlots.includes(slot.id),
+                      'bg-muted hover:bg-muted text-muted-foreground cursor-not-allowed': slot.status === 'booked'
+                    }
+                )}
             >
                 {slot.isPeak && <Zap className="absolute top-1 right-1 h-3 w-3 text-accent fill-current" />}
                 {slot.startTime}
