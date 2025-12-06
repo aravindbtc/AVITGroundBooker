@@ -1,3 +1,4 @@
+
 "use client"
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -30,18 +31,8 @@ export function SearchHeader() {
                     YOUR <span className="text-accent">GROUND</span>
                 </h1>
                 <p className="mt-4 text-lg text-gray-600">Ready to start the game together? Book the AVIT ground with ease.</p>
-                <div className="mt-8 w-full max-w-xl bg-white/80 p-3 rounded-full shadow-lg backdrop-blur-sm">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-2 items-center">
-                        <div className="relative col-span-1 md:col-span-2">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                            <Input 
-                                placeholder="Search AVIT Ground..." 
-                                className="pl-10 h-12 text-base rounded-full border-none bg-transparent focus-visible:ring-primary focus-visible:ring-2"
-                                value="AVIT Cricket Ground"
-                                readOnly
-                            />
-                        </div>
-                        
+                <div className="mt-8 w-full max-w-md bg-white/80 p-3 rounded-full shadow-lg backdrop-blur-sm">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 items-center">
                         <Popover>
                             <PopoverTrigger asChild>
                                 <Button variant="outline" className="h-12 text-base rounded-full text-muted-foreground font-normal justify-start bg-white/50 border-gray-200 hover:bg-white">
@@ -62,7 +53,7 @@ export function SearchHeader() {
 
                         <Button size="lg" className="h-12 rounded-full font-bold text-lg bg-primary hover:bg-primary/90">
                             <Search className="mr-2 h-5 w-5" />
-                            Find
+                            Find Availability
                         </Button>
                     </div>
                 </div>
