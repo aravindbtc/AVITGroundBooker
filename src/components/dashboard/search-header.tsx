@@ -1,6 +1,6 @@
 
 "use client"
-import React, { useState } from 'react';
+import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -16,19 +16,6 @@ type SearchHeaderProps = {
 };
 
 export function SearchHeader({ selectedDate, onDateChange, onFindAvailability }: SearchHeaderProps) {
-    const [popoverOpen, setPopoverOpen] = useState(false);
-    const [provisionalDate, setProvisionalDate] = useState<Date | undefined>(selectedDate);
-
-    const handleOkay = () => {
-        onDateChange(provisionalDate);
-        setPopoverOpen(false);
-    };
-    
-    const handleCancel = () => {
-        setProvisionalDate(selectedDate);
-        setPopoverOpen(false);
-    };
-
     return (
         <div className="relative w-full h-80 rounded-2xl overflow-hidden bg-gradient-to-br from-green-100 via-purple-50 to-orange-100 p-8 flex flex-col justify-center items-start text-left">
              <div className="absolute inset-0 z-0">
@@ -51,7 +38,7 @@ export function SearchHeader({ selectedDate, onDateChange, onFindAvailability }:
                 <p className="mt-4 text-lg text-gray-600">Ready to start the game together? Book the AVIT ground with ease.</p>
                 <div className="mt-8 w-full max-w-md bg-white/80 p-3 rounded-full shadow-lg backdrop-blur-sm">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2 items-center">
-                        <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+                        <Popover>
                             <PopoverTrigger asChild>
                                 <Button 
                                     variant="outline" 
@@ -67,15 +54,11 @@ export function SearchHeader({ selectedDate, onDateChange, onFindAvailability }:
                             <PopoverContent className="w-auto p-0" align="start">
                                 <CalendarPicker
                                     mode="single"
-                                    selected={provisionalDate}
-                                    onSelect={setProvisionalDate}
+                                    selected={selectedDate}
+                                    onSelect={onDateChange}
                                     disabled={(day) => day < new Date(new Date().toDateString())}
                                     initialFocus
                                 />
-                                <div className="flex justify-end gap-2 p-2 border-t">
-                                    <Button variant="ghost" size="sm" onClick={handleCancel}>Cancel</Button>
-                                    <Button size="sm" onClick={handleOkay}>Okay</Button>
-                                </div>
                             </PopoverContent>
                         </Popover>
 
