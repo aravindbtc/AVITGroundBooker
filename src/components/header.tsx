@@ -42,9 +42,9 @@ export function Header() {
     return doc(firestore, "users", user.uid);
   }, [firestore, user]);
 
-  const { data: userProfile } = useDoc<UserProfile>(userProfileRef);
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
-  const userInitials = userProfile?.name?.split(' ').map(n => n[0]).join('').toUpperCase() || (user?.email ? user.email[0].toUpperCase() : 'G');
+  const userInitials = userProfile?.name?.split(' ').map(n => n[0]).join('').toUpperCase() || (user?.email ? user.email[0].toUpperCase() : '?');
   const pathname = usePathname();
 
   const navLinks = [
@@ -96,11 +96,11 @@ export function Header() {
               <span>Paiyanoor, Chennai</span>
             </div>
             
-            {isUserLoading ? (
+            {isUserLoading || (user && isProfileLoading) ? (
                  <Avatar className="h-10 w-10">
                     <AvatarFallback>?</AvatarFallback>
                 </Avatar>
-            ) : user ? (
+            ) : user && userProfile ? (
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                     <Button variant="secondary" className="relative h-10 w-10 rounded-full">
@@ -113,9 +113,9 @@ export function Header() {
                     <DropdownMenuContent className="w-56" align="end">
                     <DropdownMenuLabel className="font-normal">
                         <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">{userProfile?.name || 'User'}</p>
+                        <p className="text-sm font-medium leading-none">{userProfile.name}</p>
                         <p className="text-xs leading-none text-muted-foreground">
-                            {user?.email}
+                            {user.email}
                         </p>
                         </div>
                     </DropdownMenuLabel>
@@ -132,7 +132,7 @@ export function Header() {
                     <DropdownMenuItem asChild>
                         <Link href="/loyalty"><Gem className="mr-2 h-4 w-4" /><span>Loyalty</span></Link>
                     </DropdownMenuItem>
-                    {userProfile?.role === 'admin' && (
+                    {userProfile.role === 'admin' && (
                       <DropdownMenuItem asChild>
                           <Link href="/admin"><Shield className="mr-2 h-4 w-4" /><span>Admin</span></Link>
                       </DropdownMenuItem>
