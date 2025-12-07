@@ -2,7 +2,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
+import { format, isValid } from "date-fns";
 import { CalendarDays, Shield } from "lucide-react";
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase";
 import { collection, query, where, orderBy, limit, doc } from "firebase/firestore";
@@ -114,7 +114,11 @@ export function RecentBookings() {
             <TableBody>
               {bookings.map((booking) => (
                 <TableRow key={booking.id}>
-                  <TableCell className="font-medium">{booking.bookingDate ? format(booking.bookingDate.toDate(), "MMM dd, yyyy") : 'Processing...'}</TableCell>
+                  <TableCell className="font-medium">
+                     {booking.bookingDate && isValid(booking.bookingDate.toDate()) 
+                          ? format(booking.bookingDate.toDate(), "MMM dd, yyyy") 
+                          : 'Processing...'}
+                  </TableCell>
                   <TableCell>RS.{booking.total.toFixed(2)}</TableCell>
                   <TableCell className="text-right">
                     <Badge variant={booking.status === 'confirmed' ? 'default' : 'secondary'}>
