@@ -125,7 +125,7 @@ export function RecentBookings() {
                   </TableCell>
                   <TableCell>RS.{booking.total.toFixed(2)}</TableCell>
                   <TableCell className="text-right">
-                    <Badge variant={booking.status === 'confirmed' ? 'default' : 'secondary'}>
+                    <Badge variant={booking.status === 'paid' ? 'default' : 'secondary'}>
                       {booking.status}
                     </Badge>
                   </TableCell>
