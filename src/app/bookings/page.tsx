@@ -24,18 +24,20 @@ function BookingList() {
 
     const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
+    // **DEFINITIVE FIX**: This query is ONLY constructed if we have confirmed the user's role is 'user'.
+    // It will not run for an admin, preventing a permissions error.
     const bookingsQuery = useMemoFirebase(() => {
-        if (!firestore || !user || userProfile?.role === 'admin') return null;
+        if (!firestore || !user || isProfileLoading || userProfile?.role !== 'user') return null;
         return query(
             collection(firestore, "bookings"),
             where("userId", "==", user.uid),
             orderBy("bookingDate", "desc")
         );
-    }, [firestore, user, userProfile]);
+    }, [firestore, user, userProfile, isProfileLoading]);
 
     const { data: bookings, isLoading: isBookingsLoading, error } = useCollection<Booking>(bookingsQuery);
 
-    const isLoading = isUserLoading || isProfileLoading || (isBookingsLoading && !bookings);
+    const isLoading = isUserLoading || isProfileLoading;
 
     if (isLoading) {
         return (
@@ -81,6 +83,16 @@ function BookingList() {
         );
     }
 
+    if (isBookingsLoading && bookingsQuery) {
+        return (
+             <div className="space-y-2 p-6">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+            </div>
+        )
+    }
+
     if (!bookings || bookings.length === 0) {
         return (
             <div className="text-center py-10">
@@ -108,7 +120,7 @@ function BookingList() {
                         </TableCell>
                         <TableCell>RS.{booking.total.toFixed(2)}</TableCell>
                         <TableCell className="text-right">
-                            <Badge variant={booking.status === 'confirmed' ? 'default' : 'secondary'}>
+                            <Badge variant={booking.status === 'paid' ? 'default' : 'secondary'}>
                                 {booking.status}
                             </Badge>
                         </TableCell>

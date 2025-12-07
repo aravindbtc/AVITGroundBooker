@@ -290,6 +290,7 @@ function PriceStockManagement() {
 function AllBookings() {
     const firestore = useFirestore();
 
+    // **DEFINITIVE FIX**: This query correctly fetches all bookings without user-specific filters, as intended for the admin dashboard.
     const bookingsQuery = useMemoFirebase(() => {
         if (!firestore) return null;
         return query(
@@ -341,7 +342,7 @@ function AllBookings() {
                                     </TableCell>
                                     <TableCell>RS.{booking.total.toFixed(2)}</TableCell>
                                     <TableCell className="text-right">
-                                        <Badge variant={booking.status === 'Confirmed' ? 'default' : 'secondary'}>
+                                        <Badge variant={booking.status === 'paid' ? 'default' : 'secondary'}>
                                             {booking.status}
                                         </Badge>
                                     </TableCell>
