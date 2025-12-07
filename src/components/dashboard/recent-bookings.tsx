@@ -1,3 +1,4 @@
+
 'use client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -22,8 +23,9 @@ export function RecentBookings() {
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
   const bookingsQuery = useMemoFirebase(() => {
-      // **CRITICAL FIX**: Do not create a query until the profile is loaded and the role is confirmed to be 'user'.
-      if (isProfileLoading || !userProfile || userProfile.role !== 'user') {
+      // **DEFINITIVE FIX**: Do not create a query until the profile is loaded and we have confirmed the role is 'user'.
+      // This prevents any query from being made for an admin or during the loading state.
+      if (isProfileLoading || !userProfile || userProfile.role !== 'user' || !user) {
         return null;
       }
       return query(
@@ -98,7 +100,7 @@ export function RecentBookings() {
                     <Link href="/login">Login</Link>
                 </Button>
             </div>
-        ) : isBookingsLoading ? (
+        ) : isBookingsLoading && bookingsQuery !== null ? (
              <div className="space-y-2">
                 <Skeleton className="h-10 w-full" />
                 <Skeleton className="h-10 w-full" />

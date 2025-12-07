@@ -66,6 +66,9 @@ service cloud.firestore {
     function isUserIdImmutable() {
       return request.resource.data.userId == resource.data.userId;
     }
+    function isQueryingOwnData() {
+        return request.query.where.size() > 0 && request.query.where[0][0] == 'userId' && request.query.where[0][2] == request.auth.uid;
+    }
     
     /**
      * @description Publicly readable venue information, writable only by admins.
@@ -110,7 +113,7 @@ service cloud.firestore {
      */
     match /bookings/{bookingId} {
       allow get: if isExistingContentOwner() || isAdmin();
-      allow list: if isAdmin() || (isSignedIn() && request.query.where.size() > 0 && request.query.where[0][0] == 'userId' && request.query.where[0][2] == request.auth.uid);
+      allow list: if isAdmin() || isQueryingOwnData();
       allow create: if isCreatingOwnContent();
       allow update: if (isExistingContentOwner() && isUserIdImmutable()) || isAdmin();
       allow delete: if isExistingContentOwner() || isAdmin();
