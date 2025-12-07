@@ -3,7 +3,7 @@
 
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase";
 import { collection, query, where, orderBy, doc, Timestamp } from "firebase/firestore";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -17,6 +17,7 @@ function BookingList() {
     const { user, isUserLoading } = useUser();
     const firestore = useFirestore();
 
+    // Step 1: Get the user's profile to determine their role.
     const userProfileRef = useMemoFirebase(() => {
         if (!firestore || !user) return null;
         return doc(firestore, "users", user.uid);
@@ -24,8 +25,8 @@ function BookingList() {
 
     const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
+    // Step 2: Only create the bookings query if we have a confirmed regular user.
     const bookingsQuery = useMemoFirebase(() => {
-        // Query should ONLY be created if we have a user who is NOT an admin.
         if (!firestore || !user || !userProfile || userProfile.role !== 'user') {
             return null;
         }
@@ -40,6 +41,7 @@ function BookingList() {
 
     const isLoading = isUserLoading || isProfileLoading;
 
+    // Show a global loading state while checking user auth and profile.
     if (isLoading) {
         return (
             <div className="space-y-2 p-6">
@@ -50,6 +52,7 @@ function BookingList() {
         );
     }
     
+    // If no user is logged in after checking, prompt them to log in.
     if (!user) {
         return (
             <div className="text-center py-10">
@@ -61,7 +64,7 @@ function BookingList() {
         )
     }
 
-    // Explicitly handle admin view. This component should not be visible for admins.
+    // Explicitly handle admin view. This prevents any data fetching attempts for an admin.
     if (userProfile?.role === 'admin') {
         return (
              <div className="text-center py-10">
@@ -85,7 +88,7 @@ function BookingList() {
         );
     }
 
-    // Show loading skeleton only when we expect bookings to be loading.
+    // Show loading skeleton only when we expect bookings to be loading for a regular user.
     if (isBookingsLoading && bookingsQuery) {
         return (
              <div className="space-y-2 p-6">
@@ -146,6 +149,7 @@ export default function BookingsPage() {
                 <p className="text-muted-foreground">A history of all your ground bookings.</p>
             </div>
             <Card>
+                <CardHeader className='p-0'></CardHeader>
                 <CardContent className="p-0">
                    <BookingList />
                 </CardContent>

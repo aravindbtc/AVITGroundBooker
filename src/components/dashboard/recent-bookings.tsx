@@ -16,6 +16,7 @@ export function RecentBookings() {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
 
+  // Step 1: Get the user's profile to determine their role.
   const userProfileRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return doc(firestore, "users", user.uid);
@@ -23,6 +24,7 @@ export function RecentBookings() {
 
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
+  // Step 2: Only create the bookings query if the user is loaded and confirmed to be a regular 'user'.
   const bookingsQuery = useMemoFirebase(() => {
       // This query should ONLY be created if we have a user who is confirmed to be a regular user.
       if (!firestore || !user || !userProfile || userProfile.role !== 'user') {
@@ -36,6 +38,7 @@ export function RecentBookings() {
       );
   }, [firestore, user, userProfile]);
 
+  // Step 3: Fetch the bookings. This hook will do nothing if the query is null.
   const { data: bookings, isLoading: isBookingsLoading, error } = useCollection<Booking>(bookingsQuery);
 
   const hasBookings = bookings && bookings.length > 0;
@@ -79,6 +82,9 @@ export function RecentBookings() {
     );
   }
 
+  // Step 4: Explicitly handle the different states (admin, logged out, no bookings).
+  
+  // Display admin-specific view.
   if (userProfile?.role === 'admin') {
     return (
        <Card>
@@ -100,6 +106,28 @@ export function RecentBookings() {
     )
   }
 
+  // Display for logged-out users.
+  if (!user) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="font-headline flex items-center gap-2">
+              <CalendarDays />
+              Recent Bookings
+          </CardTitle>
+          <CardDescription>Your 3 most recent bookings.</CardDescription>
+        </CardHeader>
+        <CardContent className="text-center text-muted-foreground py-8">
+            <p>Log in to see your bookings.</p>
+             <Button asChild variant="link">
+                <Link href="/login">Login</Link>
+            </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Display bookings or loading state for a regular user.
   return (
     <Card>
       <CardHeader>
@@ -110,14 +138,7 @@ export function RecentBookings() {
         <CardDescription>Your 3 most recent bookings.</CardDescription>
       </CardHeader>
       <CardContent>
-        {!user ? (
-            <div className="text-center text-muted-foreground py-8">
-                <p>Log in to see your bookings.</p>
-                 <Button asChild variant="link">
-                    <Link href="/login">Login</Link>
-                </Button>
-            </div>
-        ) : isBookingsLoading && bookingsQuery ? (
+        {isBookingsLoading && bookingsQuery ? (
              <div className="space-y-2">
                 <Skeleton className="h-10 w-full" />
                 <Skeleton className="h-10 w-full" />
