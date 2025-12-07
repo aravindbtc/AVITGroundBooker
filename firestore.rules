@@ -6,6 +6,7 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
     function isAdmin() {
+      // Grant admin privileges if the user's email is admin@avit.ac.in
       return request.auth != null && request.auth.token.email == "admin@avit.ac.in";
     }
 
@@ -20,7 +21,7 @@ service cloud.firestore {
       allow list: if isAdmin();
       allow create: if isOwner(userId);
     }
-
+    
     // This rule fixes the core issue.
     // It grants full read/write access on the entire bookings collection to the admin.
     // Regular users are still governed by their specific query rules on the client.
