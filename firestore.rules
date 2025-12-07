@@ -15,7 +15,7 @@ service cloud.firestore {
 
     // USERS
     match /users/{uid} {
-      allow read: if isOwner(uid) || isAdmin();
+      allow read: if isSignedIn() && (isOwner(uid) || isAdmin());
       allow create: if isOwner(uid);
       allow update: if isOwner(uid) || isAdmin();
       allow delete: if false; // avoid accidental deletes
