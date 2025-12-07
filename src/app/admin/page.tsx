@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { Addon, Manpower, Booking } from '@/lib/types';
 import { ShieldAlert, Save, CalendarPlus, Loader2, AlertCircle, CalendarDays } from "lucide-react";
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { writeBatch, doc, collection, Timestamp, query, orderBy } from 'firebase/firestore';
+import { writeBatch, doc, collection, Timestamp, query, orderBy, serverTimestamp } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
 import { addDays, format, startOfDay } from 'date-fns';
 import { VenueManagement } from '@/components/admin/venue-management';
@@ -337,7 +337,7 @@ function AllBookings() {
                                 <TableRow key={booking.id}>
                                     <TableCell className="font-mono text-xs text-muted-foreground">@{booking.userId.substring(0, 8)}</TableCell>
                                     <TableCell className="font-medium">
-                                        {booking.bookingDate ? format(booking.bookingDate.toDate(), 'PPP') : 'N/A'}
+                                        {booking.bookingDate instanceof Timestamp ? format(booking.bookingDate.toDate(), 'PPP') : 'Processing...'}
                                     </TableCell>
                                     <TableCell>RS.{booking.total.toFixed(2)}</TableCell>
                                     <TableCell className="text-right">
@@ -372,5 +372,3 @@ export default function AdminPage() {
     </div>
   );
 }
-
-    

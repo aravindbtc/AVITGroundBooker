@@ -4,10 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { CalendarDays } from "lucide-react";
-import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, where, orderBy, limit } from "firebase/firestore";
-import type { Booking } from "@/lib/types";
+import { CalendarDays, Shield } from "lucide-react";
+import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase";
+import { collection, query, where, orderBy, limit, doc } from "firebase/firestore";
+import type { Booking, UserProfile } from "@/lib/types";
 import { Skeleton } from "../ui/skeleton";
 import Link from "next/link";
 import { Button } from "../ui/button";
@@ -16,19 +16,47 @@ export function RecentBookings() {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
 
+  const userProfileRef = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return doc(firestore, "users", user.uid);
+  }, [firestore, user]);
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
+
   const bookingsQuery = useMemoFirebase(() => {
-      if (!firestore || !user) return null;
+      if (!firestore || !user || userProfile?.role === 'admin') return null; // Do not fetch for admin
       return query(
           collection(firestore, "bookings"),
           where("userId", "==", user.uid),
           orderBy("bookingDate", "desc"),
           limit(3)
       );
-  }, [firestore, user]);
+  }, [firestore, user, userProfile]);
 
-  const { data: bookings, isLoading } = useCollection<Booking>(bookingsQuery);
+  const { data: bookings, isLoading: isBookingsLoading } = useCollection<Booking>(bookingsQuery);
 
   const hasBookings = bookings && bookings.length > 0;
+  const isLoading = isUserLoading || isProfileLoading || isBookingsLoading;
+
+  if (userProfile?.role === 'admin') {
+    return (
+       <Card>
+        <CardHeader>
+            <CardTitle className="font-headline flex items-center gap-2">
+                <CalendarDays />
+                Recent Bookings
+            </CardTitle>
+        </CardHeader>
+        <CardContent className="text-center text-muted-foreground py-8">
+            <Shield className="mx-auto h-8 w-8 mb-2 text-primary" />
+            <p className="font-semibold">Admin View</p>
+            <p className="text-sm">Manage all bookings on the admin dashboard.</p>
+            <Button asChild variant="link" className="mt-2">
+                <Link href="/admin">Go to Admin Dashboard</Link>
+            </Button>
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <Card>
@@ -40,7 +68,7 @@ export function RecentBookings() {
         <CardDescription>Your 3 most recent bookings.</CardDescription>
       </CardHeader>
       <CardContent>
-        {isUserLoading || isLoading ? (
+        {isLoading ? (
             <div className="space-y-2">
                 <Skeleton className="h-10 w-full" />
                 <Skeleton className="h-10 w-full" />
@@ -65,7 +93,7 @@ export function RecentBookings() {
             <TableBody>
               {bookings.map((booking) => (
                 <TableRow key={booking.id}>
-                  <TableCell className="font-medium">{format(booking.bookingDate.toDate(), "MMM dd, yyyy")}</TableCell>
+                  <TableCell className="font-medium">{booking.bookingDate ? format(booking.bookingDate.toDate(), "MMM dd, yyyy") : 'Processing...'}</TableCell>
                   <TableCell>RS.{booking.total.toFixed(2)}</TableCell>
                   <TableCell className="text-right">
                     <Badge variant={booking.status === 'Confirmed' ? 'default' : 'secondary'}>
