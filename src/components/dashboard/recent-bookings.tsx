@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { format, isValid } from "date-fns";
-import { CalendarDays, Shield } from "lucide-react";
+import { CalendarDays, Shield, AlertCircle } from "lucide-react";
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase";
 import { collection, query, where, orderBy, limit, doc } from "firebase/firestore";
 import type { Booking, UserProfile } from "@/lib/types";
@@ -37,7 +37,7 @@ export function RecentBookings() {
       );
   }, [firestore, user, userProfile, isProfileLoading]);
 
-  const { data: bookings, isLoading: isBookingsLoading } = useCollection<Booking>(bookingsQuery);
+  const { data: bookings, isLoading: isBookingsLoading, error } = useCollection<Booking>(bookingsQuery);
 
   const hasBookings = bookings && bookings.length > 0;
   // The primary loading state depends on user auth and profile loading.
@@ -51,7 +51,6 @@ export function RecentBookings() {
                         <CalendarDays />
                         Recent Bookings
                     </CardTitle>
-                    <CardDescription>Your 3 most recent bookings.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-2">
@@ -62,6 +61,23 @@ export function RecentBookings() {
                 </CardContent>
             </Card>
       )
+  }
+  
+  if (error) {
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="font-headline flex items-center gap-2">
+                    <CalendarDays />
+                    Recent Bookings
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="text-center py-10 text-destructive flex flex-col items-center gap-2">
+                <AlertCircle />
+                <p className="text-sm">Could not load recent bookings.</p>
+            </CardContent>
+        </Card>
+    );
   }
 
   // If the user is an admin, show a specific admin view.
@@ -103,7 +119,8 @@ export function RecentBookings() {
                     <Link href="/login">Login</Link>
                 </Button>
             </div>
-        ) : isBookingsLoading && bookingsQuery !== null ? (
+        // Show skeleton only if we are expecting a query to run
+        ) : isBookingsLoading && bookingsQuery ? (
              <div className="space-y-2">
                 <Skeleton className="h-10 w-full" />
                 <Skeleton className="h-10 w-full" />
@@ -146,3 +163,5 @@ export function RecentBookings() {
     </Card>
   );
 }
+
+    

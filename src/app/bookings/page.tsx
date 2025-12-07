@@ -3,11 +3,11 @@
 
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase";
 import { collection, query, where, orderBy, doc } from "firebase/firestore";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CalendarDays, AlertCircle, Shield } from "lucide-react";
+import { AlertCircle, Shield } from "lucide-react";
 import type { Booking, UserProfile } from "@/lib/types";
 import { format } from "date-fns";
 import Link from "next/link";
@@ -27,7 +27,7 @@ function BookingList() {
     // **DEFINITIVE FIX**: This query is ONLY constructed if we have confirmed the user's role is 'user'.
     // It will not run for an admin, preventing a permissions error.
     const bookingsQuery = useMemoFirebase(() => {
-        if (!firestore || !user || isProfileLoading || userProfile?.role !== 'user') return null;
+        if (!firestore || !user || isProfileLoading || !userProfile || userProfile.role !== 'user') return null;
         return query(
             collection(firestore, "bookings"),
             where("userId", "==", user.uid),
@@ -83,6 +83,7 @@ function BookingList() {
         );
     }
 
+    // This condition checks if the query is ready to be executed but is still loading.
     if (isBookingsLoading && bookingsQuery) {
         return (
              <div className="space-y-2 p-6">
@@ -147,3 +148,5 @@ export default function BookingsPage() {
         </div>
     );
 }
+
+    

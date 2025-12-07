@@ -290,13 +290,11 @@ function PriceStockManagement() {
 function AllBookings() {
     const firestore = useFirestore();
 
-    // **DEFINITIVE FIX**: This query correctly fetches all bookings without user-specific filters, as intended for the admin dashboard.
     const bookingsQuery = useMemoFirebase(() => {
         if (!firestore) return null;
-        return query(
-            collection(firestore, "bookings"),
-            orderBy("bookingDate", "desc")
-        );
+        // This is the admin view, so we fetch ALL bookings, sorted by date.
+        // The security rules MUST allow this for an admin role.
+        return query(collection(firestore, "bookings"), orderBy("bookingDate", "desc"));
     }, [firestore]);
 
     const { data: bookings, isLoading, error } = useCollection<Booking>(bookingsQuery);
@@ -311,7 +309,7 @@ function AllBookings() {
                 <CardDescription>A list of all bookings made by users.</CardDescription>
             </CardHeader>
             <CardContent>
-                {isLoading ? (
+                {isLoading && !bookings ? (
                     <div className="space-y-2">
                         <Skeleton className="h-12 w-full" />
                         <Skeleton className="h-12 w-full" />
@@ -373,3 +371,5 @@ export default function AdminPage() {
     </div>
   );
 }
+
+    
