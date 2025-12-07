@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { Addon, Manpower, Booking } from '@/lib/types';
 import { ShieldAlert, Save, CalendarPlus, Loader2, AlertCircle, CalendarDays } from "lucide-react";
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { writeBatch, doc, collection, Timestamp, query, orderBy, serverTimestamp } from 'firebase/firestore';
+import { writeBatch, doc, collection, Timestamp, query, orderBy } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
 import { addDays, format, startOfDay } from 'date-fns';
 import { VenueManagement } from '@/components/admin/venue-management';
@@ -39,7 +39,6 @@ function SlotGenerator() {
 
             for (let i = 0; i < 30; i++) {
                 const day = addDays(today, i);
-                const firestoreDate = Timestamp.fromDate(day);
                 const dateString = format(day, 'yyyy-MM-dd');
 
                 for (let hour = 5; hour < 22; hour++) {
@@ -52,12 +51,13 @@ function SlotGenerator() {
 
                     batch.set(slotRef, {
                         id: slotId,
-                        date: firestoreDate,
+                        date: Timestamp.fromDate(day),
                         dateString: dateString,
                         startTime,
                         endTime,
                         isPeak,
                         status: 'available',
+                        bookedById: null
                     });
                 }
             }
@@ -293,8 +293,6 @@ function AllBookings() {
 
     const bookingsQuery = useMemoFirebase(() => {
         if (!firestore) return null;
-        // This is the admin view, so we fetch ALL bookings, sorted by date.
-        // The security rules MUST allow this for an admin role.
         return query(collection(firestore, "bookings"), orderBy("bookingDate", "desc"));
     }, [firestore]);
 
@@ -326,6 +324,7 @@ function AllBookings() {
                     <Table>
                         <TableHeader>
                             <TableRow>
+                                <TableHead>Booking ID</TableHead>
                                 <TableHead>User ID</TableHead>
                                 <TableHead>Date</TableHead>
                                 <TableHead>Total</TableHead>
@@ -335,6 +334,7 @@ function AllBookings() {
                         <TableBody>
                             {bookings.map((booking) => (
                                 <TableRow key={booking.id}>
+                                    <TableCell className="font-mono text-xs">#{booking.id.substring(0, 7)}</TableCell>
                                     <TableCell className="font-mono text-xs text-muted-foreground">@{booking.userId.substring(0, 8)}</TableCell>
                                     <TableCell className="font-medium">
                                         {booking.bookingDate instanceof Timestamp ? format(booking.bookingDate.toDate(), 'PPP') : 'Processing...'}
@@ -372,3 +372,5 @@ export default function AdminPage() {
     </div>
   );
 }
+
+    

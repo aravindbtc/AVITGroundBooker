@@ -2,14 +2,14 @@
 'use client';
 
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase";
-import { collection, query, where, orderBy, doc } from "firebase/firestore";
+import { collection, query, where, orderBy, doc, Timestamp } from "firebase/firestore";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle, Shield } from "lucide-react";
 import type { Booking, UserProfile } from "@/lib/types";
-import { format, isValid } from "date-fns";
+import { format } from "date-fns";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
@@ -24,16 +24,14 @@ function BookingList() {
 
     const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
-    // This is the definitive fix. The query is ONLY constructed if we have confirmed the user's role is 'user'.
-    // This prevents any query from being made for an admin or while the profile is loading.
     const bookingsQuery = useMemoFirebase(() => {
-        if (!firestore || !user || isProfileLoading || !userProfile || userProfile.role !== 'user') return null;
+        if (!firestore || !user || !userProfile || userProfile.role !== 'user') return null;
         return query(
             collection(firestore, "bookings"),
             where("userId", "==", user.uid),
             orderBy("bookingDate", "desc")
         );
-    }, [firestore, user, userProfile, isProfileLoading]);
+    }, [firestore, user, userProfile]);
 
     const { data: bookings, isLoading: isBookingsLoading, error } = useCollection<Booking>(bookingsQuery);
 
@@ -60,7 +58,6 @@ function BookingList() {
         )
     }
 
-    // Explicitly handle the admin case to prevent any data fetching attempts.
     if (userProfile?.role === 'admin') {
         return (
              <div className="text-center py-10">
@@ -84,7 +81,6 @@ function BookingList() {
         );
     }
 
-    // Show loading skeleton only if we are in a state where a query should be running.
     if (isBookingsLoading && bookingsQuery) {
         return (
              <div className="space-y-2 p-6">
@@ -121,7 +117,7 @@ function BookingList() {
                     <TableRow key={booking.id}>
                         <TableCell className="font-mono text-xs text-muted-foreground">#{booking.id.substring(0,7)}</TableCell>
                         <TableCell className="font-medium">
-                            {booking.bookingDate && isValid(booking.bookingDate.toDate()) ? format(booking.bookingDate.toDate(), 'PPP') : 'N/A'}
+                            {booking.bookingDate instanceof Timestamp ? format(booking.bookingDate.toDate(), 'PPP') : 'N/A'}
                         </TableCell>
                         <TableCell>RS.{booking.total.toFixed(2)}</TableCell>
                         <TableCell className="text-right">
@@ -152,3 +148,5 @@ export default function BookingsPage() {
         </div>
     );
 }
+
+    

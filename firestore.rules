@@ -1,3 +1,4 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -5,64 +6,78 @@ service cloud.firestore {
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
+
     function isAdmin() {
       // Grant admin privileges if the user's email is admin@avit.ac.in
       return request.auth != null && request.auth.token.email == "admin@avit.ac.in";
     }
+    
+    function isQueryingOwnData() {
+        // Enforce that a non-admin user MUST filter by their own userId.
+        return request.query.where.size() > 0 && request.query.where[0][0] == 'userId' && request.query.where[0][2] == request.auth.uid;
+    }
 
     match /venue/{venueId} {
-      allow get: if true;
-      allow list: if true;
+      allow get, list: if true;
       allow create, update, delete: if isAdmin();
     }
 
     match /users/{userId} {
-      allow get, update, delete: if isOwner(userId) || isAdmin();
+      allow get, update: if isOwner(userId) || isAdmin();
       allow list: if isAdmin();
       allow create: if isOwner(userId);
+      allow delete: if isAdmin();
     }
     
-    // This rule fixes the core issue.
-    // It grants full read/write access on the entire bookings collection to the admin.
-    // Regular users are still governed by their specific query rules on the client.
     match /bookings/{bookingId} {
+      // Admins can read and write any booking.
       allow read, write: if isAdmin();
-      // Users can get, list, create, update, delete their OWN bookings.
-      allow get, list, create, update, delete: if request.auth.uid == resource.data.userId;
+      
+      // Users can get their OWN booking.
+      allow get: if request.auth.uid == resource.data.userId;
+      
+      // Users can list their OWN bookings, but the query must be constrained.
+      allow list: if isQueryingOwnData();
+      
+      // Users can create their own bookings.
+      allow create: if request.auth.uid == request.resource.data.userId;
+      
+      // Users can update their own bookings. Backend can also update.
+      allow update: if (request.auth.uid == resource.data.userId) || request.auth == null;
+      
+      // Users can delete their own bookings.
+      allow delete: if request.auth.uid == resource.data.userId;
     }
     
     match /slots/{slotId} {
-      allow get: if true;
-      allow list: if true;
+      allow get, list: if true;
       allow create, delete: if isAdmin();
-      // Allow updates from backend webhooks (no auth) or admin.
-      // Allow users to book 'available' slots.
+      // Allow updates from backend webhooks (no auth), admin, or users booking an available slot.
       allow update: if request.auth == null || isAdmin() || (request.auth.uid != null && resource.data.status == 'available');
     }
 
     match /accessories/{accessoryId} {
-      allow get: if true;
-      allow list: if true;
+      allow get, list: if true;
       allow create, delete: if isAdmin();
       // Allow stock updates from backend webhooks or admin
       allow update: if request.auth == null || isAdmin();
     }
 
     match /manpower/{manpowerId} {
-      allow get: if true;
-      allow list: if true;
+      allow get, list: if true;
       allow create, update, delete: if isAdmin();
     }
 
     match /reviews/{reviewId} {
-      allow get: if true;
-      allow list: if true;
-      allow create, update, delete: if request.auth.uid == resource.data.userId;
+      allow get, list: if true;
+      // Users can only create, update, or delete their own reviews.
+      allow create, update, delete: if request.auth.uid == resource.data.userId || request.auth.uid == request.resource.data.userId;
     }
 
     match /roles_admin/{userId} {
-      allow read, create, delete: if isAdmin();
-      allow list: if isAdmin();
+      allow read, list, create, delete: if isAdmin();
     }
   }
 }
+
+    

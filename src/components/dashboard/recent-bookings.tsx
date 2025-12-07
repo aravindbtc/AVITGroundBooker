@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { format, isValid } from "date-fns";
 import { CalendarDays, Shield, AlertCircle } from "lucide-react";
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase";
-import { collection, query, where, orderBy, limit, doc } from "firebase/firestore";
+import { collection, query, where, orderBy, limit, doc, Timestamp } from "firebase/firestore";
 import type { Booking, UserProfile } from "@/lib/types";
 import { Skeleton } from "../ui/skeleton";
 import Link from "next/link";
@@ -23,8 +23,6 @@ export function RecentBookings() {
 
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
-  // This is the definitive fix. The query is ONLY constructed if we have confirmed the user's role is 'user'.
-  // This prevents any query from being made for an admin or while the profile is loading.
   const bookingsQuery = useMemoFirebase(() => {
       if (!firestore || !user || isProfileLoading || !userProfile || userProfile.role !== 'user') {
         return null; 
@@ -40,7 +38,6 @@ export function RecentBookings() {
   const { data: bookings, isLoading: isBookingsLoading, error } = useCollection<Booking>(bookingsQuery);
 
   const hasBookings = bookings && bookings.length > 0;
-  // The primary loading state depends on user auth and profile loading.
   const isLoading = isUserLoading || isProfileLoading;
 
   if (isLoading) {
@@ -81,7 +78,6 @@ export function RecentBookings() {
     );
   }
 
-  // If the user is an admin, show a specific admin view.
   if (userProfile?.role === 'admin') {
     return (
        <Card>
@@ -120,7 +116,6 @@ export function RecentBookings() {
                     <Link href="/login">Login</Link>
                 </Button>
             </div>
-        // Show skeleton only if we are in a state where a query should be running.
         ) : isBookingsLoading && bookingsQuery ? (
              <div className="space-y-2">
                 <Skeleton className="h-10 w-full" />
@@ -140,7 +135,7 @@ export function RecentBookings() {
               {bookings.map((booking) => (
                 <TableRow key={booking.id}>
                   <TableCell className="font-medium">
-                     {booking.bookingDate && isValid(booking.bookingDate.toDate())
+                     {booking.bookingDate instanceof Timestamp && isValid(booking.bookingDate.toDate())
                           ? format(booking.bookingDate.toDate(), "MMM dd, yyyy")
                           : 'Processing...'}
                   </TableCell>
@@ -164,3 +159,5 @@ export function RecentBookings() {
     </Card>
   );
 }
+
+    
