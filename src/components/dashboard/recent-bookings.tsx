@@ -22,19 +22,41 @@ export function RecentBookings() {
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
   const bookingsQuery = useMemoFirebase(() => {
-      if (!firestore || !user || userProfile?.role === 'admin') return null; // Do not fetch for admin
+      // Important: Wait until we know the user's role before creating the query.
+      if (!firestore || !user || isProfileLoading || userProfile?.role === 'admin') return null;
       return query(
           collection(firestore, "bookings"),
           where("userId", "==", user.uid),
           orderBy("bookingDate", "desc"),
           limit(3)
       );
-  }, [firestore, user, userProfile]);
+  }, [firestore, user, userProfile, isProfileLoading]);
 
   const { data: bookings, isLoading: isBookingsLoading } = useCollection<Booking>(bookingsQuery);
 
   const hasBookings = bookings && bookings.length > 0;
-  const isLoading = isUserLoading || isProfileLoading || isBookingsLoading;
+  const isLoading = isUserLoading || isProfileLoading;
+
+  if (isLoading) {
+      return (
+            <Card>
+                <CardHeader>
+                    <CardTitle className="font-headline flex items-center gap-2">
+                        <CalendarDays />
+                        Recent Bookings
+                    </CardTitle>
+                    <CardDescription>Your 3 most recent bookings.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="space-y-2">
+                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="h-10 w-full" />
+                    </div>
+                </CardContent>
+            </Card>
+      )
+  }
 
   if (userProfile?.role === 'admin') {
     return (
@@ -67,18 +89,18 @@ export function RecentBookings() {
         <CardDescription>Your 3 most recent bookings.</CardDescription>
       </CardHeader>
       <CardContent>
-        {isLoading && !userProfile ? (
-            <div className="space-y-2">
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-            </div>
-        ) : !user ? (
+        {!user ? (
             <div className="text-center text-muted-foreground py-8">
                 <p>Log in to see your bookings.</p>
                  <Button asChild variant="link">
                     <Link href="/login">Login</Link>
                 </Button>
+            </div>
+        ) : isBookingsLoading ? (
+             <div className="space-y-2">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
             </div>
         ) : hasBookings ? (
           <Table>
