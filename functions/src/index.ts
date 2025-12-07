@@ -1,177 +1,214 @@
-/**
- * Import function triggers from their respective submodules:
- *
- * import {onCall} from "firebase-functions/v2/https";
- * import {onDocumentWritten} from "firebase-functions/v2/firestore";
- *
- * See a full list of supported triggers at https://firebase.google.com/docs/functions
- */
+const functions = require('firebase-functions');
+const admin = require('firebase-admin');
+const Razorpay = require('razorpay');
+const crypto = require('crypto');
 
-import { onCall, HttpsError } from "firebase-functions/v2/https";
-import * as logger from "firebase-functions/logger";
-import { onDocumentWritten } from "firebase-functions/v2/firestore";
-import * as admin from "firebase-admin";
-import Razorpay from "razorpay";
-import { defineString } from "firebase-functions/params";
-import crypto from "crypto";
-
-// Initialize Firebase Admin SDK
 admin.initializeApp();
 const db = admin.firestore();
 
-// Define Razorpay API keys as parameters
-const razorpayKeyId = defineString("RAZORPAY_KEY_ID");
-const razorpayKeySecret = defineString("RAZORPAY_KEY_SECRET");
-const razorpayWebhookSecret = defineString("RAZORPAY_WEBHOOK_SECRET");
-
-
-// Cloud Function to create a Razorpay order
-export const createRazorpayOrder = onCall(async (request) => {
-    // Check for authentication
-    if (!request.auth) {
-        throw new HttpsError("unauthenticated", "You must be logged in to create an order.");
-    }
-
-    const { amount, currency, receipt, notes } = request.data;
-    const userId = request.auth.uid;
-
-    logger.info(`Creating order for user ${userId} with amount ${amount}`);
-
-    try {
-        const razorpay = new Razorpay({
-            key_id: razorpayKeyId.value(),
-            key_secret: razorpayKeySecret.value(),
-        });
-
-        const options = {
-            amount: amount * 100, // Amount in paise
-            currency: currency || "INR",
-            receipt,
-            notes: { ...notes, userId }, // Add userId to notes for tracking
-        };
-
-        const order = await razorpay.orders.create(options);
-
-        logger.info(`Razorpay order created: ${order.id} for user ${userId}`);
-
-        // Store the Razorpay order ID in a new booking document
-        const bookingRef = db.collection("bookings").doc();
-        await bookingRef.set({
-            id: bookingRef.id,
-            userId,
-            razorpayOrderId: order.id,
-            status: "pending",
-            total: amount,
-            bookingDate: admin.firestore.FieldValue.serverTimestamp(),
-            ...notes, // slotIds, addons, etc.
-        });
-
-        logger.info(`Firestore booking document created: ${bookingRef.id}`);
-
-        return {
-            orderId: order.id,
-            bookingId: bookingRef.id,
-            amount: order.amount,
-        };
-    } catch (error) {
-        logger.error("Error creating Razorpay order:", error);
-        throw new HttpsError("internal", "Could not create Razorpay order.", error);
-    }
+// Ensure you have set these in your Firebase environment configuration
+// firebase functions:config:set razorpay.key_id="YOUR_KEY_ID" razorpay.key_secret="YOUR_KEY_SECRET" razorpay.webhook_secret="YOUR_WEBHOOK_SECRET"
+const razorpay = new Razorpay({
+  key_id: functions.config().razorpay.key_id,
+  key_secret: functions.config().razorpay.key_secret
 });
 
+// Helper: generate booking doc id
+function bookingDocId() {
+  return db.collection('bookings').doc().id;
+}
 
-// Cloud Function to handle Razorpay webhook
-export const razorpayWebhook = onCall(async (request) => {
-  logger.info("Razorpay webhook received");
+// Create Razorpay order endpoint
+exports.createRazorpayOrder = functions.https.onCall(async (data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Sign in required');
 
-  const secret = razorpayWebhookSecret.value();
-  const signature = request.headers["x-razorpay-signature"] as string;
-  const body = JSON.stringify(request.body);
-
-  // 1. Validate the webhook signature
-  const expectedSignature = crypto
-    .createHmac("sha256", secret)
-    .update(body)
-    .digest("hex");
-  
-  if (signature !== expectedSignature) {
-    logger.error("Invalid webhook signature.");
-    throw new HttpsError("permission-denied", "Invalid signature.");
+  const uid = context.auth.uid;
+  const { slots, addons, totalAmount } = data;
+  if (!Array.isArray(slots) || slots.length === 0) {
+    throw new functions.https.HttpsError('invalid-argument', 'No slots selected');
   }
-  
-  logger.info("Webhook signature validated successfully.");
-  
-  const event = request.body;
 
-  // 2. Handle the 'payment.captured' event
-  if (event.event === "payment.captured") {
-    const payment = event.payload.payment.entity;
-    const orderId = payment.order_id;
-    const customerEmail = payment.email;
-    const customerPhone = payment.contact;
+  // Generate bookingId
+  const bookingId = bookingDocId();
+  const bookingRef = db.collection('bookings').doc(bookingId);
 
-    logger.info(`Processing payment captured for order: ${orderId}`);
-
-    try {
-      // Find the booking document using the Razorpay order ID
-      const bookingsQuery = await db.collection("bookings").where("razorpayOrderId", "==", orderId).limit(1).get();
-
-      if (bookingsQuery.empty) {
-        logger.error(`No booking found for Razorpay order ID: ${orderId}`);
-        throw new HttpsError("not-found", "Booking not found.");
+  // Transaction: verify all slots are still available and create a pending booking
+  await db.runTransaction(async (t) => {
+    for (const slotId of slots) {
+      const slotRef = db.collection('slots').doc(slotId);
+      const slotSnap = await t.get(slotRef);
+      if (!slotSnap.exists) throw new functions.https.HttpsError('not-found', `Slot ${slotId} not found`);
+      const slot = slotSnap.data();
+      if (slot.status !== 'available') {
+        throw new functions.https.HttpsError('failed-precondition', `Slot ${slotId} is not available`);
       }
-
-      const bookingDoc = bookingsQuery.docs[0];
-      const booking = bookingDoc.data();
-      const bookingId = bookingDoc.id;
-      const userId = booking.userId;
-
-      // Use a transaction to ensure atomicity
-      await db.runTransaction(async (transaction) => {
-        // 3. Update the booking status to 'paid'
-        transaction.update(bookingDoc.ref, { status: "paid", paymentTimestamp: admin.firestore.FieldValue.serverTimestamp() });
-
-        // 4. Update the status of each booked slot to 'booked'
-        if (booking.slotIds && Array.isArray(booking.slotIds)) {
-          booking.slotIds.forEach((slotId: string) => {
-            const slotRef = db.collection("slots").doc(slotId);
-            transaction.update(slotRef, { status: "booked", bookedById: userId });
-          });
-        }
-        
-        // 5. Decrement stock for addons
-        if (booking.addons && Array.isArray(booking.addons)) {
-            for (const item of booking.addons) {
-                if (item.type === 'addon') {
-                    const itemRef = db.collection('accessories').doc(item.id);
-                    const itemDoc = await transaction.get(itemRef);
-                    if(itemDoc.exists) {
-                       const currentQuantity = itemDoc.data()?.quantity ?? 0;
-                       transaction.update(itemRef, { quantity: currentQuantity - item.quantity });
-                    }
-                }
-            }
-        }
-        
-        // 6. Update user's loyalty points
-        const userRef = db.collection("users").doc(userId);
-        const userDoc = await transaction.get(userRef);
-        if(userDoc.exists){
-            const currentPoints = userDoc.data()?.loyaltyPoints ?? 0;
-            transaction.update(userRef, { loyaltyPoints: currentPoints + booking.total });
-        }
-      });
-
-      logger.info(`Booking ${bookingId} successfully updated for user ${userId}.`);
-      
-    } catch (error) {
-      logger.error(`Failed to process booking for order ${orderId}:`, error);
-      // Depending on the error, you might want to retry or send a notification
-      throw new HttpsError("internal", "Failed to update booking after payment.", error);
     }
-  }
 
-  return { status: "success" };
+    // Create booking doc with status pending
+    const bookingData = {
+      uid,
+      groundId: 'avit-ground',
+      date: slots[0].split('_')[0],
+      slots,
+      addons: addons || [],
+      totalAmount,
+      status: 'pending',
+      payment: { orderId: null, status: 'pending', createdAt: admin.firestore.FieldValue.serverTimestamp() },
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+    t.set(bookingRef, bookingData);
+    
+    // Mark slots as pending
+    for (const slotId of slots) {
+        const slotRef = db.collection('slots').doc(slotId);
+        t.update(slotRef, { status: 'blocked', bookingId: bookingId });
+    }
+  });
+
+  // Create Razorpay order
+  const amountInPaise = Math.round(totalAmount * 100);
+  const orderOptions = {
+    amount: amountInPaise,
+    currency: "INR",
+    receipt: bookingId
+  };
+
+  const order = await razorpay.orders.create(orderOptions);
+
+  // Update booking with order id
+  await db.collection('bookings').doc(bookingId).update({
+    'payment.orderId': order.id,
+    'payment.status': 'created',
+  });
+
+  return { orderId: order.id, bookingId, amount: amountInPaise, key: functions.config().razorpay.key_id };
 });
 
+// Webhook to be set in Razorpay dashboard
+exports.razorpayWebhook = functions.https.onRequest(async (req, res) => {
+  const secret = functions.config().razorpay.webhook_secret;
+  const signature = req.headers['x-razorpay-signature'];
+  const body = JSON.stringify(req.body);
+
+  const expected = crypto.createHmac('sha256', secret).update(body).digest('hex');
+  if (expected !== signature) {
+    return res.status(400).send('Invalid signature');
+  }
+
+  const payload = req.body;
+
+  if (payload.event === 'payment.captured' || payload.event === 'order.paid') {
+    const payment = payload.payload.payment.entity;
+    const razorpayOrderId = payment.order_id;
     
+    const bookingsQuery = await db.collection('bookings').where('payment.orderId', '==', razorpayOrderId).limit(1).get();
+    if (bookingsQuery.empty) {
+      console.error('Booking not found for order', razorpayOrderId);
+      return res.status(200).send('ok');
+    }
+    
+    const bookingSnap = bookingsQuery.docs[0];
+    const bookingId = bookingSnap.id;
+    const booking = bookingSnap.data();
+
+    // Idempotency check: if booking is already paid, do nothing.
+    if (booking.status === 'paid') {
+        console.log(`Booking ${bookingId} already marked as paid. Ignoring webhook.`);
+        return res.status(200).send('ok');
+    }
+
+    const batch = db.batch();
+    const bookingRef = db.collection('bookings').doc(bookingId);
+    batch.update(bookingRef, {
+      status: 'paid',
+      'payment.razorpayPaymentId': payment.id,
+      'payment.status': 'paid',
+      'payment.capturedAt': admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    for (const slotId of booking.slots) {
+      const slotRef = db.collection('slots').doc(slotId);
+      batch.update(slotRef, { status: 'booked', bookingId });
+    }
+
+    for (const addon of booking.addons || []) {
+      const accRef = db.collection('accessories').doc(addon.id);
+      batch.update(accRef, { stock: admin.firestore.FieldValue.increment(-1 * (addon.qty || 1)) });
+    }
+    
+    const points = Math.floor((booking.totalAmount || 0) / 100);
+    if(points > 0) {
+        const userRef = db.collection('users').doc(booking.uid);
+        batch.update(userRef, { loyaltyPoints: admin.firestore.FieldValue.increment(points) });
+    }
+
+    await batch.commit();
+
+  } else if (payload.event === 'payment.failed') {
+      const payment = payload.payload.payment.entity;
+      const razorpayOrderId = payment.order_id;
+      const bookingsQuery = await db.collection('bookings').where('payment.orderId', '==', razorpayOrderId).limit(1).get();
+      if (bookingsQuery.empty) {
+        return res.status(200).send('ok');
+      }
+      const bookingSnap = bookingsQuery.docs[0];
+      const booking = bookingSnap.data();
+
+      // Set booking to failed and release the slots
+      await db.runTransaction(async (t) => {
+          const bookingRef = db.collection('bookings').doc(bookingSnap.id);
+          t.update(bookingRef, { status: 'failed', 'payment.status': 'failed' });
+          for (const slotId of booking.slots) {
+            const slotRef = db.collection('slots').doc(slotId);
+            t.update(slotRef, { status: 'available', bookingId: null });
+          }
+      });
+  }
+
+  res.status(200).send('ok');
+});
+
+
+exports.generateSlots = functions.https.onCall(async (data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated','Sign in');
+  const uid = context.auth.uid;
+  const userSnap = await db.collection('users').doc(uid).get();
+  if (!userSnap.exists || userSnap.data().role !== 'admin') {
+    throw new functions.https.HttpsError('permission-denied','Only admin can perform this action.');
+  }
+
+  const days = data.days || 30;
+  const startHour = 5; // 5 AM
+  const endHour = 22; // 10 PM
+  const venueDoc = await db.doc('venue/avit-ground').get();
+  const basePrice = venueDoc.data().basePricePerHour || 500;
+  const peakSurcharge = 150;
+
+  const batch = db.batch();
+  const now = new Date();
+  for (let d=0; d<days; d++) {
+    const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + d);
+    const yyyy = date.toISOString().slice(0,10);
+    for (let h=startHour; h<endHour; h++) {
+      const slotId = `${yyyy}_${String(h).padStart(2,'0')}`;
+      const startAt = new Date(date); startAt.setHours(h,0,0,0);
+      const endAt = new Date(date); endAt.setHours(h+1,0,0,0);
+      const slotRef = db.collection('slots').doc(slotId);
+      const isPeak = (h >= 17 && h <= 20);
+
+      batch.set(slotRef, {
+        groundId: 'avit-ground',
+        date: yyyy,
+        time: `${String(h).padStart(2,'0')}:00`,
+        startAt: admin.firestore.Timestamp.fromDate(startAt),
+        endAt: admin.firestore.Timestamp.fromDate(endAt),
+        price: basePrice + (isPeak ? peakSurcharge : 0),
+        isPeak,
+        status: 'available',
+        bookingId: null
+      }, { merge: true });
+    }
+  }
+  await batch.commit();
+  return { success: true, message: `Generated slots for ${days} days.` };
+});
