@@ -23,10 +23,9 @@ export function RecentBookings() {
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
   const bookingsQuery = useMemoFirebase(() => {
-      // Important: Wait until we know the user's role before creating the query.
-      if (isProfileLoading || !firestore || !user) return null;
-      if (userProfile?.role === 'admin') return null; // Admins should not query recent bookings here
-
+      if (isProfileLoading || !firestore || !user || userProfile?.role === 'admin') {
+        return null; 
+      }
       return query(
           collection(firestore, "bookings"),
           where("userId", "==", user.uid),
@@ -99,7 +98,7 @@ export function RecentBookings() {
                     <Link href="/login">Login</Link>
                 </Button>
             </div>
-        ) : isBookingsLoading && !bookings ? (
+        ) : isBookingsLoading && !hasBookings ? (
              <div className="space-y-2">
                 <Skeleton className="h-10 w-full" />
                 <Skeleton className="h-10 w-full" />
