@@ -23,7 +23,8 @@ export function RecentBookings() {
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
   const bookingsQuery = useMemoFirebase(() => {
-      if (isProfileLoading || !firestore || !user || userProfile?.role === 'admin') {
+      // Wait until the profile is loaded and confirm the user is NOT an admin.
+      if (isProfileLoading || !firestore || !user || userProfile?.role !== 'user') {
         return null; 
       }
       return query(
