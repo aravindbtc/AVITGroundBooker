@@ -1,3 +1,4 @@
+
 'use client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -23,7 +24,9 @@ export function RecentBookings() {
 
   const bookingsQuery = useMemoFirebase(() => {
       // Important: Wait until we know the user's role before creating the query.
-      if (!firestore || !user || isProfileLoading || userProfile?.role === 'admin') return null;
+      if (isProfileLoading || !firestore || !user) return null;
+      if (userProfile?.role === 'admin') return null; // Admins should not query recent bookings here
+
       return query(
           collection(firestore, "bookings"),
           where("userId", "==", user.uid),
@@ -96,7 +99,7 @@ export function RecentBookings() {
                     <Link href="/login">Login</Link>
                 </Button>
             </div>
-        ) : isBookingsLoading ? (
+        ) : isBookingsLoading && !bookings ? (
              <div className="space-y-2">
                 <Skeleton className="h-10 w-full" />
                 <Skeleton className="h-10 w-full" />
