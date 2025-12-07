@@ -78,6 +78,12 @@ export default function LoginPage() {
                 loyaltyPoints: 0,
                 createdAt: serverTimestamp(),
             });
+            
+            // For admins, create a corresponding role document
+            if (userRole === 'admin') {
+                const adminRoleRef = doc(firestore, "roles_admin", user.uid);
+                await setDoc(adminRoleRef, { email: user.email, grantedAt: serverTimestamp() });
+            }
         }
     };
 
@@ -164,7 +170,7 @@ export default function LoginPage() {
         }
     };
 
-    // If the user is authenticated, show a loading screen while the redirection logic in useEffect runs.
+    // If we are still checking for a user or if a user is found, show the loading/redirecting screen.
     if (isUserLoading || user) {
         return (
             <div className="flex justify-center items-center" style={{height: 'calc(100vh - 8rem)'}}>
@@ -176,7 +182,7 @@ export default function LoginPage() {
         );
     }
 
-    // Only render the login form if we've confirmed there is no user logged in.
+    // Only render the login form if we've confirmed there is no user and we are not loading.
     return (
         <div className="flex justify-center items-center py-12">
             <Tabs defaultValue="login" className="w-[400px]">
@@ -269,5 +275,3 @@ export default function LoginPage() {
         </div>
     );
 }
-
-    

@@ -1,5 +1,4 @@
 
-
 "use client"
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -10,23 +9,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { Addon, Manpower, Booking } from '@/lib/types';
 import { ShieldAlert, Save, CalendarPlus, Loader2, AlertCircle, CalendarDays } from "lucide-react";
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { writeBatch, doc, collection, Timestamp, query, orderBy } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
-import { addDays, format, startOfDay } from 'date-fns';
+import { format } from 'date-fns';
 import { VenueManagement } from '@/components/admin/venue-management';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 
 
 function SlotGenerator() {
-    const firestore = useFirestore();
     const { toast } = useToast();
     const [isLoading, setIsLoading] = useState(false);
 
     const generateSlots = async () => {
-        if (!firestore) return;
         setIsLoading(true);
         toast({
             title: "Generating Slots...",
@@ -34,45 +30,20 @@ function SlotGenerator() {
         });
 
         try {
-            const batch = writeBatch(firestore);
-            const today = startOfDay(new Date());
-
-            for (let i = 0; i < 30; i++) {
-                const day = addDays(today, i);
-                const dateString = format(day, 'yyyy-MM-dd');
-
-                for (let hour = 5; hour < 22; hour++) {
-                    const startTime = `${hour.toString().padStart(2, '0')}:00`;
-                    const endTime = `${(hour + 1).toString().padStart(2, '0')}:00`;
-                    const isPeak = hour >= 17; // 5 PM onwards is peak
-
-                    const slotId = `${dateString}_${hour}`;
-                    const slotRef = doc(firestore, 'slots', slotId);
-
-                    batch.set(slotRef, {
-                        id: slotId,
-                        date: Timestamp.fromDate(day),
-                        dateString: dateString,
-                        startTime,
-                        endTime,
-                        isPeak,
-                        status: 'available',
-                        bookedById: null
-                    });
-                }
-            }
-
-            await batch.commit();
+            const functions = getFunctions();
+            const generateSlotsFn = httpsCallable(functions, 'generateSlots');
+            const result = await generateSlotsFn({ days: 30 });
+            
             toast({
                 title: "Success!",
-                description: "Time slots for the next 30 days have been generated.",
+                description: (result.data as any).message || "Time slots have been generated.",
             });
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error generating slots:", error);
             toast({
                 variant: "destructive",
                 title: "Uh oh! Something went wrong.",
-                description: "Could not generate time slots. Please try again.",
+                description: error.message || "Could not generate time slots. Please try again.",
             });
         } finally {
             setIsLoading(false);
@@ -87,7 +58,7 @@ function SlotGenerator() {
                     Generate Time Slots
                 </CardTitle>
                 <CardDescription>
-                    Populate the database with available time slots for booking. This will generate hourly slots from 5 AM to 10 PM for the next 30 days.
+                    Populate the database with available time slots for booking. This will generate hourly slots from 5 AM to 10 PM for the next 30 days. This can be re-run safely.
                 </CardDescription>
             </CardHeader>
             <CardFooter>
@@ -114,37 +85,19 @@ function PriceStockManagement() {
     const { toast } = useToast();
 
     const accessoriesQuery = useMemoFirebase(() => firestore && collection(firestore, 'accessories'), [firestore]);
-    const { data: accessoriesData, isLoading: accessoriesLoading } = useCollection<Addon>(accessoriesQuery);
+    const { data: allItemsData, isLoading: accessoriesLoading } = useCollection<(Addon | Manpower)>(accessoriesQuery);
     
-    const manpowerQuery = useMemoFirebase(() => firestore && collection(firestore, 'manpower'), [firestore]);
-    const { data: manpowerData, isLoading: manpowerLoading } = useCollection<Manpower>(manpowerQuery);
-
-    const [addons, setAddons] = useState<Addon[]>([]);
-    const [manpower, setManpower] = useState<Manpower[]>([]);
+    const [items, setItems] = useState<(Addon | Manpower)[]>([]);
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
-        if (accessoriesData) setAddons(accessoriesData);
-    }, [accessoriesData]);
+        if (allItemsData) setItems(allItemsData);
+    }, [allItemsData]);
 
-    useEffect(() => {
-        if (manpowerData) setManpower(manpowerData);
-    }, [manpowerData]);
-
-    const handleAddonUpdate = (id: string, field: 'price' | 'quantity', value: string) => {
+    const handleItemUpdate = (id: string, field: 'price' | 'stock', value: string) => {
         const numValue = parseInt(value, 10);
         if (isNaN(numValue) || numValue < 0) return;
-        setAddons(current => current.map(a => a.id === id ? { ...a, [field]: numValue } : a));
-    };
-
-    const handleManpowerPriceUpdate = (id: string, value: string) => {
-        const numValue = parseInt(value, 10);
-        if (isNaN(numValue) || numValue < 0) return;
-        setManpower(current => current.map(m => m.id === id ? { ...m, price: numValue } : m));
-    };
-
-    const handleManpowerAvailabilityUpdate = (id: string, checked: boolean) => {
-        setManpower(current => current.map(m => m.id === id ? { ...m, availability: checked } : m));
+        setItems(current => current.map(a => a.id === id ? { ...a, [field]: numValue } : a));
     };
     
     const handleSaveChanges = async () => {
@@ -155,14 +108,9 @@ function PriceStockManagement() {
         try {
             const batch = writeBatch(firestore);
 
-            addons.forEach(addon => {
-                const docRef = doc(firestore, 'accessories', addon.id);
-                batch.update(docRef, { price: addon.price, quantity: addon.quantity });
-            });
-
-            manpower.forEach(person => {
-                const docRef = doc(firestore, 'manpower', person.id);
-                batch.update(docRef, { price: person.price, availability: person.availability });
+            items.forEach(item => {
+                const docRef = doc(firestore, 'accessories', item.id);
+                batch.update(docRef, { price: item.price, stock: item.stock });
             });
 
             await batch.commit();
@@ -174,8 +122,9 @@ function PriceStockManagement() {
             setIsSaving(false);
         }
     };
-
-    const isLoading = accessoriesLoading || manpowerLoading;
+    
+    const accessories = items.filter(item => item.type === 'item');
+    const manpower = items.filter(item => item.type === 'manpower');
 
     return (
          <Card className="w-full max-w-4xl mx-auto shadow-lg rounded-xl">
@@ -186,7 +135,7 @@ function PriceStockManagement() {
             </CardTitle>
             </CardHeader>
             <CardContent>
-            {isLoading ? (
+            {accessoriesLoading ? (
                 <div className="space-y-4">
                     <Skeleton className="h-10 w-full" />
                     <Skeleton className="h-20 w-full" />
@@ -209,7 +158,7 @@ function PriceStockManagement() {
                         </TableRow>
                         </TableHeader>
                         <TableBody>
-                        {addons.map((addon) => (
+                        {accessories.map((addon) => (
                             <TableRow key={addon.id}>
                             <TableCell className="font-medium flex items-center gap-2">
                                 {addon.name}
@@ -218,15 +167,15 @@ function PriceStockManagement() {
                                 <Input
                                 type="number"
                                 value={addon.price}
-                                onChange={(e) => handleAddonUpdate(addon.id, 'price', e.target.value)}
+                                onChange={(e) => handleItemUpdate(addon.id, 'price', e.target.value)}
                                 className="h-9 w-24"
                                 />
                             </TableCell>
                             <TableCell>
                                 <Input
                                 type="number"
-                                value={addon.quantity}
-                                onChange={(e) => handleAddonUpdate(addon.id, 'quantity', e.target.value)}
+                                value={addon.stock}
+                                onChange={(e) => handleItemUpdate(addon.id, 'stock', e.target.value)}
                                 className="h-9 w-24"
                                 />
                             </TableCell>
@@ -240,8 +189,8 @@ function PriceStockManagement() {
                         <TableHeader>
                         <TableRow>
                             <TableHead>Service</TableHead>
-                            <TableHead>Price (RS.)</TableHead>
-                            <TableHead>Availability</TableHead>
+                            <TableHead>Price (per hour/booking)</TableHead>
+                            <TableHead>Available Count</TableHead>
                         </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -254,21 +203,17 @@ function PriceStockManagement() {
                                 <Input
                                 type="number"
                                 value={person.price}
-                                onChange={(e) => handleManpowerPriceUpdate(person.id, e.target.value)}
+                                onChange={(e) => handleItemUpdate(person.id, 'price', e.target.value)}
                                 className="h-9 w-24"
                                 />
                             </TableCell>
                             <TableCell>
-                                <div className="flex items-center space-x-2">
-                                    <Switch
-                                        id={`availability-${person.id}`}
-                                        checked={person.availability}
-                                        onCheckedChange={(checked) => handleManpowerAvailabilityUpdate(person.id, checked)}
-                                    />
-                                    <Label htmlFor={`availability-${person.id}`} className={person.availability ? "text-green-600" : "text-red-600"}>
-                                        {person.availability ? "Available" : "Unavailable"}
-                                    </Label>
-                                </div>
+                                <Input
+                                type="number"
+                                value={person.stock}
+                                onChange={(e) => handleItemUpdate(person.id, 'stock', e.target.value)}
+                                className="h-9 w-24"
+                                />
                             </TableCell>
                             </TableRow>
                         ))}
@@ -293,7 +238,7 @@ function AllBookings() {
 
     const bookingsQuery = useMemoFirebase(() => {
         if (!firestore) return null;
-        return query(collection(firestore, "bookings"), orderBy("bookingDate", "desc"));
+        return query(collection(firestore, "bookings"), orderBy("createdAt", "desc"));
     }, [firestore]);
 
     const { data: bookings, isLoading, error } = useCollection<Booking>(bookingsQuery);
@@ -335,11 +280,11 @@ function AllBookings() {
                             {bookings.map((booking) => (
                                 <TableRow key={booking.id}>
                                     <TableCell className="font-mono text-xs">#{booking.id.substring(0, 7)}</TableCell>
-                                    <TableCell className="font-mono text-xs text-muted-foreground">@{booking.userId.substring(0, 8)}</TableCell>
+                                    <TableCell className="font-mono text-xs text-muted-foreground">@{booking.uid.substring(0, 8)}</TableCell>
                                     <TableCell className="font-medium">
-                                        {booking.bookingDate instanceof Timestamp ? format(booking.bookingDate.toDate(), 'PPP') : 'Processing...'}
+                                        {booking.createdAt instanceof Timestamp ? format(booking.createdAt.toDate(), 'PPP') : 'Processing...'}
                                     </TableCell>
-                                    <TableCell>RS.{booking.total.toFixed(2)}</TableCell>
+                                    <TableCell>RS.{booking.totalAmount.toFixed(2)}</TableCell>
                                     <TableCell className="text-right">
                                         <Badge variant={booking.status === 'paid' ? 'default' : 'secondary'}>
                                             {booking.status}
@@ -372,5 +317,3 @@ export default function AdminPage() {
     </div>
   );
 }
-
-    

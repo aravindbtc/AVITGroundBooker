@@ -19,6 +19,7 @@ import { LogOut, User, LayoutGrid, CalendarDays, Gem, MapPin, Shield, LogIn } fr
 import { cn } from "@/lib/utils";
 import { signOut } from "firebase/auth";
 import { useToast } from "@/hooks/use-toast";
+import { Skeleton } from "./ui/skeleton";
 
 
 const CricketBallIcon = () => (
@@ -44,7 +45,7 @@ export function Header() {
 
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
-  const userInitials = userProfile?.name?.split(' ').map(n => n[0]).join('').toUpperCase() || (user?.email ? user.email[0].toUpperCase() : '?');
+  const userInitials = userProfile?.fullName?.split(' ').map(n => n[0]).join('').toUpperCase() || (user?.email ? user.email[0].toUpperCase() : '?');
   const pathname = usePathname();
 
   const navLinks = [
@@ -54,6 +55,7 @@ export function Header() {
   ]
 
   const handleLogout = async () => {
+    if (!auth) return;
     try {
         await signOut(auth);
         toast({ title: "Logged out successfully." });
@@ -97,15 +99,13 @@ export function Header() {
             </div>
             
             {isUserLoading || (user && isProfileLoading) ? (
-                 <Avatar className="h-10 w-10">
-                    <AvatarFallback>?</AvatarFallback>
-                </Avatar>
+                 <Skeleton className="h-10 w-10 rounded-full" />
             ) : user && userProfile ? (
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                     <Button variant="secondary" className="relative h-10 w-10 rounded-full">
                         <Avatar className="h-10 w-10">
-                        <AvatarImage src={user?.photoURL || ''} alt={userProfile?.name || 'User'} />
+                        <AvatarImage src={user?.photoURL || ''} alt={userProfile?.fullName || 'User'} />
                         <AvatarFallback>{userInitials}</AvatarFallback>
                         </Avatar>
                     </Button>
@@ -113,7 +113,7 @@ export function Header() {
                     <DropdownMenuContent className="w-56" align="end">
                     <DropdownMenuLabel className="font-normal">
                         <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">{userProfile.name}</p>
+                        <p className="text-sm font-medium leading-none">{userProfile.fullName}</p>
                         <p className="text-xs leading-none text-muted-foreground">
                             {user.email}
                         </p>

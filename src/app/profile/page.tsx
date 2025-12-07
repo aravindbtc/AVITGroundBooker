@@ -119,7 +119,7 @@ function ProfileForm() {
                 <Label htmlFor="collegeId">College ID</Label>
                 <Input id="collegeId" value={collegeId} onChange={(e) => setCollegeId(e.target.value)} />
             </div>
-            <Button onClick={handleSaveChanges} disabled={isSaving}>
+            <Button onClick={handleSaveChanges} disabled={isSaving || !displayName || !collegeId}>
                 {isSaving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Saving...</> : <><Save className="mr-2 h-4 w-4" /> Save Changes</>}
             </Button>
         </div>

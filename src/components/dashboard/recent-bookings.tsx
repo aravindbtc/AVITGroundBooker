@@ -16,7 +16,6 @@ export function RecentBookings() {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
 
-  // Step 1: Get the user's profile to determine their role.
   const userProfileRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return doc(firestore, "users", user.uid);
@@ -24,24 +23,20 @@ export function RecentBookings() {
 
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
-  // Step 2: Only create the bookings query if the user is loaded and confirmed to be a regular 'user'.
   const bookingsQuery = useMemoFirebase(() => {
-      // This query should ONLY be created if we have a user who is confirmed to be a regular user.
       if (!firestore || !user || !userProfile || userProfile.role !== 'user') {
         return null; 
       }
       return query(
           collection(firestore, "bookings"),
-          where("userId", "==", user.uid),
-          orderBy("bookingDate", "desc"),
+          where("uid", "==", user.uid),
+          orderBy("createdAt", "desc"),
           limit(3)
       );
   }, [firestore, user, userProfile]);
 
-  // Step 3: Fetch the bookings. This hook will do nothing if the query is null.
   const { data: bookings, isLoading: isBookingsLoading, error } = useCollection<Booking>(bookingsQuery);
 
-  const hasBookings = bookings && bookings.length > 0;
   const isLoading = isUserLoading || isProfileLoading;
 
   if (isLoading) {
@@ -81,10 +76,7 @@ export function RecentBookings() {
         </Card>
     );
   }
-
-  // Step 4: Explicitly handle the different states (admin, logged out, no bookings).
   
-  // Display admin-specific view.
   if (userProfile?.role === 'admin') {
     return (
        <Card>
@@ -106,7 +98,6 @@ export function RecentBookings() {
     )
   }
 
-  // Display for logged-out users.
   if (!user) {
     return (
       <Card>
@@ -127,7 +118,6 @@ export function RecentBookings() {
     );
   }
 
-  // Display bookings or loading state for a regular user.
   return (
     <Card>
       <CardHeader>
@@ -144,7 +134,7 @@ export function RecentBookings() {
                 <Skeleton className="h-10 w-full" />
                 <Skeleton className="h-10 w-full" />
             </div>
-        ) : hasBookings ? (
+        ) : bookings && bookings.length > 0 ? (
           <Table>
             <TableHeader>
               <TableRow>
@@ -157,11 +147,11 @@ export function RecentBookings() {
               {bookings.map((booking) => (
                 <TableRow key={booking.id}>
                   <TableCell className="font-medium">
-                     {booking.bookingDate instanceof Timestamp && isValid(booking.bookingDate.toDate())
-                          ? format(booking.bookingDate.toDate(), "MMM dd, yyyy")
+                     {booking.createdAt instanceof Timestamp && isValid(booking.createdAt.toDate())
+                          ? format(booking.createdAt.toDate(), "MMM dd, yyyy")
                           : 'Processing...'}
                   </TableCell>
-                  <TableCell>RS.{booking.total.toFixed(2)}</TableCell>
+                  <TableCell>RS.{booking.totalAmount.toFixed(2)}</TableCell>
                   <TableCell className="text-right">
                     <Badge variant={booking.status === 'paid' ? 'default' : 'secondary'}>
                       {booking.status}

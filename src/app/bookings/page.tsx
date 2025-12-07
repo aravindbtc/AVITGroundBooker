@@ -17,7 +17,6 @@ function BookingList() {
     const { user, isUserLoading } = useUser();
     const firestore = useFirestore();
 
-    // Step 1: Get the user's profile to determine their role.
     const userProfileRef = useMemoFirebase(() => {
         if (!firestore || !user) return null;
         return doc(firestore, "users", user.uid);
@@ -25,15 +24,14 @@ function BookingList() {
 
     const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
-    // Step 2: Only create the bookings query if we have a confirmed regular user.
     const bookingsQuery = useMemoFirebase(() => {
         if (!firestore || !user || !userProfile || userProfile.role !== 'user') {
             return null;
         }
         return query(
             collection(firestore, "bookings"),
-            where("userId", "==", user.uid),
-            orderBy("bookingDate", "desc")
+            where("uid", "==", user.uid),
+            orderBy("createdAt", "desc")
         );
     }, [firestore, user, userProfile]);
 
@@ -41,7 +39,6 @@ function BookingList() {
 
     const isLoading = isUserLoading || isProfileLoading;
 
-    // Show a global loading state while checking user auth and profile.
     if (isLoading) {
         return (
             <div className="space-y-2 p-6">
@@ -52,7 +49,6 @@ function BookingList() {
         );
     }
     
-    // If no user is logged in after checking, prompt them to log in.
     if (!user) {
         return (
             <div className="text-center py-10">
@@ -64,7 +60,6 @@ function BookingList() {
         )
     }
 
-    // Explicitly handle admin view. This prevents any data fetching attempts for an admin.
     if (userProfile?.role === 'admin') {
         return (
              <div className="text-center py-10">
@@ -88,7 +83,6 @@ function BookingList() {
         );
     }
 
-    // Show loading skeleton only when we expect bookings to be loading for a regular user.
     if (isBookingsLoading && bookingsQuery) {
         return (
              <div className="space-y-2 p-6">
@@ -125,9 +119,9 @@ function BookingList() {
                     <TableRow key={booking.id}>
                         <TableCell className="font-mono text-xs text-muted-foreground">#{booking.id.substring(0,7)}</TableCell>
                         <TableCell className="font-medium">
-                            {booking.bookingDate instanceof Timestamp ? format(booking.bookingDate.toDate(), 'PPP') : 'N/A'}
+                            {booking.createdAt instanceof Timestamp ? format(booking.createdAt.toDate(), 'PPP') : 'N/A'}
                         </TableCell>
-                        <TableCell>RS.{booking.total.toFixed(2)}</TableCell>
+                        <TableCell>RS.{booking.totalAmount.toFixed(2)}</TableCell>
                         <TableCell className="text-right">
                             <Badge variant={booking.status === 'paid' ? 'default' : 'secondary'}>
                                 {booking.status}

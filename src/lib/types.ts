@@ -1,68 +1,76 @@
+
 import type { Timestamp } from 'firebase/firestore';
 
 export type UserProfile = {
   id: string;
   email: string;
-  name: string;
-  phone?: string;
+  fullName: string;
   collegeId: string;
   role: 'user' | 'admin';
   loyaltyPoints: number;
+  createdAt: Timestamp;
 };
 
 export type Booking = {
   id: string;
-  userId: string;
-  bookingDate: Timestamp;
-  paymentTimestamp?: Timestamp;
-  total: number;
-  status: 'pending' | 'paid' | 'confirmed' | 'cancelled';
-  slotIds: string[];
+  uid: string;
+  groundId: string;
+  date: string;
+  slots: string[];
   addons: BookingItem[];
-  razorpayOrderId?: string;
+  totalAmount: number;
+  payment: {
+      orderId: string;
+      razorpayPaymentId?: string;
+      status: 'pending' | 'created' | 'paid' | 'failed';
+      createdAt: Timestamp;
+      capturedAt?: Timestamp;
+  };
+  status: 'pending' | 'paid' | 'cancelled' | 'failed';
+  createdAt: Timestamp;
 };
 
 export type Addon = {
   id: string;
   name: string;
   price: number;
-  quantity: number;
+  stock: number;
+  type: 'item';
 };
 
 export type Manpower = {
   id: string;
   name: string;
   price: number;
-  availability: boolean;
+  stock: number; // Represents availability, e.g., 2 umpires available
+  type: 'manpower';
 };
 
 export type Slot = {
   id: string;
-  startTime: string;
-  endTime: string;
+  groundId: string;
+  date: string; // YYYY-MM-DD
+  time: string; // HH:MM
+  startAt: Timestamp;
+  endAt: Timestamp;
+  price: number;
   isPeak: boolean;
-  status: 'available' | 'booked';
-  date: Timestamp;
-  dateString: string;
-  bookedById?: string;
+  status: 'available' | 'booked' | 'blocked';
+  bookingId: string | null;
 };
 
 export type Venue = {
     id: string;
-    fullName: string;
+    name: string;
     address: string;
+    phone: string;
     gps: {
         lat: number;
         lng: number;
     };
-    contact: {
-        general: string;
-        admissions: string;
-        email: string;
-    };
-    rating: number;
-    basePrice: number;
-}
+    basePricePerHour: number;
+    images: string[];
+};
 
 export type BookingItem = {
     id: string;
@@ -71,5 +79,3 @@ export type BookingItem = {
     price: number;
     type: 'slot' | 'addon' | 'manpower';
 }
-
-    
