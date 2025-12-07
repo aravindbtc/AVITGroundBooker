@@ -10,7 +10,7 @@ import {
     GoogleAuthProvider,
     signInWithPopup,
 } from 'firebase/auth';
-import { setDoc, doc } from 'firebase/firestore';
+import { setDoc, doc, getDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -44,14 +44,17 @@ export default function LoginPage() {
     const [resetEmail, setResetEmail] = useState('');
     
     useEffect(() => {
-        if (!isUserLoading && user) {
-            if (user.email === 'admin@avit.ac.in') {
-                router.replace('/admin');
-            } else {
-                router.replace('/');
-            }
+        if (!isUserLoading && user && firestore) {
+            const userDocRef = doc(firestore, "users", user.uid);
+            getDoc(userDocRef).then(docSnap => {
+                if (docSnap.exists() && docSnap.data().role === 'admin') {
+                    router.replace('/admin');
+                } else {
+                    router.replace('/');
+                }
+            });
         }
-    }, [user, isUserLoading, router]);
+    }, [user, isUserLoading, router, firestore]);
 
 
     const handleOAuthSignIn = async (provider: 'google') => {
@@ -77,7 +80,7 @@ export default function LoginPage() {
             }, { merge: true });
 
             toast({ title: "Sign In Successful", description: "Welcome!" });
-            router.push('/');
+            // The useEffect will handle redirection.
         } catch (error: any) {
             toast({ variant: "destructive", title: "Sign In Failed", description: error.message });
         } finally {
@@ -107,10 +110,10 @@ export default function LoginPage() {
                 }, { merge: true });
 
                 toast({ title: "Admin Login Successful", description: "Redirecting to Admin Dashboard..." });
-                router.replace('/admin');
+                router.replace('/admin'); // Direct redirect for admin
             } else {
                 toast({ title: "Login Successful", description: "Welcome back!" });
-                router.replace('/');
+                router.replace('/'); // Direct redirect for user
             }
         } catch (error: any) {
             if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
@@ -148,7 +151,7 @@ export default function LoginPage() {
             });
 
             toast({ title: "Sign Up Successful", description: "Your account has been created." });
-            router.replace('/');
+            // The useEffect will handle redirection.
         } catch (error: any) {
             toast({ variant: "destructive", title: "Sign Up Failed", description: error.message });
         } finally {
@@ -173,18 +176,9 @@ export default function LoginPage() {
         }
     };
 
-    if (isUserLoading) {
+    if (isUserLoading || user) {
         return (
             <div className="flex justify-center items-center h-screen">
-                <Loader2 className="h-12 w-12 animate-spin" />
-            </div>
-        );
-    }
-    
-    // This effect handles redirection, so a blank page during redirect is expected.
-    if (user) {
-        return (
-             <div className="flex justify-center items-center h-screen">
                 <Loader2 className="h-12 w-12 animate-spin" />
                 <p className="ml-4">Redirecting...</p>
             </div>
