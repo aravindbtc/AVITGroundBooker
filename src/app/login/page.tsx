@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth, useUser } from '@/firebase';
 import { 
@@ -33,6 +33,17 @@ export default function LoginPage() {
     const [password, setPassword] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
     const [resetEmail, setResetEmail] = useState('');
+
+    useEffect(() => {
+        if (user) {
+            if (user.email === ADMIN_EMAIL) {
+                router.replace('/admin');
+            } else {
+                router.replace('/');
+            }
+        }
+    }, [user, router]);
+
 
     const handleAdminFirstLogin = async () => {
         if (!firestore) return;
@@ -166,7 +177,6 @@ export default function LoginPage() {
     }
     
     if (user) {
-        router.replace('/');
         return (
              <div className="flex justify-center items-center h-screen">
                 <Loader2 className="h-12 w-12 animate-spin" />
@@ -179,14 +189,14 @@ export default function LoginPage() {
         <div className="flex justify-center items-center py-12">
             <Tabs defaultValue="login" className="w-[400px]">
                 <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="login">Login</TabsTrigger>
+                    <TabsTrigger value="login">User Login</TabsTrigger>
                     <TabsTrigger value="signup">Sign Up</TabsTrigger>
                 </TabsList>
                 <TabsContent value="login">
                     <Card>
                         <CardHeader>
                             <CardTitle>Login</CardTitle>
-                            <CardDescription>Access your account to view and manage your bookings.</CardDescription>
+                            <CardDescription>Enter your credentials to login. For admin access, use the designated admin credentials.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="space-y-2">
