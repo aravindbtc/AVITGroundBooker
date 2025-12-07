@@ -66,6 +66,8 @@ service cloud.firestore {
      */
     match /bookings/{bookingId} {
       allow get: if isExistingContentOwner() || isAdmin();
+      // **DEFINITIVE FIX**: Admins can list all bookings without constraints. 
+      // Users must filter by their own userId.
       allow list: if isAdmin() || isQueryingOwnData();
       allow create: if isCreatingOwnContent();
       allow update: if (isExistingContentOwner() && isUserIdImmutable()) || isAdmin();

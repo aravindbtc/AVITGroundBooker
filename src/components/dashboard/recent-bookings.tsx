@@ -1,3 +1,4 @@
+
 'use client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -22,11 +23,11 @@ export function RecentBookings() {
 
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
+  // **DEFINITIVE FIX**: The query is ONLY constructed if we have confirmed the user's role is 'user'.
+  // This prevents any query from being made for an admin or during the loading state, fixing the race condition.
   const bookingsQuery = useMemoFirebase(() => {
-      // **DEFINITIVE FIX**: Do not create a query until the profile is loaded and we have confirmed the role is 'user'.
-      // This prevents any query from being made for an admin or during the loading state.
       if (isProfileLoading || !userProfile || userProfile.role !== 'user' || !user) {
-        return null;
+        return null; // Return null if loading, no profile, or user is an admin
       }
       return query(
           collection(firestore, "bookings"),
@@ -39,6 +40,7 @@ export function RecentBookings() {
   const { data: bookings, isLoading: isBookingsLoading } = useCollection<Booking>(bookingsQuery);
 
   const hasBookings = bookings && bookings.length > 0;
+  // The primary loading state depends on user auth and profile loading.
   const isLoading = isUserLoading || isProfileLoading;
 
   if (isLoading) {
@@ -62,6 +64,7 @@ export function RecentBookings() {
       )
   }
 
+  // If the user is an admin, show a specific admin view.
   if (userProfile?.role === 'admin') {
     return (
        <Card>
