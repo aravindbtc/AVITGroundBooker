@@ -27,6 +27,7 @@ service cloud.firestore {
     // Regular users are still governed by their specific query rules on the client.
     match /bookings/{bookingId} {
       allow read, write: if isAdmin();
+      // Users can get, list, create, update, delete their OWN bookings.
       allow get, list, create, update, delete: if request.auth.uid == resource.data.userId;
     }
     
