@@ -49,15 +49,11 @@ export default function LoginPage() {
         if (!isUserLoading && user && firestore) {
             const userDocRef = doc(firestore, "users", user.uid);
             getDoc(userDocRef).then(docSnap => {
-                // Check if admin role exists for this user
-                const adminRoleRef = doc(firestore, "roles_admin", user.uid);
-                getDoc(adminRoleRef).then(adminSnap => {
-                    if (adminSnap.exists() || (docSnap.exists() && docSnap.data().role === 'admin')) {
-                         router.replace('/admin');
-                    } else {
-                        router.replace('/');
-                    }
-                });
+                if (docSnap.exists() && docSnap.data().role === 'admin') {
+                    router.replace('/admin');
+                } else {
+                    router.replace('/');
+                }
             }).catch(error => {
                 console.error("Error fetching user document:", error);
                 router.replace('/'); // Default redirect on error
@@ -75,23 +71,13 @@ export default function LoginPage() {
             const userRole = isPotentialAdmin ? 'admin' : 'user';
 
             await setDoc(userDocRef, {
-                id: user.uid,
-                email: user.email,
-                name: user.displayName || user.email?.split('@')[0] || 'New User',
+                fullName: user.displayName || user.email?.split('@')[0] || 'New User',
                 collegeId: '',
+                email: user.email,
                 role: userRole,
                 loyaltyPoints: 0,
                 createdAt: serverTimestamp(),
             });
-            
-            // If the user is the designated admin, create their role document
-            if(isPotentialAdmin) {
-                const adminRoleRef = doc(firestore, "roles_admin", user.uid);
-                const adminRoleSnap = await getDoc(adminRoleRef);
-                if (!adminRoleSnap.exists()) {
-                    await setDoc(adminRoleRef, { grantedAt: serverTimestamp(), email: user.email });
-                }
-            }
         }
     };
 
@@ -124,7 +110,6 @@ export default function LoginPage() {
         
         try {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
-            // Ensure profile exists after login as well, in case it was missed
             await createProfileIfNotExists(userCredential.user);
             toast({ title: "Login Successful", description: "Welcome back!" });
             // The useEffect will handle redirection.
@@ -179,15 +164,13 @@ export default function LoginPage() {
         }
     };
 
-    // If the page is still checking for a user, or if a user is found,
-    // show a loading screen while the redirection logic in useEffect runs.
-    // This prevents the login form from flashing on screen for logged-in users.
+    // If the user is authenticated, show a loading screen while the redirection logic in useEffect runs.
     if (isUserLoading || user) {
         return (
             <div className="flex justify-center items-center" style={{height: 'calc(100vh - 8rem)'}}>
                 <div className="text-center">
                     <Loader2 className="h-12 w-12 animate-spin mx-auto" />
-                    <p className="ml-4 mt-4 text-muted-foreground">Redirecting...</p>
+                    <p className="ml-4 mt-4 text-muted-foreground">Please wait...</p>
                 </div>
             </div>
         );
@@ -286,3 +269,5 @@ export default function LoginPage() {
         </div>
     );
 }
+
+    
