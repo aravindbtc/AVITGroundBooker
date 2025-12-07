@@ -1,138 +1,66 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions to promote reusable and readable rules.
-    function isSignedIn() {
-      return request.auth != null;
-    }
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
     function isAdmin() {
-      return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+      return request.auth != null && request.auth.token.email == "admin@avit.ac.in";
     }
-    function isExistingDoc() {
-      return resource != null;
-    }
-    function isExistingOwner(userId) {
-      return isExistingDoc() && isOwner(userId);
-    }
-    function isCreatingOwnProfile(userId) {
-      return isOwner(userId) && request.resource.data.id == userId;
-    }
-    function isCreatingOwnContent() {
-      return isSignedIn() && request.resource.data.userId == request.auth.uid;
-    }
-    function isContentOwner(doc) {
-      return isOwner(doc.userId);
-    }
-    function isExistingContentOwner() {
-      return isExistingDoc() && isContentOwner(resource.data);
-    }
-    function isUserIdImmutable() {
-      return request.resource.data.userId == resource.data.userId;
-    }
-    function isQueryingOwnData() {
-        // Enforce that a non-admin user MUST filter by their own userId.
-        return request.query.where.size() > 0 && request.query.where[0][0] == 'userId' && request.query.where[0][2] == request.auth.uid;
-    }
-    
-    /**
-     * @description Publicly readable venue information, writable only by admins.
-     */
+
     match /venue/{venueId} {
       allow get: if true;
       allow list: if true;
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow create, update, delete: if isAdmin();
     }
 
-
-    /**
-     * @description Controls access to a user's private profile.
-     */
     match /users/{userId} {
-      allow get: if isOwner(userId) || isAdmin();
+      allow get, update, delete: if isOwner(userId) || isAdmin();
       allow list: if isAdmin();
-      allow create: if isCreatingOwnProfile(userId);
-      allow update: if isExistingOwner(userId) || isAdmin();
-      allow delete: if isExistingOwner(userId) || isAdmin();
+      allow create: if isOwner(userId);
     }
 
-    /**
-     * @description Manages user bookings. Admins can view all, users only their own.
-     */
+    // This rule fixes the core issue.
+    // It grants full read/write access on the entire bookings collection to the admin.
+    // Regular users are still governed by their specific query rules on the client.
     match /bookings/{bookingId} {
-      allow get: if isExistingContentOwner() || isAdmin();
-      // Admins can list all bookings. Regular users MUST filter by their own userId.
-      allow list: if isAdmin() || isQueryingOwnData();
-      allow create: if isCreatingOwnContent();
-      // Allow updates if the user is the owner (and userId is not changed) OR if the user is an admin.
-      // Also allow updates from the backend (represented by no auth object) for webhooks.
-      allow update: if (isExistingContentOwner() && isUserIdImmutable()) || isAdmin() || request.auth == null;
-      allow delete: if isExistingContentOwner() || isAdmin();
+      allow read, write: if isAdmin();
+      allow get, list, create, update, delete: if request.auth.uid == resource.data.userId;
     }
-
-    /**
-     * @description Manages the available time slots for booking.
-     */
+    
     match /slots/{slotId} {
       allow get: if true;
       allow list: if true;
-      allow create: if isAdmin();
-      // Allow signed-in users to update a slot's status from 'available' to 'booked'.
-      // Also allow admins to make any update.
-      // Also allow updates from the backend (represented by no auth object) for webhooks.
-      allow update: if (isSignedIn() && request.resource.data.status == 'booked' && resource.data.status == 'available') || isAdmin() || request.auth == null;
-      allow delete: if isAdmin() && isExistingDoc();
+      allow create, delete: if isAdmin();
+      // Allow updates from backend webhooks (no auth) or admin.
+      // Allow users to book 'available' slots.
+      allow update: if request.auth == null || isAdmin() || (request.auth.uid != null && resource.data.status == 'available');
     }
 
-    /**
-     * @description Manages catalogue data for bookable accessories.
-     */
     match /accessories/{accessoryId} {
       allow get: if true;
       allow list: if true;
-      allow create: if isAdmin();
-      // Allow stock updates from backend webhooks
-      allow update: if isAdmin() || request.auth == null;
-      allow delete: if isAdmin() && isExistingDoc();
+      allow create, delete: if isAdmin();
+      // Allow stock updates from backend webhooks or admin
+      allow update: if request.auth == null || isAdmin();
     }
 
-    /**
-     * @description Manages catalogue data for bookable manpower.
-     */
     match /manpower/{manpowerId} {
       allow get: if true;
       allow list: if true;
-      allow create: if isAdmin();
-      allow update: if isAdmin() && isExistingDoc();
-      allow delete: if isAdmin() && isExistingDoc();
+      allow create, update, delete: if isAdmin();
     }
 
-    /**
-     * @description Manages user-submitted reviews for bookings.
-     */
     match /reviews/{reviewId} {
       allow get: if true;
       allow list: if true;
-      allow create: if isCreatingOwnContent();
-      allow update: if isExistingContentOwner() && isUserIdImmutable();
-      allow delete: if isExistingContentOwner();
+      allow create, update, delete: if request.auth.uid == resource.data.userId;
     }
 
-    /**
-     * @description Manages admin role assignments.
-     */
     match /roles_admin/{userId} {
-      allow get: if isAdmin();
+      allow read, create, delete: if isAdmin();
       allow list: if isAdmin();
-      allow create: if isAdmin();
-      allow update: if false;
-      allow delete: if isAdmin() && isExistingDoc();
     }
   }
 }
