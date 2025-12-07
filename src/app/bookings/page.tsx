@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle, Shield } from "lucide-react";
 import type { Booking, UserProfile } from "@/lib/types";
-import { format } from "date-fns";
+import { format, isValid } from "date-fns";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
@@ -121,7 +121,7 @@ function BookingList() {
                     <TableRow key={booking.id}>
                         <TableCell className="font-mono text-xs text-muted-foreground">#{booking.id.substring(0,7)}</TableCell>
                         <TableCell className="font-medium">
-                            {booking.bookingDate ? format(booking.bookingDate.toDate(), 'PPP') : 'N/A'}
+                            {booking.bookingDate && isValid(booking.bookingDate.toDate()) ? format(booking.bookingDate.toDate(), 'PPP') : 'N/A'}
                         </TableCell>
                         <TableCell>RS.{booking.total.toFixed(2)}</TableCell>
                         <TableCell className="text-right">
