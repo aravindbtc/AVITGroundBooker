@@ -67,8 +67,7 @@ service cloud.firestore {
      */
     match /bookings/{bookingId} {
       allow get: if isExistingContentOwner() || isAdmin();
-      // **DEFINITIVE FIX**: Admins can list all bookings without constraints. 
-      // Users must filter by their own userId.
+      // Admins can list all bookings. Regular users MUST filter by their own userId.
       allow list: if isAdmin() || isQueryingOwnData();
       allow create: if isCreatingOwnContent();
       // Allow updates if the user is the owner (and userId is not changed) OR if the user is an admin.
@@ -98,7 +97,8 @@ service cloud.firestore {
       allow get: if true;
       allow list: if true;
       allow create: if isAdmin();
-      allow update: if isAdmin() && isExistingDoc();
+      // Allow stock updates from backend webhooks
+      allow update: if isAdmin() || request.auth == null;
       allow delete: if isAdmin() && isExistingDoc();
     }
 
@@ -128,8 +128,8 @@ service cloud.firestore {
      * @description Manages admin role assignments.
      */
     match /roles_admin/{userId} {
-      allow get: if false;
-      allow list: if false;
+      allow get: if isAdmin();
+      allow list: if isAdmin();
       allow create: if isAdmin();
       allow update: if false;
       allow delete: if isAdmin() && isExistingDoc();
