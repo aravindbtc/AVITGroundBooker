@@ -81,7 +81,7 @@ function BookingList() {
         );
     }
 
-    if (bookings?.length === 0) {
+    if (!bookings || bookings.length === 0) {
         return (
             <div className="text-center py-10">
                 <p className="text-muted-foreground">You have no bookings yet.</p>
@@ -108,7 +108,7 @@ function BookingList() {
                         </TableCell>
                         <TableCell>RS.{booking.total.toFixed(2)}</TableCell>
                         <TableCell className="text-right">
-                            <Badge variant={booking.status === 'Confirmed' ? 'default' : 'secondary'}>
+                            <Badge variant={booking.status === 'confirmed' ? 'default' : 'secondary'}>
                                 {booking.status}
                             </Badge>
                         </TableCell>

@@ -1,4 +1,3 @@
-
 'use client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -68,7 +67,7 @@ export function RecentBookings() {
         <CardDescription>Your 3 most recent bookings.</CardDescription>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
+        {isLoading && !userProfile ? (
             <div className="space-y-2">
                 <Skeleton className="h-10 w-full" />
                 <Skeleton className="h-10 w-full" />
@@ -96,7 +95,7 @@ export function RecentBookings() {
                   <TableCell className="font-medium">{booking.bookingDate ? format(booking.bookingDate.toDate(), "MMM dd, yyyy") : 'Processing...'}</TableCell>
                   <TableCell>RS.{booking.total.toFixed(2)}</TableCell>
                   <TableCell className="text-right">
-                    <Badge variant={booking.status === 'Confirmed' ? 'default' : 'secondary'}>
+                    <Badge variant={booking.status === 'confirmed' ? 'default' : 'secondary'}>
                       {booking.status}
                     </Badge>
                   </TableCell>
