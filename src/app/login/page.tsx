@@ -48,10 +48,7 @@ export default function LoginPage() {
         if (!isUserLoading && user && firestore) {
             const userDocRef = doc(firestore, "users", user.uid);
             getDoc(userDocRef).then(docSnap => {
-                // Check if admin role document exists for special admin email.
-                if (user.email === 'admin@avit.ac.in') {
-                    router.replace('/admin');
-                } else if (docSnap.exists() && docSnap.data().role === 'admin') {
+                if (docSnap.exists() && docSnap.data().role === 'admin') {
                     router.replace('/admin');
                 } else {
                     router.replace('/');
@@ -67,18 +64,24 @@ export default function LoginPage() {
 
         if (!docSnap.exists()) {
             const isPotentialAdmin = user.email === 'admin@avit.ac.in';
+            const userRole = isPotentialAdmin ? 'admin' : 'user';
+
             await setDoc(userDocRef, {
                 id: user.uid,
                 email: user.email,
                 name: user.displayName || user.email?.split('@')[0] || 'New User',
                 collegeId: '',
-                role: isPotentialAdmin ? 'admin' : 'user', // Set role based on email
+                role: userRole,
                 loyaltyPoints: 0,
                 createdAt: serverTimestamp(),
             });
-             // If admin, also create the role document for security rules
+            
             if(isPotentialAdmin) {
-                await setDoc(doc(firestore, "roles_admin", user.uid), { grantedAt: serverTimestamp() });
+                const adminRoleRef = doc(firestore, "roles_admin", user.uid);
+                const adminRoleSnap = await getDoc(adminRoleRef);
+                if (!adminRoleSnap.exists()) {
+                    await setDoc(adminRoleRef, { grantedAt: serverTimestamp() });
+                }
             }
         }
     };
@@ -266,3 +269,5 @@ export default function LoginPage() {
         </div>
     );
 }
+
+    
