@@ -6,16 +6,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { Addon, Manpower } from '@/lib/types';
-import { ShieldAlert, Save, CalendarPlus, Loader2 } from "lucide-react";
+import type { Addon, Manpower, Booking } from '@/lib/types';
+import { ShieldAlert, Save, CalendarPlus, Loader2, AlertCircle, CalendarDays } from "lucide-react";
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { writeBatch, doc, collection, Timestamp } from 'firebase/firestore';
+import { writeBatch, doc, collection, Timestamp, query, orderBy } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
 import { addDays, format, startOfDay } from 'date-fns';
 import { VenueManagement } from '@/components/admin/venue-management';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 
 
 function SlotGenerator() {
@@ -286,6 +287,77 @@ function PriceStockManagement() {
     );
 }
 
+function AllBookings() {
+    const firestore = useFirestore();
+
+    const bookingsQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return query(
+            collection(firestore, "bookings"),
+            orderBy("bookingDate", "desc")
+        );
+    }, [firestore]);
+
+    const { data: bookings, isLoading, error } = useCollection<Booking>(bookingsQuery);
+
+    return (
+        <Card className="shadow-lg rounded-xl">
+            <CardHeader>
+                <CardTitle className="font-headline flex items-center gap-2">
+                    <CalendarDays className="h-6 w-6 text-primary" />
+                    All User Bookings
+                </CardTitle>
+                <CardDescription>A list of all bookings made by users.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                {isLoading ? (
+                    <div className="space-y-2">
+                        <Skeleton className="h-12 w-full" />
+                        <Skeleton className="h-12 w-full" />
+                        <Skeleton className="h-12 w-full" />
+                    </div>
+                ) : error ? (
+                    <div className="text-center py-10 text-destructive flex flex-col items-center gap-2">
+                        <AlertCircle />
+                        <p>Could not load bookings.</p>
+                        <p className="text-sm">{error.message}</p>
+                    </div>
+                ) : bookings && bookings.length > 0 ? (
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>User ID</TableHead>
+                                <TableHead>Date</TableHead>
+                                <TableHead>Total</TableHead>
+                                <TableHead className="text-right">Status</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {bookings.map((booking) => (
+                                <TableRow key={booking.id}>
+                                    <TableCell className="font-mono text-xs text-muted-foreground">@{booking.userId.substring(0, 8)}</TableCell>
+                                    <TableCell className="font-medium">
+                                        {booking.bookingDate ? format(booking.bookingDate.toDate(), 'PPP') : 'N/A'}
+                                    </TableCell>
+                                    <TableCell>RS.{booking.total.toFixed(2)}</TableCell>
+                                    <TableCell className="text-right">
+                                        <Badge variant={booking.status === 'Confirmed' ? 'default' : 'secondary'}>
+                                            {booking.status}
+                                        </Badge>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                ) : (
+                    <div className="text-center py-10">
+                        <p className="text-muted-foreground">There are no bookings yet.</p>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
 
 export default function AdminPage() {
   return (
@@ -295,7 +367,10 @@ export default function AdminPage() {
           <VenueManagement />
           <SlotGenerator />
           <PriceStockManagement />
+          <AllBookings />
       </div>
     </div>
   );
 }
+
+    

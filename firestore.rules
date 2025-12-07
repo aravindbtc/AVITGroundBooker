@@ -1,3 +1,4 @@
+
 /**
  * Core Philosophy: This ruleset enforces a hybrid security model tailored for a booking application.
  * It combines strict user-ownership for personal data (profiles, bookings) with a global 'admin' role
@@ -91,28 +92,28 @@ service cloud.firestore {
      * @principle Restricts access to a user's own data tree (Path-based Ownership).
      */
     match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow list: if false;
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
       allow create: if isCreatingOwnProfile(userId);
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
-      allow delete: if isExistingOwner(userId);
+      allow update: if isExistingOwner(userId) || isAdmin();
+      allow delete: if isExistingOwner(userId) || isAdmin();
     }
 
     /**
-     * @description Manages user bookings. Only the user who created the booking can access it.
+     * @description Manages user bookings. Only the user who created the booking can access it. Admins can view all.
      * @path /bookings/{bookingId}
-     * @allow (get) The user with UID matching the booking's 'userId' field can read it.
-     * @allow (list) Any signed-in user can query the collection, but client-side code must filter by their UID.
+     * @allow (get) The user with UID matching the booking's 'userId' field can read it. Admins can read any.
+     * @allow (list) Users can query their own bookings. Admins can query all bookings.
      * @allow (create) A signed-in user can create a booking for themselves.
      * @deny (get) A user cannot read another user's booking.
      * @principle Enforces document ownership for all operations based on an internal 'userId' field.
      */
     match /bookings/{bookingId} {
-      allow get: if isExistingContentOwner();
-      allow list: if isSignedIn();
+      allow get: if isExistingContentOwner() || isAdmin();
+      allow list: if (isSignedIn() && request.query.where.size() > 0 && request.query.where[0][0] == 'userId' && request.query.where[0][2] == request.auth.uid) || isAdmin();
       allow create: if isCreatingOwnContent();
-      allow update: if isExistingContentOwner() && isUserIdImmutable();
-      allow delete: if isExistingContentOwner();
+      allow update: if (isExistingContentOwner() && isUserIdImmutable()) || isAdmin();
+      allow delete: if isExistingContentOwner() || isAdmin();
     }
 
     /**
@@ -197,3 +198,5 @@ service cloud.firestore {
     }
   }
 }
+
+    
