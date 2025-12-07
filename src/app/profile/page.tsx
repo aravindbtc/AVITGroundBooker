@@ -2,7 +2,7 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
-import { User as UserIcon, Loader2, Save, AlertCircle } from "lucide-react";
+import { User as UserIcon, Loader2, Save, AlertCircle, LogIn } from "lucide-react";
 import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { doc, setDoc } from "firebase/firestore";
 import type { UserProfile } from "@/lib/types";
@@ -32,12 +32,14 @@ function ProfileForm() {
 
     useEffect(() => {
         if (userProfile) {
-            setDisplayName(userProfile.name || '');
+            setDisplayName(userProfile.fullName || '');
             setCollegeId(userProfile.collegeId || '');
-        } else if (user) {
-            setDisplayName(user.displayName || '');
+        } else {
+            // Explicitly clear fields if no user profile is loaded
+            setDisplayName('');
+            setCollegeId('');
         }
-    }, [userProfile, user]);
+    }, [userProfile]);
 
     const handleSaveChanges = async () => {
         if (!userProfileRef) return;
@@ -46,7 +48,7 @@ function ProfileForm() {
         
         try {
             await setDoc(userProfileRef, {
-                name: displayName,
+                fullName: displayName,
                 collegeId: collegeId,
             }, { merge: true });
             toast({ title: "Success!", description: "Your profile has been updated." });
@@ -59,7 +61,7 @@ function ProfileForm() {
     }
 
 
-    if (isUserLoading || isLoading) {
+    if (isUserLoading || (user && isLoading)) {
         return (
             <div className="space-y-6">
                 <div className="space-y-2">
@@ -84,7 +86,10 @@ function ProfileForm() {
             <div className="text-center py-10">
                 <p className="text-muted-foreground mb-4">Please log in to manage your profile.</p>
                  <Button asChild>
-                    <Link href="/login">Login</Link>
+                    <Link href="/login">
+                        <LogIn className="mr-2 h-4 w-4" />
+                        Login
+                    </Link>
                 </Button>
             </div>
         )
