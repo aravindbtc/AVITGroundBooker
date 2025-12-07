@@ -1,14 +1,14 @@
 
 'use client';
 
-import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, where, orderBy } from "firebase/firestore";
+import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase";
+import { collection, query, where, orderBy, doc } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CalendarDays, AlertCircle } from "lucide-react";
-import type { Booking } from "@/lib/types";
+import { CalendarDays, AlertCircle, Shield } from "lucide-react";
+import type { Booking, UserProfile } from "@/lib/types";
 import { format } from "date-fns";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -17,20 +17,29 @@ function BookingList() {
     const { user, isUserLoading } = useUser();
     const firestore = useFirestore();
 
-    const bookingsQuery = useMemoFirebase(() => {
+    const userProfileRef = useMemoFirebase(() => {
         if (!firestore || !user) return null;
+        return doc(firestore, "users", user.uid);
+    }, [firestore, user]);
+
+    const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
+
+    const bookingsQuery = useMemoFirebase(() => {
+        if (!firestore || !user || userProfile?.role === 'admin') return null;
         return query(
             collection(firestore, "bookings"),
             where("userId", "==", user.uid),
             orderBy("bookingDate", "desc")
         );
-    }, [firestore, user]);
+    }, [firestore, user, userProfile]);
 
-    const { data: bookings, isLoading, error } = useCollection<Booking>(bookingsQuery);
+    const { data: bookings, isLoading: isBookingsLoading, error } = useCollection<Booking>(bookingsQuery);
 
-    if (isUserLoading || (isLoading && !bookings)) {
+    const isLoading = isUserLoading || isProfileLoading || (isBookingsLoading && !bookings);
+
+    if (isLoading) {
         return (
-            <div className="space-y-2">
+            <div className="space-y-2 p-6">
                 <Skeleton className="h-12 w-full" />
                 <Skeleton className="h-12 w-full" />
                 <Skeleton className="h-12 w-full" />
@@ -44,6 +53,19 @@ function BookingList() {
                 <p className="text-muted-foreground mb-4">Please log in to see your bookings.</p>
                  <Button asChild>
                     <Link href="/login">Login</Link>
+                </Button>
+            </div>
+        )
+    }
+
+    if (userProfile?.role === 'admin') {
+        return (
+             <div className="text-center py-10">
+                <Shield className="mx-auto h-12 w-12 text-primary mb-4" />
+                <h3 className="text-lg font-semibold">Admin View</h3>
+                <p className="text-muted-foreground mb-4">All user bookings are managed on the Admin Dashboard.</p>
+                 <Button asChild>
+                    <Link href="/admin">Go to Admin Dashboard</Link>
                 </Button>
             </div>
         )
