@@ -3,81 +3,82 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
     function isOwner(userId) {
-      return request.auth.uid == userId;
+      return isSignedIn() && request.auth.uid == userId;
     }
 
     function isAdmin() {
-      // Grant admin privileges if the user's email is admin@avit.ac.in
-      return request.auth != null && request.auth.token.email == "admin@avit.ac.in";
-    }
-    
-    function isQueryingOwnData() {
-        // Enforce that a non-admin user MUST filter by their own userId.
-        return request.query.where.size() > 0 && request.query.where[0][0] == 'userId' && request.query.where[0][2] == request.auth.uid;
+      // Check for the admin role document OR a specific admin email for bootstrapping.
+      return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid))
+          || (isSignedIn() && request.auth.token.email == 'admin@avit.ac.in');
     }
 
+    function isQueryingOwnData(field) {
+      return request.query.where.size() > 0 && request.query.where[0][0] == field && request.query.where[0][2] == request.auth.uid;
+    }
+
+    // Publicly readable venue information, writable only by admins.
     match /venue/{venueId} {
       allow get, list: if true;
-      allow create, update, delete: if isAdmin();
+      allow write: if isAdmin();
     }
 
+    // Users can read/write their own profile. Admins can read/write any profile.
     match /users/{userId} {
       allow get, update: if isOwner(userId) || isAdmin();
-      allow list: if isAdmin();
+      // Allow create only for the user themselves. This is important for signup.
       allow create: if isOwner(userId);
-      allow delete: if isAdmin();
+      allow list, delete: if isAdmin();
     }
     
+    // Bookings can be read by their owner or any admin.
+    // Admins can list all bookings. Users can ONLY list their own.
     match /bookings/{bookingId} {
-      // Admins can read and write any booking.
-      allow read, write: if isAdmin();
-      
-      // Users can get their OWN booking.
-      allow get: if request.auth.uid == resource.data.userId;
-      
-      // Users can list their OWN bookings, but the query must be constrained.
-      allow list: if isQueryingOwnData();
-      
-      // Users can create their own bookings.
-      allow create: if request.auth.uid == request.resource.data.userId;
-      
-      // Users can update their own bookings. Backend can also update.
-      allow update: if (request.auth.uid == resource.data.userId) || request.auth == null;
-      
-      // Users can delete their own bookings.
-      allow delete: if request.auth.uid == resource.data.userId;
+      allow get: if isOwner(resource.data.userId) || isAdmin();
+      allow list: if isAdmin() || isQueryingOwnData('userId');
+      // Users create their own bookings. Ensure userId in document matches auth uid.
+      allow create: if isOwner(request.resource.data.userId);
+      // Updates allowed by owner, admin, or backend (webhook, no auth).
+      allow update: if isOwner(resource.data.userId) || isAdmin() || request.auth == null;
+      allow delete: if isOwner(resource.data.userId) || isAdmin();
     }
     
+    // Slots are publicly readable. Admins can create/delete them.
+    // Users can update a slot to book it. Backend can update.
     match /slots/{slotId} {
       allow get, list: if true;
       allow create, delete: if isAdmin();
-      // Allow updates from backend webhooks (no auth), admin, or users booking an available slot.
-      allow update: if request.auth == null || isAdmin() || (request.auth.uid != null && resource.data.status == 'available');
+      allow update: if isAdmin() || request.auth == null || (isSignedIn() && resource.data.status == 'available');
     }
 
+    // Accessories and Manpower are publicly readable. Only admins can manage them.
+    // Backend webhooks can update stock.
     match /accessories/{accessoryId} {
       allow get, list: if true;
       allow create, delete: if isAdmin();
-      // Allow stock updates from backend webhooks or admin
-      allow update: if request.auth == null || isAdmin();
+      allow update: if isAdmin() || request.auth == null;
     }
 
     match /manpower/{manpowerId} {
       allow get, list: if true;
-      allow create, update, delete: if isAdmin();
+      allow write: if isAdmin();
     }
 
+    // Users can create/manage their own reviews. Admins can moderate.
     match /reviews/{reviewId} {
       allow get, list: if true;
-      // Users can only create, update, or delete their own reviews.
-      allow create, update, delete: if request.auth.uid == resource.data.userId || request.auth.uid == request.resource.data.userId;
+      allow create: if isOwner(request.resource.data.userId);
+      allow update, delete: if isOwner(resource.data.userId) || isAdmin();
     }
 
+    // Only admins can read or write to the admin roles collection.
     match /roles_admin/{userId} {
-      allow read, list, create, delete: if isAdmin();
+      allow read, write: if isAdmin();
     }
   }
 }
-
-    

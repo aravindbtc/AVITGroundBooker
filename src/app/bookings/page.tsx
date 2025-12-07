@@ -25,7 +25,10 @@ function BookingList() {
     const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
     const bookingsQuery = useMemoFirebase(() => {
-        if (!firestore || !user || !userProfile || userProfile.role !== 'user') return null;
+        // Query should ONLY be created if we have a user who is NOT an admin.
+        if (!firestore || !user || !userProfile || userProfile.role !== 'user') {
+            return null;
+        }
         return query(
             collection(firestore, "bookings"),
             where("userId", "==", user.uid),
@@ -58,6 +61,7 @@ function BookingList() {
         )
     }
 
+    // Explicitly handle admin view. This component should not be visible for admins.
     if (userProfile?.role === 'admin') {
         return (
              <div className="text-center py-10">
@@ -81,6 +85,7 @@ function BookingList() {
         );
     }
 
+    // Show loading skeleton only when we expect bookings to be loading.
     if (isBookingsLoading && bookingsQuery) {
         return (
              <div className="space-y-2 p-6">
@@ -148,5 +153,3 @@ export default function BookingsPage() {
         </div>
     );
 }
-
-    

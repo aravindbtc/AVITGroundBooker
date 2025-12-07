@@ -24,7 +24,8 @@ export function RecentBookings() {
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
   const bookingsQuery = useMemoFirebase(() => {
-      if (!firestore || !user || isProfileLoading || !userProfile || userProfile.role !== 'user') {
+      // This query should ONLY be created if we have a user who is confirmed to be a regular user.
+      if (!firestore || !user || !userProfile || userProfile.role !== 'user') {
         return null; 
       }
       return query(
@@ -33,7 +34,7 @@ export function RecentBookings() {
           orderBy("bookingDate", "desc"),
           limit(3)
       );
-  }, [firestore, user, userProfile, isProfileLoading]);
+  }, [firestore, user, userProfile]);
 
   const { data: bookings, isLoading: isBookingsLoading, error } = useCollection<Booking>(bookingsQuery);
 
@@ -90,7 +91,7 @@ export function RecentBookings() {
         <CardContent className="text-center text-muted-foreground py-8">
             <Shield className="mx-auto h-8 w-8 mb-2 text-primary" />
             <p className="font-semibold">Admin View</p>
-            <p className="text-sm">All bookings managed on admin dashboard.</p>
+            <p className="text-sm">Welcome, Admin!</p>
             <Button asChild variant="link" className="mt-2">
                 <Link href="/admin">Go to Admin Dashboard</Link>
             </Button>
@@ -159,5 +160,3 @@ export function RecentBookings() {
     </Card>
   );
 }
-
-    

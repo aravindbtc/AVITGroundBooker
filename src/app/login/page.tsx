@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -10,7 +11,7 @@ import {
     GoogleAuthProvider,
     signInWithPopup,
 } from 'firebase/auth';
-import { setDoc, doc, getDoc } from 'firebase/firestore';
+import { setDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -47,7 +48,10 @@ export default function LoginPage() {
         if (!isUserLoading && user && firestore) {
             const userDocRef = doc(firestore, "users", user.uid);
             getDoc(userDocRef).then(docSnap => {
-                if (docSnap.exists() && docSnap.data().role === 'admin') {
+                // Check if admin role document exists for special admin email.
+                if (user.email === 'admin@avit.ac.in') {
+                    router.replace('/admin');
+                } else if (docSnap.exists() && docSnap.data().role === 'admin') {
                     router.replace('/admin');
                 } else {
                     router.replace('/');
@@ -55,6 +59,29 @@ export default function LoginPage() {
             });
         }
     }, [user, isUserLoading, router, firestore]);
+
+    const createProfileIfNotExists = async (user: any) => {
+        if (!firestore) return;
+        const userDocRef = doc(firestore, "users", user.uid);
+        const docSnap = await getDoc(userDocRef);
+
+        if (!docSnap.exists()) {
+            const isPotentialAdmin = user.email === 'admin@avit.ac.in';
+            await setDoc(userDocRef, {
+                id: user.uid,
+                email: user.email,
+                name: user.displayName || user.email?.split('@')[0] || 'New User',
+                collegeId: '',
+                role: isPotentialAdmin ? 'admin' : 'user', // Set role based on email
+                loyaltyPoints: 0,
+                createdAt: serverTimestamp(),
+            });
+             // If admin, also create the role document for security rules
+            if(isPotentialAdmin) {
+                await setDoc(doc(firestore, "roles_admin", user.uid), { grantedAt: serverTimestamp() });
+            }
+        }
+    };
 
 
     const handleOAuthSignIn = async (provider: 'google') => {
@@ -68,17 +95,7 @@ export default function LoginPage() {
 
         try {
             const result = await signInWithPopup(auth, authProvider);
-            const user = result.user;
-            
-            await setDoc(doc(firestore, "users", user.uid), {
-                id: user.uid,
-                email: user.email,
-                name: user.displayName || user.email?.split('@')[0],
-                collegeId: '',
-                role: 'user',
-                loyaltyPoints: 0
-            }, { merge: true });
-
+            await createProfileIfNotExists(result.user);
             toast({ title: "Sign In Successful", description: "Welcome!" });
             // The useEffect will handle redirection.
         } catch (error: any) {
@@ -94,27 +111,9 @@ export default function LoginPage() {
         setIsProcessing(true);
         
         try {
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
-            const loggedInUser = userCredential.user;
-
-            if (loggedInUser.email === 'admin@avit.ac.in') {
-                 // Ensure admin role document exists
-                await setDoc(doc(firestore, "roles_admin", loggedInUser.uid), { grantedAt: new Date() }, { merge: true });
-                await setDoc(doc(firestore, "users", loggedInUser.uid), {
-                    id: loggedInUser.uid,
-                    email: email,
-                    name: 'AVIT Admin',
-                    collegeId: 'ADMIN001',
-                    role: 'admin',
-                    loyaltyPoints: 0
-                }, { merge: true });
-
-                toast({ title: "Admin Login Successful", description: "Redirecting to Admin Dashboard..." });
-                router.replace('/admin'); // Direct redirect for admin
-            } else {
-                toast({ title: "Login Successful", description: "Welcome back!" });
-                router.replace('/'); // Direct redirect for user
-            }
+            await signInWithEmailAndPassword(auth, email, password);
+            toast({ title: "Login Successful", description: "Welcome back!" });
+            // The useEffect will handle redirection.
         } catch (error: any) {
             if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
                 toast({ variant: "destructive", title: "Login Failed", description: "The email or password you entered is incorrect." });
@@ -139,17 +138,7 @@ export default function LoginPage() {
         setIsProcessing(true);
         try {
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            const user = userCredential.user;
-            
-            await setDoc(doc(firestore, "users", user.uid), {
-                id: user.uid,
-                email: user.email,
-                name: user.email?.split('@')[0] || 'New User',
-                collegeId: '',
-                role: 'user',
-                loyaltyPoints: 0
-            });
-
+            await createProfileIfNotExists(userCredential.user);
             toast({ title: "Sign Up Successful", description: "Your account has been created." });
             // The useEffect will handle redirection.
         } catch (error: any) {
