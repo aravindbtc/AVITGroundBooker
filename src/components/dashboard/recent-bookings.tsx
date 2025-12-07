@@ -23,8 +23,8 @@ export function RecentBookings() {
 
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
-  // **DEFINITIVE FIX**: The query is ONLY constructed if we have confirmed the user's role is 'user'.
-  // This prevents any query from being made for an admin or during the loading state, fixing the race condition.
+  // This query is ONLY constructed if we have confirmed the user's role is 'user'.
+  // This is the definitive fix to prevent the permission error for admin users.
   const bookingsQuery = useMemoFirebase(() => {
       if (isProfileLoading || !userProfile || userProfile.role !== 'user' || !user) {
         return null; // Return null if loading, no profile, or user is an admin
@@ -75,6 +75,7 @@ export function RecentBookings() {
             <CardContent className="text-center py-10 text-destructive flex flex-col items-center gap-2">
                 <AlertCircle />
                 <p className="text-sm">Could not load recent bookings.</p>
+                <p className="text-xs text-muted-foreground">{error.message}</p>
             </CardContent>
         </Card>
     );
@@ -93,7 +94,7 @@ export function RecentBookings() {
         <CardContent className="text-center text-muted-foreground py-8">
             <Shield className="mx-auto h-8 w-8 mb-2 text-primary" />
             <p className="font-semibold">Admin View</p>
-            <p className="text-sm">Manage all bookings on the admin dashboard.</p>
+            <p className="text-sm">All bookings managed on admin dashboard.</p>
             <Button asChild variant="link" className="mt-2">
                 <Link href="/admin">Go to Admin Dashboard</Link>
             </Button>
@@ -119,7 +120,7 @@ export function RecentBookings() {
                     <Link href="/login">Login</Link>
                 </Button>
             </div>
-        // Show skeleton only if we are expecting a query to run
+        // Show skeleton only if we are in a state where a query should be running.
         ) : isBookingsLoading && bookingsQuery ? (
              <div className="space-y-2">
                 <Skeleton className="h-10 w-full" />

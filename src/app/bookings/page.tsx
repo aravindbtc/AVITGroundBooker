@@ -24,8 +24,7 @@ function BookingList() {
 
     const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
-    // **DEFINITIVE FIX**: This query is ONLY constructed if we have confirmed the user's role is 'user'.
-    // It will not run for an admin, preventing a permissions error.
+    // This query is ONLY constructed if we have confirmed the user's role is 'user'.
     const bookingsQuery = useMemoFirebase(() => {
         if (!firestore || !user || isProfileLoading || !userProfile || userProfile.role !== 'user') return null;
         return query(
@@ -60,6 +59,7 @@ function BookingList() {
         )
     }
 
+    // Explicitly handle the admin case to prevent any data fetching attempts.
     if (userProfile?.role === 'admin') {
         return (
              <div className="text-center py-10">
@@ -83,7 +83,7 @@ function BookingList() {
         );
     }
 
-    // This condition checks if the query is ready to be executed but is still loading.
+    // Show loading skeleton only if we are in a state where a query should be running.
     if (isBookingsLoading && bookingsQuery) {
         return (
              <div className="space-y-2 p-6">
@@ -98,6 +98,9 @@ function BookingList() {
         return (
             <div className="text-center py-10">
                 <p className="text-muted-foreground">You have no bookings yet.</p>
+                 <Button asChild className="mt-4">
+                    <Link href="/">Book a Slot</Link>
+                </Button>
             </div>
         );
     }
