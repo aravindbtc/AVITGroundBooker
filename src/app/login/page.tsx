@@ -45,7 +45,11 @@ export default function LoginPage() {
     
     useEffect(() => {
         if (!isUserLoading && user) {
-            router.replace(user.email === 'admin@avit.ac.in' ? '/admin' : '/');
+            if (user.email === 'admin@avit.ac.in') {
+                router.replace('/admin');
+            } else {
+                router.replace('/');
+            }
         }
     }, [user, isUserLoading, router]);
 
@@ -63,8 +67,7 @@ export default function LoginPage() {
             const result = await signInWithPopup(auth, authProvider);
             const user = result.user;
             
-            // Create user profile if it doesn't exist
-             await setDoc(doc(firestore, "users", user.uid), {
+            await setDoc(doc(firestore, "users", user.uid), {
                 id: user.uid,
                 email: user.email,
                 name: user.displayName || user.email?.split('@')[0],
@@ -84,25 +87,18 @@ export default function LoginPage() {
 
 
     const handleLogin = async () => {
-        if (!auth) return;
+        if (!auth || !firestore) return;
         setIsProcessing(true);
         
-        // Admin Login
-        if (email.toLowerCase() === 'admin@avit.ac.in' && password === 'AVIT@2025') {
-            try {
-                const userCredential = await signInWithEmailAndPassword(auth, email, password).catch(async (error) => {
-                    // If admin user does not exist, create it
-                    if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-                        return await createUserWithEmailAndPassword(auth, email, password);
-                    }
-                    throw error;
-                });
+        try {
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            const loggedInUser = userCredential.user;
 
-                const adminUser = userCredential.user;
-                // Ensure admin role document exists
-                await setDoc(doc(firestore, "roles_admin", adminUser.uid), { grantedAt: new Date() }, { merge: true });
-                await setDoc(doc(firestore, "users", adminUser.uid), {
-                    id: adminUser.uid,
+            if (loggedInUser.email === 'admin@avit.ac.in') {
+                 // Ensure admin role document exists
+                await setDoc(doc(firestore, "roles_admin", loggedInUser.uid), { grantedAt: new Date() }, { merge: true });
+                await setDoc(doc(firestore, "users", loggedInUser.uid), {
+                    id: loggedInUser.uid,
                     email: email,
                     name: 'AVIT Admin',
                     collegeId: 'ADMIN001',
@@ -111,23 +107,17 @@ export default function LoginPage() {
                 }, { merge: true });
 
                 toast({ title: "Admin Login Successful", description: "Redirecting to Admin Dashboard..." });
-                router.push('/admin');
-
-            } catch (error: any) {
-                toast({ variant: "destructive", title: "Admin Login Failed", description: error.message });
-            } finally {
-                setIsProcessing(false);
+                router.replace('/admin');
+            } else {
+                toast({ title: "Login Successful", description: "Welcome back!" });
+                router.replace('/');
             }
-            return;
-        }
-
-        // Regular user login
-        try {
-            await signInWithEmailAndPassword(auth, email, password);
-            toast({ title: "Login Successful", description: "Welcome back!" });
-            router.push('/');
         } catch (error: any) {
-            toast({ variant: "destructive", title: "Login Failed", description: "The email or password you entered is incorrect." });
+            if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+                toast({ variant: "destructive", title: "Login Failed", description: "The email or password you entered is incorrect." });
+            } else {
+                toast({ variant: "destructive", title: "Login Failed", description: error.message });
+            }
         } finally {
             setIsProcessing(false);
         }
@@ -158,7 +148,7 @@ export default function LoginPage() {
             });
 
             toast({ title: "Sign Up Successful", description: "Your account has been created." });
-            router.push('/');
+            router.replace('/');
         } catch (error: any) {
             toast({ variant: "destructive", title: "Sign Up Failed", description: error.message });
         } finally {
@@ -191,6 +181,7 @@ export default function LoginPage() {
         );
     }
     
+    // This effect handles redirection, so a blank page during redirect is expected.
     if (user) {
         return (
              <div className="flex justify-center items-center h-screen">
@@ -292,5 +283,3 @@ export default function LoginPage() {
         </div>
     );
 }
-
-    
