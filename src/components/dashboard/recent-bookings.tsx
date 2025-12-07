@@ -23,8 +23,9 @@ export function RecentBookings() {
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
   const bookingsQuery = useMemoFirebase(() => {
-      // Wait until the profile is loaded and confirm the user is NOT an admin.
-      if (isProfileLoading || !firestore || !user || userProfile?.role !== 'user') {
+      // **CRITICAL FIX**: Do not create a query until the profile is loaded and the role is confirmed to be 'user'.
+      // This prevents the query from being made for an admin user, which was causing the permission error.
+      if (isProfileLoading || !userProfile || userProfile.role !== 'user') {
         return null; 
       }
       return query(
@@ -99,7 +100,7 @@ export function RecentBookings() {
                     <Link href="/login">Login</Link>
                 </Button>
             </div>
-        ) : isBookingsLoading && !hasBookings ? (
+        ) : isBookingsLoading ? (
              <div className="space-y-2">
                 <Skeleton className="h-10 w-full" />
                 <Skeleton className="h-10 w-full" />
