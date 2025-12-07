@@ -23,11 +23,11 @@ export function RecentBookings() {
 
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
-  // This query is ONLY constructed if we have confirmed the user's role is 'user'.
-  // This is the definitive fix to prevent the permission error for admin users.
+  // This is the definitive fix. The query is ONLY constructed if we have confirmed the user's role is 'user'.
+  // This prevents any query from being made for an admin or while the profile is loading.
   const bookingsQuery = useMemoFirebase(() => {
       if (!firestore || !user || isProfileLoading || !userProfile || userProfile.role !== 'user') {
-        return null; // Return null if loading, no profile, or user is an admin
+        return null; 
       }
       return query(
           collection(firestore, "bookings"),
