@@ -7,7 +7,6 @@ import { useAuth, useUser } from '@/firebase';
 import { 
     signInWithEmailAndPassword, 
     createUserWithEmailAndPassword,
-    signOut,
     sendPasswordResetEmail,
 } from 'firebase/auth';
 import { setDoc, doc, writeBatch } from 'firebase/firestore';
@@ -18,7 +17,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Mail, ShieldCheck } from 'lucide-react';
+import { Loader2, Mail } from 'lucide-react';
+
+const ADMIN_EMAIL = 'admin@avit.ac.in';
+const ADMIN_PASSWORD = 'AVIT@2025';
 
 export default function LoginPage() {
     const auth = useAuth();
@@ -29,33 +31,14 @@ export default function LoginPage() {
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [adminEmail, setAdminEmail] = useState('admin@avit.ac.in');
-    const [adminPassword, setAdminPassword] = useState('AVIT@cgb');
     const [isProcessing, setIsProcessing] = useState(false);
     const [resetEmail, setResetEmail] = useState('');
 
-    const handleLogin = async (loginEmail = email, loginPassword = password) => {
+    const handleAdminFirstLogin = async () => {
+        if (!firestore) return;
         setIsProcessing(true);
         try {
-            await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
-            toast({ title: "Login Successful", description: "Welcome back!" });
-            router.push('/');
-        } catch (error: any) {
-            // If user not found, try to sign them up with admin credentials for the first time
-            if (error.code === 'auth/user-not-found' && loginEmail === 'admin@avit.ac.in') {
-                await handleAdminFirstLogin();
-            } else {
-                toast({ variant: "destructive", title: "Login Failed", description: error.message });
-            }
-        } finally {
-            setIsProcessing(false);
-        }
-    };
-    
-    const handleAdminFirstLogin = async () => {
-         if (!firestore) return;
-        try {
-            const userCredential = await createUserWithEmailAndPassword(auth, 'admin@avit.ac.in', 'AVIT@cgb');
+            const userCredential = await createUserWithEmailAndPassword(auth, ADMIN_EMAIL, ADMIN_PASSWORD);
             const user = userCredential.user;
             
             const batch = writeBatch(firestore);
@@ -75,19 +58,55 @@ export default function LoginPage() {
 
             await batch.commit();
 
-            toast({ title: "Admin Account Created", description: "Welcome, Admin! You are now being logged in." });
-            router.push('/');
+            toast({ title: "Admin Account Created", description: "Welcome, Admin! Redirecting to dashboard." });
+            router.push('/admin');
 
         } catch (error: any) {
-            // If admin already exists, just log in.
-            if(error.code === 'auth/email-already-in-use') {
-                await signInWithEmailAndPassword(auth, 'admin@avit.ac.in', 'AVIT@cgb');
-                router.push('/');
+            if (error.code === 'auth/email-already-in-use') {
+                // If admin already exists, just sign in and redirect
+                await signInWithEmailAndPassword(auth, ADMIN_EMAIL, ADMIN_PASSWORD);
+                router.push('/admin');
             } else {
                 toast({ variant: "destructive", title: "Admin Setup Failed", description: error.message });
             }
+        } finally {
+            setIsProcessing(false);
         }
-    }
+    };
+
+    const handleLogin = async () => {
+        setIsProcessing(true);
+
+        // Special check for admin login
+        if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                toast({ title: "Admin Login Successful", description: "Redirecting to Admin Dashboard..." });
+                router.push('/admin');
+            } catch (error: any) {
+                 if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+                    // If the admin user doesn't exist yet, create it.
+                    await handleAdminFirstLogin();
+                } else {
+                    toast({ variant: "destructive", title: "Admin Login Failed", description: error.message });
+                }
+            } finally {
+                setIsProcessing(false);
+            }
+            return;
+        }
+
+        // Regular user login
+        try {
+            await signInWithEmailAndPassword(auth, email, password);
+            toast({ title: "Login Successful", description: "Welcome back!" });
+            router.push('/');
+        } catch (error: any) {
+            toast({ variant: "destructive", title: "Login Failed", description: error.message });
+        } finally {
+            setIsProcessing(false);
+        }
+    };
 
 
     const handleSignUp = async () => {
@@ -95,12 +114,15 @@ export default function LoginPage() {
              toast({ variant: "destructive", title: "Database not ready", description: "Please try again in a moment."});
              return;
         }
+        if (email === ADMIN_EMAIL) {
+            toast({ variant: "destructive", title: "Registration Error", description: "This email is reserved for administration." });
+            return;
+        }
         setIsProcessing(true);
         try {
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
             
-            // Create a user profile document in Firestore
             await setDoc(doc(firestore, "users", user.uid), {
                 id: user.uid,
                 email: user.email,
@@ -113,15 +135,7 @@ export default function LoginPage() {
             toast({ title: "Sign Up Successful", description: "Your account has been created." });
             router.push('/');
         } catch (error: any) {
-             if (error.code === 'auth/email-already-in-use' && email === 'admin@avit.ac.in') {
-                toast({
-                    variant: "destructive",
-                    title: "Use Admin Login",
-                    description: "This is the admin email. Please use the 'Admin Login' tab.",
-                });
-            } else {
-                toast({ variant: "destructive", title: "Sign Up Failed", description: error.message });
-            }
+            toast({ variant: "destructive", title: "Sign Up Failed", description: error.message });
         } finally {
             setIsProcessing(false);
         }
@@ -164,21 +178,20 @@ export default function LoginPage() {
     return (
         <div className="flex justify-center items-center py-12">
             <Tabs defaultValue="login" className="w-[400px]">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="login">Login</TabsTrigger>
                     <TabsTrigger value="signup">Sign Up</TabsTrigger>
-                    <TabsTrigger value="admin" className="gap-1"><ShieldCheck className="h-4 w-4" /> Admin</TabsTrigger>
                 </TabsList>
                 <TabsContent value="login">
                     <Card>
                         <CardHeader>
-                            <CardTitle>User Login</CardTitle>
+                            <CardTitle>Login</CardTitle>
                             <CardDescription>Access your account to view and manage your bookings.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="space-y-2">
                                 <Label htmlFor="login-email">Email</Label>
-                                <Input id="login-email" type="email" placeholder="m@example.com" value={email} onChange={e => setEmail(e.target.value)} />
+                                <Input id="login-email" type="email" placeholder="user@avit.ac.in" value={email} onChange={e => setEmail(e.target.value)} />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="login-password">Password</Label>
@@ -186,7 +199,7 @@ export default function LoginPage() {
                             </div>
                         </CardContent>
                         <CardFooter>
-                            <Button onClick={() => handleLogin()} disabled={isProcessing}>
+                            <Button onClick={handleLogin} disabled={isProcessing}>
                                 {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                 Login
                             </Button>
@@ -219,7 +232,7 @@ export default function LoginPage() {
                         <CardContent className="space-y-4">
                             <div className="space-y-2">
                                 <Label htmlFor="signup-email">Email</Label>
-                                <Input id="signup-email" type="email" placeholder="m@example.com" value={email} onChange={e => setEmail(e.target.value)} />
+                                <Input id="signup-email" type="email" placeholder="user@avit.ac.in" value={email} onChange={e => setEmail(e.target.value)} />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="signup-password">Password</Label>
@@ -234,35 +247,7 @@ export default function LoginPage() {
                         </CardFooter>
                     </Card>
                 </TabsContent>
-                 <TabsContent value="admin">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Admin Login</CardTitle>
-                            <CardDescription>Enter admin credentials to access the dashboard.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="admin-email">Admin Email</Label>
-                                <Input id="admin-email" type="email" value={adminEmail} readOnly disabled />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="admin-password">Admin Password</Label>
-                                <Input id="admin-password" type="password" value={adminPassword} readOnly disabled />
-                            </div>
-                        </CardContent>
-                        <CardFooter>
-                             <Button onClick={() => handleLogin(adminEmail, adminPassword)} disabled={isProcessing}>
-                                {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Login as Admin
-                            </Button>
-                        </CardFooter>
-                    </Card>
-                </TabsContent>
             </Tabs>
         </div>
     );
 }
-
-    
-
-    
