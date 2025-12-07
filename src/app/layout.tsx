@@ -21,15 +21,17 @@ export default function RootLayout({
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=PT+Sans:wght@400;700&display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=PT+Sans:wght@400;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased">
         <Script id="razorpay-checkout" src="https://checkout.razorpay.com/v1/checkout.js" />
         <FirebaseClientProvider>
           <div className="flex min-h-screen flex-col">
             <Header />
-            <main className="flex-1 container mx-auto px-4 py-8">
-              {children}
+            <main className="flex-1 bg-background">
+              <div className='container mx-auto px-4 py-8'>
+                {children}
+              </div>
             </main>
             <Footer />
           </div>
@@ -39,5 +41,3 @@ export default function RootLayout({
     </html>
   );
 }
-
-    

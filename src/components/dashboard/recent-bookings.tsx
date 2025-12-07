@@ -1,4 +1,3 @@
-
 'use client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -24,9 +23,8 @@ export function RecentBookings() {
 
   const bookingsQuery = useMemoFirebase(() => {
       // **CRITICAL FIX**: Do not create a query until the profile is loaded and the role is confirmed to be 'user'.
-      // This prevents the query from being made for an admin user, which was causing the permission error.
       if (isProfileLoading || !userProfile || userProfile.role !== 'user') {
-        return null; 
+        return null;
       }
       return query(
           collection(firestore, "bookings"),
@@ -119,8 +117,8 @@ export function RecentBookings() {
               {bookings.map((booking) => (
                 <TableRow key={booking.id}>
                   <TableCell className="font-medium">
-                     {booking.bookingDate && isValid(booking.bookingDate.toDate()) 
-                          ? format(booking.bookingDate.toDate(), "MMM dd, yyyy") 
+                     {booking.bookingDate && isValid(booking.bookingDate.toDate())
+                          ? format(booking.bookingDate.toDate(), "MMM dd, yyyy")
                           : 'Processing...'}
                   </TableCell>
                   <TableCell>RS.{booking.total.toFixed(2)}</TableCell>
