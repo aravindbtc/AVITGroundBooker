@@ -1,10 +1,10 @@
-
 import type { Timestamp } from 'firebase/firestore';
 
 export type UserProfile = {
   id: string;
   email: string;
   name: string;
+  phone?: string;
   collegeId: string;
   role: 'user' | 'admin';
   loyaltyPoints: number;
@@ -14,15 +14,12 @@ export type Booking = {
   id: string;
   userId: string;
   bookingDate: Timestamp;
+  paymentTimestamp?: Timestamp;
   total: number;
-  status: 'Confirmed' | 'Pending' | 'Cancelled';
+  status: 'pending' | 'paid' | 'confirmed' | 'cancelled';
   slotIds: string[];
-  addons: {
-    id: string;
-    name: string;
-    quantity: number;
-    price: number;
-  }[];
+  addons: BookingItem[];
+  razorpayOrderId?: string;
 };
 
 export type Addon = {
@@ -74,3 +71,5 @@ export type BookingItem = {
     price: number;
     type: 'slot' | 'addon' | 'manpower';
 }
+
+    

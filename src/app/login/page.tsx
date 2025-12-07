@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -8,8 +7,10 @@ import {
     signInWithEmailAndPassword, 
     createUserWithEmailAndPassword,
     sendPasswordResetEmail,
+    GoogleAuthProvider,
+    signInWithPopup,
 } from 'firebase/auth';
-import { setDoc, doc, writeBatch } from 'firebase/firestore';
+import { setDoc, doc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,9 +19,17 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Mail } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
 
-const ADMIN_EMAIL = 'admin@avit.ac.in';
-const ADMIN_PASSWORD = 'AVIT@2025';
+const GoogleIcon = () => (
+    <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
+        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
+        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+    </svg>
+);
+
 
 export default function LoginPage() {
     const auth = useAuth();
@@ -33,71 +42,76 @@ export default function LoginPage() {
     const [password, setPassword] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
     const [resetEmail, setResetEmail] = useState('');
-
+    
     useEffect(() => {
-        if (user) {
-            if (user.email === ADMIN_EMAIL) {
-                router.replace('/admin');
-            } else {
-                router.replace('/');
-            }
+        if (!isUserLoading && user) {
+            router.replace(user.email === 'admin@avit.ac.in' ? '/admin' : '/');
         }
-    }, [user, router]);
+    }, [user, isUserLoading, router]);
 
 
-    const handleAdminFirstLogin = async () => {
-        if (!firestore) return;
+    const handleOAuthSignIn = async (provider: 'google') => {
+        if (!auth || !firestore) return;
         setIsProcessing(true);
-        try {
-            const userCredential = await createUserWithEmailAndPassword(auth, ADMIN_EMAIL, ADMIN_PASSWORD);
-            const user = userCredential.user;
-            
-            const batch = writeBatch(firestore);
+        const authProvider = provider === 'google' ? new GoogleAuthProvider() : null;
+        if (!authProvider) {
+            setIsProcessing(false);
+            return;
+        }
 
-            const userProfileRef = doc(firestore, 'users', user.uid);
-            batch.set(userProfileRef, {
+        try {
+            const result = await signInWithPopup(auth, authProvider);
+            const user = result.user;
+            
+            // Create user profile if it doesn't exist
+             await setDoc(doc(firestore, "users", user.uid), {
                 id: user.uid,
                 email: user.email,
-                name: 'AVIT Admin',
-                collegeId: 'ADMIN001',
-                role: 'admin',
+                name: user.displayName || user.email?.split('@')[0],
+                collegeId: '',
+                role: 'user',
                 loyaltyPoints: 0
-            });
-            
-            const adminRoleRef = doc(firestore, 'roles_admin', user.uid);
-            batch.set(adminRoleRef, { grantedAt: new Date() });
+            }, { merge: true });
 
-            await batch.commit();
-
-            toast({ title: "Admin Account Created", description: "Welcome, Admin! Redirecting to dashboard." });
-            router.push('/admin');
-
+            toast({ title: "Sign In Successful", description: "Welcome!" });
+            router.push('/');
         } catch (error: any) {
-            if (error.code === 'auth/email-already-in-use') {
-                // If admin already exists, just sign in and redirect
-                await signInWithEmailAndPassword(auth, ADMIN_EMAIL, ADMIN_PASSWORD);
-                router.push('/admin');
-            } else {
-                toast({ variant: "destructive", title: "Admin Setup Failed", description: error.message });
-            }
+            toast({ variant: "destructive", title: "Sign In Failed", description: error.message });
         } finally {
             setIsProcessing(false);
         }
     };
 
-    const handleLogin = async () => {
-        setIsProcessing(true);
 
-        // Special check for admin login
-        if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+    const handleLogin = async () => {
+        if (!auth) return;
+        setIsProcessing(true);
+        
+        // Admin Login
+        if (email.toLowerCase() === 'admin@avit.ac.in' && password === 'AVIT@2025') {
             try {
                 await signInWithEmailAndPassword(auth, email, password);
                 toast({ title: "Admin Login Successful", description: "Redirecting to Admin Dashboard..." });
                 router.push('/admin');
             } catch (error: any) {
                  if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-                    // If the admin user doesn't exist yet, create it.
-                    await handleAdminFirstLogin();
+                    // If admin user does not exist, create it
+                    try {
+                        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                        await setDoc(doc(firestore, "users", userCredential.user.uid), {
+                             id: userCredential.user.uid,
+                            email: email,
+                            name: 'AVIT Admin',
+                            collegeId: 'ADMIN001',
+                            role: 'admin',
+                            loyaltyPoints: 0
+                        });
+                         await setDoc(doc(firestore, "roles_admin", userCredential.user.uid), { grantedAt: new Date() });
+                         toast({ title: "Admin Account Created", description: "Redirecting to dashboard..." });
+                        router.push('/admin');
+                    } catch (createError: any) {
+                        toast({ variant: "destructive", title: "Admin Setup Failed", description: createError.message });
+                    }
                 } else {
                     toast({ variant: "destructive", title: "Admin Login Failed", description: error.message });
                 }
@@ -121,11 +135,11 @@ export default function LoginPage() {
 
 
     const handleSignUp = async () => {
-        if (!firestore) {
+        if (!firestore || !auth) {
              toast({ variant: "destructive", title: "Database not ready", description: "Please try again in a moment."});
              return;
         }
-        if (email === ADMIN_EMAIL) {
+        if (email.toLowerCase() === 'admin@avit.ac.in') {
             toast({ variant: "destructive", title: "Registration Error", description: "This email is reserved for administration." });
             return;
         }
@@ -153,6 +167,7 @@ export default function LoginPage() {
     };
     
     const handlePasswordReset = async () => {
+        if (!auth) return;
         if (!resetEmail) {
             toast({ variant: "destructive", title: "Email required", description: "Please enter your email address to reset your password." });
             return;
@@ -189,7 +204,7 @@ export default function LoginPage() {
         <div className="flex justify-center items-center py-12">
             <Tabs defaultValue="login" className="w-[400px]">
                 <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="login">User Login</TabsTrigger>
+                    <TabsTrigger value="login">Login</TabsTrigger>
                     <TabsTrigger value="signup">Sign Up</TabsTrigger>
                 </TabsList>
                 <TabsContent value="login">
@@ -207,6 +222,14 @@ export default function LoginPage() {
                                 <Label htmlFor="login-password">Password</Label>
                                 <Input id="login-password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
                             </div>
+                             <div className="relative">
+                                <Separator className="my-6" />
+                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 px-2 bg-background text-sm text-muted-foreground">OR</div>
+                            </div>
+                             <Button variant="outline" className="w-full" onClick={() => handleOAuthSignIn('google')} disabled={isProcessing}>
+                                <GoogleIcon />
+                                Sign in with Google
+                            </Button>
                         </CardContent>
                         <CardFooter>
                             <Button onClick={handleLogin} disabled={isProcessing}>
@@ -248,6 +271,14 @@ export default function LoginPage() {
                                 <Label htmlFor="signup-password">Password</Label>
                                 <Input id="signup-password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
                             </div>
+                             <div className="relative">
+                                <Separator className="my-6" />
+                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 px-2 bg-background text-sm text-muted-foreground">OR</div>
+                            </div>
+                             <Button variant="outline" className="w-full" onClick={() => handleOAuthSignIn('google')} disabled={isProcessing}>
+                                <GoogleIcon />
+                                Sign up with Google
+                            </Button>
                         </CardContent>
                         <CardFooter>
                              <Button onClick={handleSignUp} disabled={isProcessing}>
@@ -261,3 +292,4 @@ export default function LoginPage() {
         </div>
     );
 }
+    

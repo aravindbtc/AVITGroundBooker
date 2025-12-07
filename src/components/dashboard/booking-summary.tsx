@@ -9,7 +9,8 @@ import type { BookingItem, Slot, Venue, UserProfile } from "@/lib/types";
 import { Badge } from "../ui/badge";
 import { Ticket, Calendar, Clock, CreditCard, Loader2 } from "lucide-react";
 import { useDoc, useFirestore, useMemoFirebase, useUser } from "@/firebase";
-import { doc, writeBatch, collection, serverTimestamp, runTransaction, Timestamp } from "firebase/firestore";
+import { doc } from "firebase/firestore";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import { useState } from "react";
 import { format } from "date-fns";
 
@@ -19,12 +20,20 @@ interface BookingSummaryProps {
     onBookingSuccess: () => void;
 }
 
+declare global {
+    interface Window {
+        Razorpay: any;
+    }
+}
+
 export function BookingSummary({ slotDetails, bookingAddons, onBookingSuccess }: BookingSummaryProps) {
     const firestore = useFirestore();
-    const { user } = useUser();
+    const { user, isUserLoading } = useUser();
     const { toast } = useToast();
     const venueRef = useMemoFirebase(() => firestore && doc(firestore, 'venue', 'avit-ground'), [firestore]);
     const { data: venue } = useDoc<Venue>(venueRef);
+    const userProfileRef = useMemoFirebase(() => (firestore && user) && doc(firestore, 'users', user.uid), [firestore, user]);
+    const { data: userProfile } = useDoc<UserProfile>(userProfileRef);
     const [isBooking, setIsBooking] = useState(false);
 
     const pricePerHour = venue?.basePrice ?? 500;
@@ -43,11 +52,11 @@ export function BookingSummary({ slotDetails, bookingAddons, onBookingSuccess }:
     const total = allItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
 
     const handleConfirmBooking = async () => {
-        if (!firestore || !user) {
+        if (!firestore || !user || !userProfile) {
             toast({
                 variant: 'destructive',
-                title: 'Error',
-                description: 'You must be logged in to book.',
+                title: 'Please log in',
+                description: 'You must be logged in to make a booking.',
             });
             return;
         }
@@ -62,59 +71,72 @@ export function BookingSummary({ slotDetails, bookingAddons, onBookingSuccess }:
         }
 
         setIsBooking(true);
-        toast({
-            title: "Processing your booking...",
-        });
+        toast({ title: "Initiating payment..." });
 
         try {
-            await runTransaction(firestore, async (transaction) => {
-                const bookingRef = doc(collection(firestore, 'bookings'));
-                const userProfileRef = doc(firestore, "users", user.uid);
+            const functions = getFunctions();
+            const createRazorpayOrder = httpsCallable(functions, 'createRazorpayOrder');
 
-                // 1. Mark slots as booked
-                slotDetails.forEach(slot => {
-                    const slotRef = doc(firestore, 'slots', slot.id);
-                    transaction.update(slotRef, { status: 'booked', bookedById: user.uid });
-                });
-
-                // 2. Decrement stock for addons
-                bookingAddons.forEach(item => {
-                    if (item.type === 'addon') {
-                        const itemRef = doc(firestore, 'accessories', item.id);
-                        transaction.update(itemRef, { quantity: -item.quantity });
-                    }
-                });
-
-                // 3. Create the main booking document
-                transaction.set(bookingRef, {
-                    id: bookingRef.id,
-                    userId: user.uid,
-                    bookingDate: serverTimestamp(),
-                    total,
-                    status: 'Confirmed',
+            const orderRequestData = {
+                amount: total,
+                receipt: `booking_${Date.now()}`,
+                notes: {
                     slotIds: slotDetails.map(s => s.id),
-                    addons: bookingAddons.map(a => ({ id: a.id, name: a.name, quantity: a.quantity, price: a.price })),
+                    addons: bookingAddons.map(a => ({ id: a.id, name: a.name, quantity: a.quantity, price: a.price, type: a.type })),
+                }
+            };
+            
+            const result: any = await createRazorpayOrder(orderRequestData);
+            const { orderId, bookingId } = result.data;
+
+            const options = {
+                key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID, // Use environment variable
+                amount: total * 100,
+                currency: "INR",
+                name: "AVIT Cricket Booker",
+                description: `Booking ID: ${bookingId}`,
+                order_id: orderId,
+                handler: function (response: any) {
+                    toast({
+                        title: "Payment Successful!",
+                        description: "Your booking is being confirmed. Please wait.",
+                    });
+                    // Webhook will handle the rest
+                    onBookingSuccess();
+                },
+                prefill: {
+                    name: userProfile.name,
+                    email: userProfile.email,
+                    contact: userProfile.phone || '',
+                },
+                notes: {
+                    bookingId: bookingId,
+                    userId: user.uid,
+                },
+                theme: {
+                    color: "#228B22"
+                }
+            };
+            
+            const rzp = new window.Razorpay(options);
+            rzp.on('payment.failed', function (response: any) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Payment Failed',
+                    description: response.error.description || 'Something went wrong.',
                 });
-
-                // 4. Update user's loyalty points (1 point per RS. spent)
-                const userProfileDoc = await transaction.get(userProfileRef);
-                const currentPoints = userProfileDoc.data()?.loyaltyPoints ?? 0;
-                transaction.update(userProfileRef, { loyaltyPoints: currentPoints + total });
+                setIsBooking(false);
             });
 
-            toast({
-                title: "Booking Confirmed!",
-                description: "Your cricket session is locked in. See you on the field!",
-            });
-            onBookingSuccess(); // Clear selections in parent component
+            rzp.open();
+
         } catch (error) {
             console.error("Error creating booking:", error);
             toast({
                 variant: 'destructive',
                 title: 'Booking Failed',
-                description: 'Could not complete the booking. One of the items may have become unavailable. Please try again.',
+                description: 'Could not initiate the payment process. Please try again.',
             });
-        } finally {
             setIsBooking(false);
         }
     }
@@ -162,7 +184,7 @@ export function BookingSummary({ slotDetails, bookingAddons, onBookingSuccess }:
                             </p>
                         )}
                     </div>
-                     <Button size="lg" className="w-full md:w-auto font-bold text-lg" onClick={handleConfirmBooking} disabled={isBooking || allItems.length === 0}>
+                     <Button size="lg" className="w-full md:w-auto font-bold text-lg" onClick={handleConfirmBooking} disabled={isBooking || isUserLoading || allItems.length === 0}>
                         {isBooking ? (
                             <>
                                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
@@ -171,7 +193,7 @@ export function BookingSummary({ slotDetails, bookingAddons, onBookingSuccess }:
                         ): (
                             <>
                                 <CreditCard className="mr-2 h-5 w-5" />
-                                Proceed to Book
+                                Proceed to Pay
                             </>
                         )}
                     </Button>
@@ -180,3 +202,4 @@ export function BookingSummary({ slotDetails, bookingAddons, onBookingSuccess }:
         </div>
     );
 }
+    
