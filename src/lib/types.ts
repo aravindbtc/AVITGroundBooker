@@ -66,17 +66,23 @@ export type Slot = {
 };
 
 export type Venue = {
-    id: string;
-    name: string;
-    location: string;
-    pricePerHour: number;
-    capacity: number;
-    timings: string[];
-    images: string[];
-    isAvailable: boolean;
-    description: string;
-    rating: number;
+  id?: string;
+  fullName: string;
+  address: string;
+  contact: {
+      general: string;
+      admissions: string;
+      email: string;
+  };
+  gps: {
+      lat: number;
+      lng: number;
+  };
+  basePrice: number;
+  rating: number;
+  images?: string[];
 };
+
 
 export type BookingItem = {
     id: string;
@@ -85,3 +91,5 @@ export type BookingItem = {
     price: number;
     type: 'slot' | 'item' | 'manpower';
 }
+
+    
