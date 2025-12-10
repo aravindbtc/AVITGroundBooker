@@ -3,16 +3,15 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth, useUser } from '@/firebase';
-import { 
-    signInWithEmailAndPassword, 
+import { useAuth, useUser, useFirestore } from '@/firebase';
+import {
+    signInWithEmailAndPassword,
     createUserWithEmailAndPassword,
     sendPasswordResetEmail,
     GoogleAuthProvider,
     signInWithPopup,
 } from 'firebase/auth';
 import { setDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore';
-import { useFirestore } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -43,8 +42,7 @@ export default function LoginPage() {
     const [password, setPassword] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
     const [resetEmail, setResetEmail] = useState('');
-    
-    // This effect handles redirection for already logged-in users.
+
     useEffect(() => {
         if (!isUserLoading && user && firestore) {
             const userDocRef = doc(firestore, "users", user.uid);
@@ -56,7 +54,7 @@ export default function LoginPage() {
                 }
             }).catch(error => {
                 console.error("Error fetching user document:", error);
-                router.replace('/'); // Default redirect on error
+                router.replace('/');
             });
         }
     }, [user, isUserLoading, router, firestore]);
@@ -78,8 +76,7 @@ export default function LoginPage() {
                 loyaltyPoints: 0,
                 createdAt: serverTimestamp(),
             });
-            
-            // For admins, create a corresponding role document
+
             if (userRole === 'admin') {
                 const adminRoleRef = doc(firestore, "roles_admin", user.uid);
                 await setDoc(adminRoleRef, { email: user.email, grantedAt: serverTimestamp() });
@@ -101,7 +98,6 @@ export default function LoginPage() {
             const result = await signInWithPopup(auth, authProvider);
             await createProfileIfNotExists(result.user);
             toast({ title: "Sign In Successful", description: "Welcome!" });
-            // The useEffect will handle redirection.
         } catch (error: any) {
             toast({ variant: "destructive", title: "Sign In Failed", description: error.message });
         } finally {
@@ -113,18 +109,12 @@ export default function LoginPage() {
     const handleLogin = async () => {
         if (!auth || !firestore) return;
         setIsProcessing(true);
-        
         try {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             await createProfileIfNotExists(userCredential.user);
             toast({ title: "Login Successful", description: "Welcome back!" });
-            // The useEffect will handle redirection.
         } catch (error: any) {
-            if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-                toast({ variant: "destructive", title: "Login Failed", description: "The email or password you entered is incorrect." });
-            } else {
-                toast({ variant: "destructive", title: "Login Failed", description: error.message });
-            }
+            toast({ variant: "destructive", title: "Login Failed", description: error.message });
         } finally {
             setIsProcessing(false);
         }
@@ -132,10 +122,7 @@ export default function LoginPage() {
 
 
     const handleSignUp = async () => {
-        if (!firestore || !auth) {
-             toast({ variant: "destructive", title: "Database not ready", description: "Please try again in a moment."});
-             return;
-        }
+        if (!firestore || !auth) return;
         if (email.toLowerCase() === 'admin@avit.ac.in') {
             toast({ variant: "destructive", title: "Registration Error", description: "This email is reserved for administration." });
             return;
@@ -145,14 +132,13 @@ export default function LoginPage() {
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             await createProfileIfNotExists(userCredential.user);
             toast({ title: "Sign Up Successful", description: "Your account has been created." });
-            // The useEffect will handle redirection.
         } catch (error: any) {
             toast({ variant: "destructive", title: "Sign Up Failed", description: error.message });
         } finally {
             setIsProcessing(false);
         }
     };
-    
+
     const handlePasswordReset = async () => {
         if (!auth) return;
         if (!resetEmail) {
@@ -170,19 +156,17 @@ export default function LoginPage() {
         }
     };
 
-    // If we are still checking for a user or if a user is found, show the loading/redirecting screen.
     if (isUserLoading || user) {
         return (
             <div className="flex justify-center items-center" style={{height: 'calc(100vh - 8rem)'}}>
                 <div className="text-center">
                     <Loader2 className="h-12 w-12 animate-spin mx-auto" />
-                    <p className="ml-4 mt-4 text-muted-foreground">Please wait...</p>
+                    <p className="ml-4 mt-4 text-muted-foreground">{ isUserLoading ? "Authenticating..." : "Redirecting..."}</p>
                 </div>
             </div>
         );
     }
 
-    // Only render the login form if we've confirmed there is no user and we are not loading.
     return (
         <div className="flex justify-center items-center py-12">
             <Tabs defaultValue="login" className="w-[400px]">
@@ -194,7 +178,7 @@ export default function LoginPage() {
                     <Card>
                         <CardHeader>
                             <CardTitle>Login</CardTitle>
-                            <CardDescription>Enter your credentials to login. For admin access, use the designated admin credentials.</CardDescription>
+                            <CardDescription>Enter your credentials to login.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="space-y-2">
@@ -275,3 +259,5 @@ export default function LoginPage() {
         </div>
     );
 }
+
+    

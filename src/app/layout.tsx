@@ -1,10 +1,10 @@
+
 import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
-import { Header } from '@/components/header';
-import { Footer } from '@/components/footer';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import Script from 'next/script';
+import { ClientLayout } from '@/components/client-layout';
 
 export const metadata: Metadata = {
   title: 'AVIT Cricket Booker',
@@ -26,18 +26,14 @@ export default function RootLayout({
       <body className="font-body antialiased">
         <Script id="razorpay-checkout" src="https://checkout.razorpay.com/v1/checkout.js" />
         <FirebaseClientProvider>
-          <div className="flex min-h-screen flex-col">
-            <Header />
-            <main className="flex-1 bg-background">
-              <div className='container mx-auto px-4 py-8'>
-                {children}
-              </div>
-            </main>
-            <Footer />
-          </div>
+          <ClientLayout>
+            {children}
+          </ClientLayout>
           <Toaster />
         </FirebaseClientProvider>
       </body>
     </html>
   );
 }
+
+    
