@@ -195,6 +195,11 @@ exports.generateSlots = functions.https.onCall(async (data, context) => {
   const startHour = 5; // 5 AM
   const endHour = 22; // 10 PM
   const venueDoc = await db.doc('venue/avit-ground').get();
+  
+  if (!venueDoc.exists || !venueDoc.data()) {
+    throw new functions.https.HttpsError('failed-precondition', 'Venue details not found. Please fill out and save the venue information before generating slots.');
+  }
+  
   const basePrice = venueDoc.data().basePrice || 500;
   const peakSurcharge = 150;
 
@@ -228,5 +233,3 @@ exports.generateSlots = functions.https.onCall(async (data, context) => {
   await batch.commit();
   return { success: true, message: `Generated/updated slots for the next ${days} days.` };
 });
-
-    
