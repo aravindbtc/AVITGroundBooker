@@ -70,7 +70,7 @@ service cloud.firestore {
     }
 
     match /manpower/{manpowerId} {
-      allow get, list: if true;
+      allow read: if true;
       allow write: if isAdmin();
     }
 
