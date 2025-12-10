@@ -228,3 +228,5 @@ exports.generateSlots = functions.https.onCall(async (data, context) => {
   await batch.commit();
   return { success: true, message: `Generated/updated slots for the next ${days} days.` };
 });
+
+    

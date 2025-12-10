@@ -32,21 +32,13 @@ export type Booking = {
   createdAt: Timestamp;
 };
 
-export type Addon = {
+export type Accessory = {
   id: string;
   name: string;
   price: number;
   stock: number;
-  type: 'item';
-};
-
-export type Manpower = {
-  id: string;
-  name: string;
-  price: number;
-  stock: number; // Represents availability, e.g., 2 umpires available
-  type: 'manpower';
-};
+  type: 'item' | 'manpower';
+}
 
 export type Slot = {
   id: string;
@@ -88,3 +80,5 @@ export type BookingItem = {
     price: number;
     type: 'slot' | 'item' | 'manpower';
 }
+
+    
