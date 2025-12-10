@@ -61,7 +61,9 @@ function UserProfileDropdown() {
         return <Skeleton className="h-10 w-10 rounded-full" />;
     }
 
-    if (!userProfile) {
+    if (!user || !userProfile) {
+        // This case should ideally not be hit if this component is only rendered when a user exists.
+        // However, it's a good safeguard.
         return null;
     }
 
