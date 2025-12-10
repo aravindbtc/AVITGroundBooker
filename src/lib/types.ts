@@ -3,9 +3,13 @@ import type { Timestamp } from 'firebase/firestore';
 
 export type UserProfile = {
   id: string;
+  uid: string;
   email: string;
   fullName: string;
-  collegeId: string;
+  contact?: string;
+  address?: string;
+  profilePic?: string;
+  collegeId?: string;
   phone?: string;
   role: 'user' | 'admin';
   loyaltyPoints: number;
@@ -63,20 +67,15 @@ export type Slot = {
 
 export type Venue = {
     id: string;
-    fullName: string;
-    address: string;
-    contact: {
-        general: string;
-        admissions: string;
-        email: string;
-    };
-    gps: {
-        lat: number;
-        lng: number;
-    };
-    basePrice: number;
-    rating: number;
+    name: string;
+    location: string;
+    pricePerHour: number;
+    capacity: number;
+    timings: string[];
     images: string[];
+    isAvailable: boolean;
+    description: string;
+    rating: number;
 };
 
 export type BookingItem = {

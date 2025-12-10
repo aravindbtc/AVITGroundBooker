@@ -72,7 +72,7 @@ function UserProfileDropdown() {
             <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                 <Avatar className="h-10 w-10">
-                <AvatarImage src={user?.photoURL || ''} alt={userProfile?.fullName || 'User'} />
+                <AvatarImage src={user?.photoURL || userProfile.profilePic || ''} alt={userProfile?.fullName || 'User'} />
                 <AvatarFallback className="bg-primary text-primary-foreground font-bold">{userInitials}</AvatarFallback>
                 </Avatar>
             </Button>
@@ -123,50 +123,64 @@ export function Header() {
     { href: "/bookings", label: "My Bookings" },
     { href: "/profile", label: "Profile" },
   ]
+  
+  const isLandingPage = pathname === '/';
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur-sm">
-      <div className="container mx-auto flex h-16 items-center justify-between px-4">
+    <header className={cn(
+        "sticky top-0 z-40 w-full border-b backdrop-blur-sm",
+        isLandingPage && !user ? "bg-transparent border-transparent" : "bg-background/95 border-border"
+    )}>
+      <div className={cn(
+        "container mx-auto flex h-16 items-center justify-between px-4",
+        isLandingPage && !user ? "text-white" : "text-foreground"
+      )}>
         <div className="flex items-center gap-6">
             <Link href="/" className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                <div className={cn(
+                    "flex h-8 w-8 items-center justify-center rounded-full",
+                    isLandingPage && !user ? "bg-white text-primary" : "bg-primary text-primary-foreground"
+                )}>
                     <CricketBallIcon />
                 </div>
                 <span className="font-headline text-xl font-bold">AVIT Booker</span>
             </Link>
-             <nav className="hidden md:flex items-center gap-4">
-                {navLinks.map((link) => (
-                    <Link
-                        key={link.href}
-                        href={link.href}
-                        className={cn(
-                            "text-sm font-medium transition-colors hover:text-primary",
-                            pathname === link.href ? "text-primary font-semibold" : "text-muted-foreground"
-                        )}
-                    >
-                        {link.label}
-                    </Link>
-                ))}
-            </nav>
+            {user && (
+                <nav className="hidden md:flex items-center gap-4">
+                    {navLinks.map((link) => (
+                        <Link
+                            key={link.href}
+                            href={link.href}
+                            className={cn(
+                                "text-sm font-medium transition-colors hover:text-primary",
+                                pathname === link.href ? "text-primary font-semibold" : "text-muted-foreground"
+                            )}
+                        >
+                            {link.label}
+                        </Link>
+                    ))}
+                </nav>
+            )}
         </div>
         
         <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <MapPin className="h-4 w-4 text-primary" />
-              <span>Paiyanoor, Chennai</span>
-            </div>
-            
             {isUserLoading ? (
                  <Skeleton className="h-10 w-24 rounded-md" />
             ) : user ? (
                 <UserProfileDropdown />
              ) : (
-                <Button asChild>
-                    <Link href="/login">
-                        <LogIn className="mr-2 h-4 w-4"/>
-                        Login
-                    </Link>
-                </Button>
+                <>
+                    <Button asChild variant="outline" className="hidden sm:flex bg-transparent border-white text-white hover:bg-white hover:text-primary">
+                        <Link href="/login">
+                            Quick Login
+                        </Link>
+                    </Button>
+                    <Button asChild className="bg-green-500 hover:bg-green-600 text-white">
+                        <Link href="/register">
+                            Sign Up Free
+                        </Link>
+                    </Button>
+                </>
              )}
         </div>
       </div>

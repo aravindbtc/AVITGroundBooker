@@ -17,6 +17,42 @@
       "description": "The expansive green field of the AVIT cricket ground.",
       "imageUrl": "https://storage.googleapis.com/maker-studio-project-images-prod/user-prompt-images/instance-images/11382405-b0b3-4f51-b847-a84ef3381666",
       "imageHint": "green field"
+    },
+    {
+      "id": "ground-featured-1",
+      "description": "Wankhede Mini Turf",
+      "imageUrl": "https://images.unsplash.com/photo-1639416726422-67dbda6962c2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxjcmlja2V0JTIwdHVyZiUyMG5pZ2h0fGVufDB8fHx8MTc2NTM3MzgzNHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "cricket turf night"
+    },
+    {
+      "id": "ground-featured-2",
+      "description": "Marina Cricket Club",
+      "imageUrl": "https://images.unsplash.com/photo-1703443842702-d8a356477820?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxjcmlja2V0JTIwZ3JvdW5kJTIwZGF5bGlnaHR8ZW58MHx8fHwxNzY1MzczODM0fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "cricket ground daylight"
+    },
+    {
+      "id": "ground-featured-3",
+      "description": "Urban Sports Arena",
+      "imageUrl": "https://images.unsplash.com/photo-1758227231013-8cff978f1dae?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxzcG9ydHMlMjBhcmVuYXxlbnwwfHx8fDE3NjUzNzM4MzR8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "sports arena"
+    },
+    {
+      "id": "avatar-1",
+      "description": "Avatar of Rohit S.",
+      "imageUrl": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxtYWxlJTIwcG9ydHJhaXR8ZW58MHx8fHwxNzY1MzY5OTMzfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "male portrait"
+    },
+    {
+      "id": "avatar-2",
+      "description": "Avatar of Priya K.",
+      "imageUrl": "https://images.unsplash.com/photo-1607569708758-0270aa4651bd?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxmZW1hbGUlMjBwb3J0cmFpdHxlbnwwfHx8fDE3NjUyODUyNDR8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "female portrait"
+    },
+    {
+      "id": "avatar-3",
+      "description": "Avatar of Arjun V.",
+      "imageUrl": "https://picsum.photos/seed/avatar3/100/100",
+      "imageHint": "man smiling"
     }
   ]
 }
