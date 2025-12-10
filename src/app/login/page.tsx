@@ -10,6 +10,7 @@ import {
     sendPasswordResetEmail,
     GoogleAuthProvider,
     signInWithPopup,
+    type User as FirebaseUser,
 } from 'firebase/auth';
 import { setDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
@@ -59,7 +60,7 @@ export default function LoginPage() {
         }
     }, [user, isUserLoading, router, firestore]);
 
-    const createProfileIfNotExists = async (user: any) => {
+    const createProfileIfNotExists = async (user: FirebaseUser) => {
         if (!firestore) return;
         const userDocRef = doc(firestore, "users", user.uid);
         const docSnap = await getDoc(userDocRef);
@@ -76,11 +77,6 @@ export default function LoginPage() {
                 loyaltyPoints: 0,
                 createdAt: serverTimestamp(),
             });
-
-            if (userRole === 'admin') {
-                const adminRoleRef = doc(firestore, "roles_admin", user.uid);
-                await setDoc(adminRoleRef, { email: user.email, grantedAt: serverTimestamp() });
-            }
         }
     };
 
@@ -123,10 +119,6 @@ export default function LoginPage() {
 
     const handleSignUp = async () => {
         if (!firestore || !auth) return;
-        if (email.toLowerCase() === 'admin@avit.ac.in') {
-            toast({ variant: "destructive", title: "Registration Error", description: "This email is reserved for administration." });
-            return;
-        }
         setIsProcessing(true);
         try {
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -156,12 +148,23 @@ export default function LoginPage() {
         }
     };
 
-    if (isUserLoading || user) {
+    if (isUserLoading) {
         return (
             <div className="flex justify-center items-center" style={{height: 'calc(100vh - 8rem)'}}>
                 <div className="text-center">
                     <Loader2 className="h-12 w-12 animate-spin mx-auto" />
-                    <p className="ml-4 mt-4 text-muted-foreground">{ isUserLoading ? "Authenticating..." : "Redirecting..."}</p>
+                    <p className="ml-4 mt-4 text-muted-foreground">Initializing...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (user) {
+         return (
+            <div className="flex justify-center items-center" style={{height: 'calc(100vh - 8rem)'}}>
+                <div className="text-center">
+                    <Loader2 className="h-12 w-12 animate-spin mx-auto" />
+                    <p className="ml-4 mt-4 text-muted-foreground">Redirecting...</p>
                 </div>
             </div>
         );

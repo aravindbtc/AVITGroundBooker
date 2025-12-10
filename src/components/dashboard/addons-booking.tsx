@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ShoppingBasket, Minus, Plus, Users, ShieldCheck, Hammer, Orbit, ToyBrick, Shield, Award, Megaphone, User as UserIcon } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
-import type { BookingItem, Addon, Manpower } from "@/lib/types";
+import type { BookingItem } from "@/lib/types";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection, query, where } from "firebase/firestore";
 import { Skeleton } from "../ui/skeleton";
@@ -26,20 +26,26 @@ const iconMap: { [key: string]: React.ComponentType<{ className?: string }> } = 
     'coach': UserIcon,
 };
 
+// Represents both Accessory and Manpower types from schema
+type ItemForBooking = {
+    id: string;
+    name: string;
+    price: number;
+    stock: number;
+    type: 'item' | 'manpower';
+};
+
 
 export function AddonsBooking({ bookingAddons, onAddonsChange }: AddonsBookingProps) {
   const firestore = useFirestore();
 
-  const accessoriesQuery = useMemoFirebase(() => firestore && collection(firestore, 'accessories'), [firestore]);
-  const { data: accessoriesData, isLoading: accessoriesLoading } = useCollection<Addon>(accessoriesQuery);
+  const accessoriesQuery = useMemoFirebase(() => firestore && query(collection(firestore, 'accessories'), where('type', '==', 'item')), [firestore]);
+  const { data: accessoriesData, isLoading: accessoriesLoading } = useCollection<ItemForBooking>(accessoriesQuery);
   
-  const manpowerQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(collection(firestore, 'manpower'), where("availability", "==", true));
-  }, [firestore]);
-  const { data: manpowerData, isLoading: manpowerLoading } = useCollection<Manpower>(manpowerQuery);
+  const manpowerQuery = useMemoFirebase(() => firestore && query(collection(firestore, 'accessories'), where('type', '==', 'manpower')), [firestore]);
+  const { data: manpowerData, isLoading: manpowerLoading } = useCollection<ItemForBooking>(manpowerQuery);
 
-  const handleQuantityChange = (item: Addon | Manpower, delta: number) => {
+  const handleQuantityChange = (item: ItemForBooking, delta: number) => {
     onAddonsChange(currentCart => {
       const itemIndex = currentCart.findIndex(cartItem => cartItem.id === item.id);
       if (itemIndex > -1) {
@@ -52,8 +58,7 @@ export function AddonsBooking({ bookingAddons, onAddonsChange }: AddonsBookingPr
           return currentCart.filter(cartItem => cartItem.id !== item.id);
         }
       } else if (delta > 0) {
-        const type = 'quantity' in item ? 'addon' : 'manpower';
-        return [...currentCart, { id: item.id, name: item.name, quantity: 1, price: item.price, type }];
+        return [...currentCart, { id: item.id, name: item.name, quantity: 1, price: item.price, type: item.type }];
       }
       return currentCart;
     });
@@ -63,7 +68,7 @@ export function AddonsBooking({ bookingAddons, onAddonsChange }: AddonsBookingPr
     return bookingAddons.find(item => item.id === id)?.quantity || 0;
   };
 
-  const renderItems = (items: (Addon[] | Manpower[] | null | undefined), type: 'accessory' | 'manpower') => {
+  const renderItems = (items: ItemForBooking[] | null | undefined, type: 'item' | 'manpower') => {
       if (!items) {
           return (
              <div className="flex items-center justify-between">
@@ -80,11 +85,10 @@ export function AddonsBooking({ bookingAddons, onAddonsChange }: AddonsBookingPr
           )
       }
 
-      return items.map((item: Addon | Manpower) => {
+      return items.map((item: ItemForBooking) => {
           const quantity = getItemQuantity(item.id);
-          const stock = 'quantity' in item ? item.quantity : 1;
-          const isSoldOut = stock <= 0;
-          const isMaxed = quantity >= stock;
+          const isSoldOut = item.stock <= 0;
+          const isMaxed = quantity >= item.stock;
           const Icon = iconMap[item.id] || ShieldCheck;
 
           return (
@@ -93,7 +97,7 @@ export function AddonsBooking({ bookingAddons, onAddonsChange }: AddonsBookingPr
                       <Icon className="h-6 w-6 text-primary/80" />
                       <span className="font-medium">{item.name}</span>
                        {isSoldOut && <Badge variant="destructive" className="text-xs">
-                        {type === 'accessory' ? 'Sold Out' : 'Unavailable'}
+                        {type === 'item' ? 'Sold Out' : 'Unavailable'}
                         </Badge>}
                   </div>
                   <div className="flex items-center gap-2">
@@ -125,7 +129,7 @@ export function AddonsBooking({ bookingAddons, onAddonsChange }: AddonsBookingPr
                 </div>
             </AccordionTrigger>
             <AccordionContent className="pt-4 space-y-4">
-                {renderItems(accessoriesData, 'accessory')}
+                {accessoriesLoading ? <Skeleton className="h-10"/> : renderItems(accessoriesData, 'item')}
             </AccordionContent>
           </AccordionItem>
           <AccordionItem value="manpower">
@@ -136,7 +140,7 @@ export function AddonsBooking({ bookingAddons, onAddonsChange }: AddonsBookingPr
                 </div>
             </AccordionTrigger>
             <AccordionContent className="pt-4 space-y-4">
-                {renderItems(manpowerData, 'manpower')}
+                {manpowerLoading ? <Skeleton className="h-10"/> : renderItems(manpowerData, 'manpower')}
             </AccordionContent>
           </AccordionItem>
         </Accordion>
@@ -144,3 +148,5 @@ export function AddonsBooking({ bookingAddons, onAddonsChange }: AddonsBookingPr
     </Card>
   );
 }
+
+    

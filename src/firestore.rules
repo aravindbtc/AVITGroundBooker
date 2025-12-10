@@ -7,83 +7,97 @@ service cloud.firestore {
     function isSignedIn() {
       return request.auth != null;
     }
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
+    
     function isAdmin() {
-      // Check for the admin role document OR a specific admin email for bootstrapping.
-      return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid))
-          || (isSignedIn() && request.auth.token.email == 'admin@avit.ac.in');
+      // Admin is defined by the 'role' field in their user document.
+      // This is more reliable than checking a separate collection.
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    function isQueryingOwnData(field) {
-      // Security rule to ensure a user can only query for their own documents.
-      // This is crucial for list operations on collections like 'bookings'.
-      return request.query.where.size() > 0 && request.query.where[0][0] == field && request.query.where[0][2] == request.auth.uid;
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
     }
 
-    // Publicly readable venue information.
-    // Writable only by admins.
-    match /venue/{venueId} {
-      allow get, list: if true;
-      allow write: if isAdmin();
-    }
-
-    // Users can read/write their own profile. Admins can read any profile.
+    // USERS collection
     match /users/{userId} {
+      // READ: An authenticated user can read their own profile. An admin can read any.
       allow get: if isOwner(userId) || isAdmin();
-      // Allow create only for the user themselves upon signup.
+      
+      // LIST: Only admins can list all users.
+      allow list: if isAdmin();
+      
+      // CREATE: A new user profile can only be created by the authenticated user themselves.
+      // This is crucial for the createProfileIfNotExists check to succeed.
       allow create: if isOwner(userId);
+      
+      // UPDATE: A user can update their own profile. An admin can update any profile.
       allow update: if isOwner(userId) || isAdmin();
-      // Only admins can list or delete users.
-      allow list, delete: if isAdmin();
+      
+      // DELETE: Deleting users is disabled to prevent accidental data loss.
+      allow delete: if false;
     }
-    
-    // Bookings can be read by their owner or any admin.
-    // Admins can list all bookings. Users can ONLY list their own.
-    match /bookings/{bookingId} {
-      allow get: if resource.data.userId == request.auth.uid || isAdmin();
-      allow list: if isAdmin() || isQueryingOwnData('userId');
-      // Users create their own bookings. Ensure userId in document matches auth uid.
-      allow create: if request.resource.data.userId == request.auth.uid;
-      // Updates allowed by owner, admin, or backend (webhook, no auth).
-      allow update: if (resource.data.userId == request.auth.uid) || isAdmin() || request.auth == null;
-      allow delete: if resource.data.userId == request.auth.uid || isAdmin();
-    }
-    
-    // Slots are publicly readable. Admins can create/delete them.
-    // Users can update a slot to book it (if it's available).
-    // The backend webhook (no auth) can also update slots.
+
+    // SLOTS collection
     match /slots/{slotId} {
-      allow get, list: if true;
-      allow create, delete: if isAdmin();
-      allow update: if isAdmin() || request.auth == null || (isSignedIn() && resource.data.status == 'available');
-    }
-
-    // Accessories and Manpower are publicly readable.
-    // Only admins can create/delete them.
-    // The backend webhook can update stock quantities.
-    match /accessories/{accessoryId} {
-      allow get, list: if true;
-      allow create, delete: if isAdmin();
-      allow update: if isAdmin() || request.auth == null;
-    }
-
-    match /manpower/{manpowerId} {
-      allow read: if true;
+      // READ: Slot availability is public information for any authenticated user.
+      allow read: if isSignedIn();
+      
+      // WRITE: Only admins or server-side functions (Cloud Functions) can create, update, or delete slots.
+      // This prevents users from directly changing a slot's status.
       allow write: if isAdmin();
     }
 
-    // Users can create/manage their own reviews. Admins can moderate.
-    match /reviews/{reviewId} {
-      allow get, list: if true;
-      allow create: if request.resource.data.userId == request.auth.uid;
-      allow update, delete: if resource.data.userId == request.auth.uid || isAdmin();
+    // ACCESSORIES collection (includes manpower)
+    match /accessories/{accId} {
+      // READ: Accessory details (price, stock) are public for any authenticated user.
+      allow read: if isSignedIn();
+      
+      // WRITE: Only admins or server-side functions can change price or stock.
+      allow write: if isAdmin();
     }
 
-    // Only admins can read or write to the admin roles collection.
-    match /roles_admin/{userId} {
-      allow read, write: if isAdmin();
+    // VENUE document
+    match /venue/{vId} {
+      // READ: Venue details are public for any authenticated user.
+      allow read: if isSignedIn();
+      // WRITE: Only admins can change venue details.
+      allow write: if isAdmin();
+    }
+
+    // BOOKINGS collection
+    match /bookings/{bookingId} {
+      // READ: A user can read their own booking. An admin can read any booking.
+      allow read: if isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
+
+      // CREATE: A user can only create a booking for themselves.
+      // Important checks: the UID must match, status must start as 'pending',
+      // and the payment object must be correctly structured.
+      allow create: if isSignedIn()
+                    && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.status == "pending"
+                    && request.resource.data.payment.orderId is string;
+
+      // UPDATE: 
+      // An admin can update any booking.
+      // A user can only cancel their own booking, and only if it's still in 'pending' state.
+      // The Cloud Function (which runs with admin privileges or unauthenticated for webhooks) will handle status changes to 'paid' or 'failed'.
+      allow update: if isAdmin() ||
+                    (isOwner(resource.data.uid) &&
+                      request.resource.data.status == "cancelled" &&
+                      resource.data.status == "pending");
+
+      // DELETE: Only admins can delete bookings.
+      allow delete: if isAdmin();
+      
+      // LIST: Admins can list all bookings. Users can only query for their own bookings.
+      allow list: if isAdmin() || (request.query.where[0][0] == "uid" && request.query.where[0][2] == request.auth.uid);
+    }
+
+    // Deny all access to the roles_admin collection as it is no longer the source of truth for admin status.
+    match /roles_admin/{docId} {
+      allow read, write: if false;
     }
   }
 }
+
+    

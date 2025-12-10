@@ -6,11 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { Addon, Manpower, Booking } from '@/lib/types';
+import type { Booking } from '@/lib/types';
 import { ShieldAlert, Save, CalendarPlus, Loader2, AlertCircle, CalendarDays } from "lucide-react";
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { writeBatch, doc, collection, Timestamp, query, orderBy } from 'firebase/firestore';
+import { writeBatch, doc, collection, Timestamp, query, orderBy, where } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
 import { format } from 'date-fns';
 import { VenueManagement } from '@/components/admin/venue-management';
@@ -80,19 +80,34 @@ function SlotGenerator() {
     );
 }
 
+// Represents both Accessory and Manpower types from schema
+type ItemForManagement = {
+    id: string;
+    name: string;
+    price: number;
+    stock: number;
+    type: 'item' | 'manpower';
+};
+
 function PriceStockManagement() {
     const firestore = useFirestore();
     const { toast } = useToast();
 
-    const accessoriesQuery = useMemoFirebase(() => firestore && collection(firestore, 'accessories'), [firestore]);
-    const { data: allItemsData, isLoading: accessoriesLoading } = useCollection<(Addon | Manpower)>(accessoriesQuery);
+    const accessoriesQuery = useMemoFirebase(() => firestore && query(collection(firestore, 'accessories'), where('type', '==', 'item')), [firestore]);
+    const { data: accessoriesData, isLoading: accessoriesLoading } = useCollection<ItemForManagement>(accessoriesQuery);
     
-    const [items, setItems] = useState<(Addon | Manpower)[]>([]);
+    const manpowerQuery = useMemoFirebase(() => firestore && query(collection(firestore, 'accessories'), where('type', '==', 'manpower')), [firestore]);
+    const { data: manpowerData, isLoading: manpowerLoading } = useCollection<ItemForManagement>(manpowerQuery);
+
+    const [items, setItems] = useState<ItemForManagement[]>([]);
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
-        if (allItemsData) setItems(allItemsData);
-    }, [allItemsData]);
+        const allItems = [...(accessoriesData || []), ...(manpowerData || [])];
+        if (allItems.length > 0) {
+            setItems(allItems);
+        }
+    }, [accessoriesData, manpowerData]);
 
     const handleItemUpdate = (id: string, field: 'price' | 'stock', value: string) => {
         const numValue = parseInt(value, 10);
@@ -125,6 +140,7 @@ function PriceStockManagement() {
     
     const accessories = items.filter(item => item.type === 'item');
     const manpower = items.filter(item => item.type === 'manpower');
+    const isLoading = accessoriesLoading || manpowerLoading;
 
     return (
          <Card className="w-full max-w-4xl mx-auto shadow-lg rounded-xl">
@@ -135,7 +151,7 @@ function PriceStockManagement() {
             </CardTitle>
             </CardHeader>
             <CardContent>
-            {accessoriesLoading ? (
+            {isLoading ? (
                 <div className="space-y-4">
                     <Skeleton className="h-10 w-full" />
                     <Skeleton className="h-20 w-full" />
@@ -317,3 +333,5 @@ export default function AdminPage() {
     </div>
   );
 }
+
+    
