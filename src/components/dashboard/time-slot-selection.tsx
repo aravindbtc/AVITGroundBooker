@@ -8,6 +8,7 @@ import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, where, doc } from 'firebase/firestore';
 import type { Slot } from '@/lib/types';
 import { Skeleton } from '../ui/skeleton';
+import { useEffect, useState } from "react";
 
 type TimeSlotSelectionProps = {
     selectedDate: Date;
@@ -15,18 +16,57 @@ type TimeSlotSelectionProps = {
     onSlotsChange: (slots: string[]) => void;
 };
 
+// This represents a slot generated on the client, which may or may not exist in Firestore
+type ClientGeneratedSlot = Omit<Slot, 'startAt' | 'endAt'> & {
+  startAt?: Slot['startAt'];
+  endAt?: Slot['endAt'];
+};
+
+
 export function TimeSlotSelection({ selectedDate, selectedSlots, onSlotsChange }: TimeSlotSelectionProps) {
     const firestore = useFirestore();
+    const dateString = format(selectedDate, 'yyyy-MM-dd');
 
+    // Query for existing slots on the selected date
     const slotsQuery = useMemoFirebase(() => {
-        if (!firestore || !selectedDate) return null;
-        
-        const dateString = format(selectedDate, 'yyyy-MM-dd');
+        if (!firestore) return null;
         return query(collection(firestore, 'slots'), where('dateString', '==', dateString));
+    }, [firestore, dateString]);
 
-    }, [firestore, selectedDate]);
+    const { data: bookedSlots, isLoading } = useCollection<Slot>(slotsQuery);
+    
+    const [allSlots, setAllSlots] = useState<ClientGeneratedSlot[]>([]);
 
-    const { data: timeSlots, isLoading } = useCollection<Slot>(slotsQuery);
+    useEffect(() => {
+        const startHour = 5; // 5 AM
+        const endHour = 22; // 10 PM
+        
+        const generatedSlots: ClientGeneratedSlot[] = [];
+        for (let h = startHour; h < endHour; h++) {
+            const slotId = `${dateString}_${String(h).padStart(2, '0')}`;
+            const existingSlot = bookedSlots?.find(s => s.id === slotId);
+
+            if (existingSlot) {
+                generatedSlots.push(existingSlot);
+            } else {
+                // If slot doesn't exist in DB, it's available by default
+                generatedSlots.push({
+                    id: slotId,
+                    groundId: 'avit-ground',
+                    dateString: dateString,
+                    startTime: `${String(h).padStart(2,'0')}:00`,
+                    endTime: `${String(h+1).padStart(2,'0')}:00`,
+                    price: 0, // Price will be determined server-side
+                    isPeak: (h >= 17 && h <= 20),
+                    status: 'available',
+                    bookingId: null,
+                });
+            }
+        }
+        setAllSlots(generatedSlots);
+
+    }, [dateString, bookedSlots]);
+
 
     const handleSlotClick = (slotId: string, status: Slot['status']) => {
         if (status === 'booked' || status === 'blocked') return;
@@ -37,12 +77,12 @@ export function TimeSlotSelection({ selectedDate, selectedSlots, onSlotsChange }
         );
     };
 
-    const sortedSlots = timeSlots?.sort((a,b) => a.startTime.localeCompare(b.startTime));
+    const sortedSlots = allSlots?.sort((a,b) => a.startTime.localeCompare(b.startTime));
     const morningSlots = sortedSlots?.filter(s => parseInt(s.startTime) < 12);
     const afternoonSlots = sortedSlots?.filter(s => parseInt(s.startTime) >= 12 && parseInt(s.startTime) < 17);
     const eveningSlots = sortedSlots?.filter(s => parseInt(s.startTime) >= 17);
 
-    const renderSlotButtons = (slots: Slot[] | undefined) => {
+    const renderSlotButtons = (slots: ClientGeneratedSlot[] | undefined) => {
         if (!slots || slots.length === 0) {
              return <p className="col-span-full text-muted-foreground text-sm p-4 text-center">No slots available for this period.</p>
         }

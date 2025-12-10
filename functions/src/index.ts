@@ -23,11 +23,20 @@ function bookingDocId() {
 exports.createRazorpayOrder = functions.https.onCall(async (data, context) => {
   if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Sign in required');
 
-  const uid = context.auth.uid;
+  const { uid } = context.auth;
   const { slots, addons, totalAmount } = data;
   if (!Array.isArray(slots) || slots.length === 0) {
     throw new functions.https.HttpsError('invalid-argument', 'No slots selected');
   }
+  
+  const venueDoc = await db.doc('venue/avit-ground').get();
+  if (!venueDoc.exists || typeof venueDoc.data()?.basePrice !== 'number') {
+      throw new functions.https.HttpsError('failed-precondition', 'Venue details, including base price, must be configured by an admin before bookings can be made.');
+  }
+  const venueData = venueDoc.data()!;
+  const basePrice = venueData.basePrice;
+  const peakSurcharge = 150;
+
 
   // Generate bookingId
   const bookingId = bookingDocId();
@@ -36,14 +45,15 @@ exports.createRazorpayOrder = functions.https.onCall(async (data, context) => {
   // Transaction: verify all slots are still available and create a pending booking
   try {
     await db.runTransaction(async (t) => {
+      const slotRefsAndData = [];
+
       for (const slotId of slots) {
         const slotRef = db.collection('slots').doc(slotId);
         const slotSnap = await t.get(slotRef);
-        if (!slotSnap.exists) throw new functions.https.HttpsError('not-found', `Slot ${slotId} not found`);
-        const slot = slotSnap.data();
-        if (slot.status !== 'available') {
-          throw new functions.https.HttpsError('failed-precondition', `Slot ${slot.startTime} on ${slot.dateString} is no longer available.`);
+        if (slotSnap.exists && slotSnap.data()?.status !== 'available') {
+          throw new functions.https.HttpsError('failed-precondition', `A selected time slot is no longer available.`);
         }
+        slotRefsAndData.push({ ref: slotRef, snap: slotSnap });
       }
 
       // Create booking doc with status pending
@@ -61,9 +71,33 @@ exports.createRazorpayOrder = functions.https.onCall(async (data, context) => {
       t.set(bookingRef, bookingData);
       
       // Mark slots as blocked (reserved)
-      for (const slotId of slots) {
-          const slotRef = db.collection('slots').doc(slotId);
-          t.update(slotRef, { status: 'blocked', bookingId: bookingId });
+      // This will create the slot doc if it doesn't exist
+      for (const { ref, snap } of slotRefsAndData) {
+          if (snap.exists) {
+            t.update(ref, { status: 'blocked', bookingId: bookingId });
+          } else {
+            // Slot doesn't exist, so create it as blocked
+            const [dateString, hour] = ref.id.split('_');
+            const h = parseInt(hour, 10);
+            const isPeak = (h >= 17 && h <= 20);
+
+            const date = new Date(dateString);
+            const startAt = new Date(date); startAt.setUTCHours(h,0,0,0);
+            const endAt = new Date(date); endAt.setUTCHours(h+1,0,0,0);
+
+            t.set(ref, {
+              groundId: 'avit-ground',
+              dateString: dateString,
+              startTime: `${String(h).padStart(2,'0')}:00`,
+              endTime: `${String(h+1).padStart(2,'0')}:00`,
+              startAt: startAt,
+              endAt: endAt,
+              price: basePrice + (isPeak ? peakSurcharge : 0),
+              isPeak,
+              status: 'blocked',
+              bookingId: bookingId
+            });
+          }
       }
     });
   } catch (error) {
@@ -163,79 +197,25 @@ exports.razorpayWebhook = functions.https.onRequest(async (req, res) => {
         return res.status(200).send('ok');
       }
       const bookingSnap = bookingsQuery.docs[0];
+      const bookingId = bookingSnap.id;
       const booking = bookingSnap.data();
 
-      // Set booking to failed and release the slots
-      await db.runTransaction(async (t) => {
-          const bookingRef = db.collection('bookings').doc(bookingSnap.id);
-          t.update(bookingRef, { status: 'failed', 'payment.status': 'failed' });
-          for (const slotId of booking.slots) {
-            const slotRef = db.collection('slots').doc(slotId);
-            t.update(slotRef, { status: 'available', bookingId: null });
-          }
-      });
-      console.log(`Payment failed for booking ${bookingSnap.id}. Slots released.`);
+      // Release the slots: Since they were created on the fly if they didn't exist,
+      // we can just delete them. If they are updated to 'available', they'll just be empty docs.
+      const batch = db.batch();
+      const bookingRef = db.collection('bookings').doc(bookingId);
+      batch.update(bookingRef, { status: 'failed', 'payment.status': 'failed' });
+
+      for (const slotId of booking.slots) {
+        const slotRef = db.collection('slots').doc(slotId);
+        // This makes them available again for the dynamic checker
+        batch.delete(slotRef);
+      }
+      
+      await batch.commit();
+
+      console.log(`Payment failed for booking ${bookingId}. Slots released.`);
   }
 
   res.status(200).send('ok');
 });
-
-
-exports.generateSlots = functions.https.onCall(async (data, context) => {
-  if (!context.auth) {
-    throw new functions.https.HttpsError('unauthenticated','Sign in required to perform this action.');
-  }
-  const uid = context.auth.uid;
-  const userSnap = await db.collection('users').doc(uid).get();
-  if (!userSnap.exists || userSnap.data().role !== 'admin') {
-    throw new functions.https.HttpsError('permission-denied','Only an administrator can perform this action.');
-  }
-
-  const days = data.days || 30;
-  const startHour = 5; // 5 AM
-  const endHour = 22; // 10 PM
-  const venueDoc = await db.doc('venue/avit-ground').get();
-  
-  if (!venueDoc.exists || !venueDoc.data()) {
-    throw new functions.https.HttpsError('failed-precondition', 'Venue details not found. Please fill out and save the venue information before generating slots.');
-  }
-  
-  const venueData = venueDoc.data();
-  if (typeof venueData.basePrice !== 'number') {
-      throw new functions.https.HttpsError('failed-precondition', 'Base price for the venue is not set or invalid. Please update it in Venue Management.');
-  }
-  const basePrice = venueData.basePrice;
-  const peakSurcharge = 150;
-
-  const batch = db.batch();
-  const now = new Date();
-  for (let d=0; d<days; d++) {
-    const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + d);
-    const yyyy_mm_dd = date.toISOString().slice(0,10);
-    
-    for (let h=startHour; h<endHour; h++) {
-      const slotId = `${yyyy_mm_dd}_${String(h).padStart(2,'0')}`;
-      const startAt = new Date(date); startAt.setHours(h,0,0,0);
-      const endAt = new Date(date); endAt.setHours(h+1,0,0,0);
-      const slotRef = db.collection('slots').doc(slotId);
-      const isPeak = (h >= 17 && h <= 20);
-
-      batch.set(slotRef, {
-        groundId: 'avit-ground',
-        dateString: yyyy_mm_dd,
-        startTime: `${String(h).padStart(2,'0')}:00`,
-        endTime: `${String(h+1).padStart(2,'0')}:00`,
-        startAt: startAt,
-        endAt: endAt,
-        price: basePrice + (isPeak ? peakSurcharge : 0),
-        isPeak,
-        status: 'available',
-        bookingId: null
-      }, { merge: true }); // Use merge to avoid overwriting booked slots if re-run
-    }
-  }
-  await batch.commit();
-  return { success: true, message: `Generated/updated slots for the next ${days} days.` };
-});
-
-    

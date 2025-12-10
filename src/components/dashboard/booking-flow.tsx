@@ -21,7 +21,6 @@ export function BookingFlow({ selectedDate, onDateChange, selectedSlots, onSlots
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   
   const today = startOfDay(new Date());
-  const nextMonth = addDays(today, 30);
 
   const handleDateSelect = (date: Date | undefined) => {
     if (date && isValid(date)) {
@@ -58,7 +57,6 @@ export function BookingFlow({ selectedDate, onDateChange, selectedSlots, onSlots
                             onSelect={handleDateSelect}
                             initialFocus
                             fromDate={today}
-                            toDate={nextMonth}
                             disabled={{ before: today }}
                         />
                     </PopoverContent>

@@ -8,9 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { Booking, UserProfile } from '@/lib/types';
-import { ShieldAlert, Save, CalendarPlus, Loader2, AlertCircle, CalendarDays, Users, Trash2, PlusCircle } from "lucide-react";
+import { ShieldAlert, Save, Loader2, AlertCircle, CalendarDays, Users, Trash2, PlusCircle } from "lucide-react";
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { getFunctions, httpsCallable } from 'firebase/functions';
 import { writeBatch, doc, collection, Timestamp, query, orderBy, updateDoc, addDoc } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
 import { format } from 'date-fns';
@@ -46,68 +45,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-
-function SlotGenerator() {
-    const { toast } = useToast();
-    const [isLoading, setIsLoading] = useState(false);
-
-    const generateSlots = async () => {
-        setIsLoading(true);
-        toast({
-            title: "Generating Slots...",
-            description: "Please wait while we create slots for the next 30 days.",
-        });
-
-        try {
-            const functions = getFunctions();
-            const generateSlotsFn = httpsCallable(functions, 'generateSlots');
-            const result = await generateSlotsFn({ days: 30 });
-            
-            toast({
-                title: "Success!",
-                description: (result.data as any).message || "Time slots have been generated.",
-            });
-        } catch (error: any) {
-            console.error("Error generating slots:", error);
-            toast({
-                variant: "destructive",
-                title: "Uh oh! Something went wrong.",
-                description: error.message || "Could not generate time slots. Please try again.",
-            });
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    return (
-        <Card className="shadow-lg rounded-xl">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2 font-headline">
-                    <CalendarPlus className="h-6 w-6 text-primary" />
-                    Generate Time Slots
-                </CardTitle>
-                <CardDescription>
-                    Populate the database with available time slots for booking. This will generate hourly slots from 5 AM to 10 PM for the next 30 days. This can be re-run safely to update slots without affecting existing bookings.
-                </CardDescription>
-            </CardHeader>
-            <CardFooter>
-                <Button onClick={generateSlots} disabled={isLoading}>
-                    {isLoading ? (
-                        <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Generating...
-                        </>
-                    ) : (
-                        <>
-                            <CalendarPlus className="mr-2 h-4 w-4" />
-                            Generate Next 30 Days
-                        </>
-                    )}
-                </Button>
-            </CardFooter>
-        </Card>
-    );
-}
 
 // Represents both Accessory and Manpower types from schema
 type ItemForManagement = {
@@ -491,7 +428,6 @@ function AllBookings() {
                 ) : (
                     <div className="text-center py-10">
                         <p className="text-muted-foreground">There are no bookings yet.</p>
-                         <p className="text-sm text-muted-foreground mt-1">Try generating slots to enable bookings.</p>
                     </div>
                 )}
             </CardContent>
@@ -571,7 +507,6 @@ export default function AdminPage() {
       <div className="space-y-8">
           <h1 className="text-3xl font-bold font-headline">Admin Dashboard</h1>
           <VenueManagement />
-          <SlotGenerator />
           <PriceStockManagement />
           <AllBookings />
           <UserManagement />
@@ -579,5 +514,3 @@ export default function AdminPage() {
     </div>
   );
 }
-
-    
