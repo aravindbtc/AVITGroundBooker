@@ -39,7 +39,6 @@ function UserProfileDropdown() {
     const router = useRouter();
 
     const userProfileRef = useMemoFirebase(() => {
-        // IMPORTANT: Only create the ref if the user is logged in.
         if (!firestore || !user) return null;
         return doc(firestore, "users", user.uid);
     }, [firestore, user]);
@@ -58,14 +57,11 @@ function UserProfileDropdown() {
         }
     }
 
-    // This is the loading state for the user's profile information.
     if (isProfileLoading) {
         return <Skeleton className="h-10 w-10 rounded-full" />;
     }
 
     if (!userProfile) {
-        // This case can happen briefly or if the profile doc doesn't exist.
-        // We render nothing, as the parent component will show the login button.
         return null;
     }
 
