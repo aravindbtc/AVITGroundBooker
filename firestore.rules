@@ -7,14 +7,12 @@ service cloud.firestore {
       return request.auth != null;
     }
     function isAdmin() {
-      // Admin is defined by the 'role' field in their user document.
       return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     function isOwner(uid) {
       return isSignedIn() && request.auth.uid == uid;
     }
 
-    // USERS
     match /users/{uid} {
       allow read: if isOwner(uid) || isAdmin();
       allow create: if isOwner(uid);
@@ -22,25 +20,21 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // SLOTS
     match /slots/{slotId} {
       allow read: if true;
       allow write: if isAdmin();
     }
 
-    // ACCESSORIES & MANPOWER (Both stored in 'accessories' collection)
     match /accessories/{accId} {
       allow read: if true;
       allow write: if isAdmin();
     }
     
-    // VENUE
     match /venue/{vId} {
       allow read: if true;
       allow write: if isAdmin();
     }
 
-    // BOOKINGS
     match /bookings/{bookingId} {
       allow read: if isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
       allow list: if isAdmin() || (isSignedIn() && request.query.where[0][0] == "uid" && request.query.where[0][2] == request.auth.uid);
@@ -56,11 +50,6 @@ service cloud.firestore {
                       resource.data.status == "pending");
 
       allow delete: if isAdmin();
-    }
-    
-    // Default deny all other access
-    match /{document=**} {
-      allow read, write: if false;
     }
   }
 }

@@ -28,8 +28,8 @@ export function TimeSlotSelection({ selectedDate, selectedSlots, onSlotsChange }
 
     const { data: timeSlots, isLoading } = useCollection<Slot>(slotsQuery);
 
-    const handleSlotClick = (slotId: string, isBooked: boolean) => {
-        if (isBooked) return;
+    const handleSlotClick = (slotId: string, status: Slot['status']) => {
+        if (status === 'booked' || status === 'blocked') return;
         onSlotsChange(
             selectedSlots.includes(slotId)
                 ? selectedSlots.filter(id => id !== slotId)
@@ -50,11 +50,11 @@ export function TimeSlotSelection({ selectedDate, selectedSlots, onSlotsChange }
             <Button
                 key={slot.id}
                 variant={selectedSlots.includes(slot.id) ? "default" : "outline"}
-                disabled={slot.status === 'booked'}
-                onClick={() => handleSlotClick(slot.id, slot.status === 'booked')}
+                disabled={slot.status === 'booked' || slot.status === 'blocked'}
+                onClick={() => handleSlotClick(slot.id, slot.status)}
                 className={cn("relative h-12 text-xs md:text-sm transition-all duration-200", 
                     { 'ring-2 ring-primary ring-offset-2': selectedSlots.includes(slot.id),
-                      'bg-muted hover:bg-muted text-muted-foreground/60 cursor-not-allowed line-through': slot.status === 'booked'
+                      'bg-muted hover:bg-muted text-muted-foreground/60 cursor-not-allowed line-through': slot.status === 'booked' || slot.status === 'blocked'
                     }
                 )}
             >

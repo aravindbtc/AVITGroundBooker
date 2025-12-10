@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -13,6 +14,10 @@
         "collegeId": {
           "type": "string",
           "description": "User's college ID for verification."
+        },
+        "phone": {
+          "type": "string",
+          "description": "User's contact phone number."
         },
         "email": {
           "type": "string",
@@ -46,14 +51,17 @@
           "type": "string",
           "description": "Identifier for the ground, e.g., 'avit-ground'."
         },
-        "date": {
+        "dateString": {
           "type": "string",
-          "description": "Date of the slot in YYYY-MM-DD format.",
-          "format": "date"
+          "description": "Date of the slot in YYYY-MM-DD format for querying."
         },
-        "time": {
+        "startTime": {
           "type": "string",
           "description": "Start time of the slot in HH:MM format."
+        },
+        "endTime": {
+          "type": "string",
+          "description": "End time of the slot in HH:MM format."
         },
         "startAt": {
           "type": "string",
@@ -83,7 +91,7 @@
           "description": "Reference to the booking if the slot is booked."
         }
       },
-      "required": ["groundId", "date", "time", "startAt", "endAt", "price", "isPeak", "status"]
+      "required": ["groundId", "dateString", "startTime", "endTime", "startAt", "endAt", "price", "isPeak", "status"]
     },
     "Booking": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -116,10 +124,10 @@
             "properties": {
               "id": { "type": "string" },
               "name": { "type": "string" },
-              "qty": { "type": "number" },
+              "quantity": { "type": "number" },
               "price": { "type": "number" }
             },
-            "required": ["id", "name", "qty", "price"]
+            "required": ["id", "name", "quantity", "price"]
           }
         },
         "totalAmount": {
@@ -134,7 +142,7 @@
             "razorpayPaymentId": { "type": "string" },
             "status": {
               "type": "string",
-              "enum": ["pending", "paid", "failed"]
+              "enum": ["pending", "created", "paid", "failed"]
             },
             "createdAt": {
               "type": "string",
@@ -146,7 +154,7 @@
         "status": {
           "type": "string",
           "description": "Overall status of the booking.",
-          "enum": ["pending", "paid", "cancelled"]
+          "enum": ["pending", "paid", "cancelled", "failed"]
         },
         "createdAt": {
           "type": "string",
@@ -184,14 +192,19 @@
       "type": "object",
       "description": "Represents the cricket ground venue details.",
       "properties": {
-        "name": {
+        "fullName": {
           "type": "string"
         },
         "address": {
           "type": "string"
         },
-        "phone": {
-          "type": "string"
+        "contact": {
+          "type": "object",
+          "properties": {
+              "general": { "type": "string" },
+              "admissions": { "type": "string" },
+              "email": { "type": "string" }
+          }
         },
         "gps": {
           "type": "object",
@@ -201,7 +214,10 @@
           },
           "required": ["lat", "lng"]
         },
-        "basePricePerHour": {
+        "basePrice": {
+          "type": "number"
+        },
+        "rating": {
           "type": "number"
         },
         "images": {
@@ -209,7 +225,7 @@
           "items": { "type": "string" }
         }
       },
-      "required": ["name", "address", "phone", "gps", "basePricePerHour"]
+      "required": ["fullName", "address", "contact", "gps", "basePrice"]
     }
   },
   "auth": {

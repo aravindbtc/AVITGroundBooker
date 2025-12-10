@@ -57,13 +57,11 @@ function UserProfileDropdown() {
         }
     }
 
-    if (isProfileLoading) {
+    if (isProfileLoading && user) {
         return <Skeleton className="h-10 w-10 rounded-full" />;
     }
 
     if (!user || !userProfile) {
-        // This case should ideally not be hit if this component is only rendered when a user exists.
-        // However, it's a good safeguard.
         return null;
     }
 
@@ -72,10 +70,10 @@ function UserProfileDropdown() {
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-            <Button variant="secondary" className="relative h-10 w-10 rounded-full">
+            <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                 <Avatar className="h-10 w-10">
                 <AvatarImage src={user?.photoURL || ''} alt={userProfile?.fullName || 'User'} />
-                <AvatarFallback>{userInitials}</AvatarFallback>
+                <AvatarFallback className="bg-primary text-primary-foreground font-bold">{userInitials}</AvatarFallback>
                 </Avatar>
             </Button>
             </DropdownMenuTrigger>
@@ -153,13 +151,13 @@ export function Header() {
         </div>
         
         <div className="flex items-center gap-4">
-           <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <MapPin className="h-4 w-4 text-primary" />
               <span>Paiyanoor, Chennai</span>
             </div>
             
             {isUserLoading ? (
-                 <Skeleton className="h-10 w-10 rounded-full" />
+                 <Skeleton className="h-10 w-24 rounded-md" />
             ) : user ? (
                 <UserProfileDropdown />
              ) : (

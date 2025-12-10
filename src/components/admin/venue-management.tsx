@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react";
@@ -29,21 +30,21 @@ export function VenueManagement() {
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
-        const [section, field] = name.split('.');
-
-        if (section && field) {
-            setFormData(prev => ({
-                ...prev,
-                [section]: {
-                    ...(prev[section as keyof Venue] as object),
-                    [field]: value,
-                }
-            }));
-        } else {
-            setFormData(prev => ({ ...prev, [name]: value }));
-        }
+        setFormData(prev => ({ ...prev, [name]: value }));
     };
     
+    const handleContactChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        const field = name.split('.')[1];
+        setFormData(prev => ({
+            ...prev,
+            contact: {
+                ...prev.contact,
+                [field]: value,
+            } as Venue['contact']
+        }));
+    }
+
     const handleGpsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         const field = name.split('.')[1]
@@ -52,7 +53,7 @@ export function VenueManagement() {
             gps: {
                 ...prev.gps,
                 [field]: parseFloat(value) || 0,
-            }
+            } as Venue['gps']
         }));
     }
 
@@ -127,14 +128,18 @@ export function VenueManagement() {
                     <Label htmlFor="address">Address</Label>
                     <Input id="address" name="address" value={formData.address || ''} onChange={handleInputChange} />
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                      <div className="space-y-2">
-                        <Label htmlFor="contact.general">Contact Phone</Label>
-                        <Input id="contact.general" name="contact.general" value={formData.contact?.general || ''} onChange={handleInputChange} />
+                        <Label htmlFor="contact.general">Contact Phone (General)</Label>
+                        <Input id="contact.general" name="contact.general" value={formData.contact?.general || ''} onChange={handleContactChange} />
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="contact.admissions">Contact Phone (Admissions)</Label>
+                        <Input id="contact.admissions" name="contact.admissions" value={formData.contact?.admissions || ''} onChange={handleContactChange} />
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="contact.email">Contact Email</Label>
-                        <Input id="contact.email" name="contact.email" type="email" value={formData.contact?.email || ''} onChange={handleInputChange} />
+                        <Input id="contact.email" name="contact.email" type="email" value={formData.contact?.email || ''} onChange={handleContactChange} />
                     </div>
                 </div>
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

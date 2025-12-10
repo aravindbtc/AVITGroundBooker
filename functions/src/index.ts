@@ -1,3 +1,4 @@
+
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const Razorpay = require('razorpay');
@@ -33,37 +34,45 @@ exports.createRazorpayOrder = functions.https.onCall(async (data, context) => {
   const bookingRef = db.collection('bookings').doc(bookingId);
 
   // Transaction: verify all slots are still available and create a pending booking
-  await db.runTransaction(async (t) => {
-    for (const slotId of slots) {
-      const slotRef = db.collection('slots').doc(slotId);
-      const slotSnap = await t.get(slotRef);
-      if (!slotSnap.exists) throw new functions.https.HttpsError('not-found', `Slot ${slotId} not found`);
-      const slot = slotSnap.data();
-      if (slot.status !== 'available') {
-        throw new functions.https.HttpsError('failed-precondition', `Slot ${slotId} is not available`);
-      }
-    }
-
-    // Create booking doc with status pending
-    const bookingData = {
-      uid,
-      groundId: 'avit-ground',
-      date: slots[0].split('_')[0],
-      slots,
-      addons: addons || [],
-      totalAmount,
-      status: 'pending',
-      payment: { orderId: null, status: 'pending', createdAt: admin.firestore.FieldValue.serverTimestamp() },
-      createdAt: admin.firestore.FieldValue.serverTimestamp()
-    };
-    t.set(bookingRef, bookingData);
-    
-    // Mark slots as pending
-    for (const slotId of slots) {
+  try {
+    await db.runTransaction(async (t) => {
+      for (const slotId of slots) {
         const slotRef = db.collection('slots').doc(slotId);
-        t.update(slotRef, { status: 'blocked', bookingId: bookingId });
-    }
-  });
+        const slotSnap = await t.get(slotRef);
+        if (!slotSnap.exists) throw new functions.https.HttpsError('not-found', `Slot ${slotId} not found`);
+        const slot = slotSnap.data();
+        if (slot.status !== 'available') {
+          throw new functions.https.HttpsError('failed-precondition', `Slot ${slot.startTime} on ${slot.dateString} is no longer available.`);
+        }
+      }
+
+      // Create booking doc with status pending
+      const bookingData = {
+        uid,
+        groundId: 'avit-ground',
+        date: slots[0].split('_')[0],
+        slots,
+        addons: addons || [],
+        totalAmount,
+        status: 'pending',
+        payment: { orderId: null, status: 'pending', createdAt: admin.firestore.FieldValue.serverTimestamp() },
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      };
+      t.set(bookingRef, bookingData);
+      
+      // Mark slots as blocked (reserved)
+      for (const slotId of slots) {
+          const slotRef = db.collection('slots').doc(slotId);
+          t.update(slotRef, { status: 'blocked', bookingId: bookingId });
+      }
+    });
+  } catch (error) {
+     console.error("Transaction for booking creation failed:", error);
+     if (error instanceof functions.https.HttpsError) {
+        throw error;
+     }
+     throw new functions.https.HttpsError('internal', 'Could not reserve slots. Please try again.');
+  }
 
   // Create Razorpay order
   const amountInPaise = Math.round(totalAmount * 100);
@@ -92,6 +101,7 @@ exports.razorpayWebhook = functions.https.onRequest(async (req, res) => {
 
   const expected = crypto.createHmac('sha256', secret).update(body).digest('hex');
   if (expected !== signature) {
+    console.warn("Invalid Razorpay webhook signature received.");
     return res.status(400).send('Invalid signature');
   }
 
@@ -133,7 +143,7 @@ exports.razorpayWebhook = functions.https.onRequest(async (req, res) => {
 
     for (const addon of booking.addons || []) {
       const accRef = db.collection('accessories').doc(addon.id);
-      batch.update(accRef, { stock: admin.firestore.FieldValue.increment(-1 * (addon.qty || 1)) });
+      batch.update(accRef, { stock: admin.firestore.FieldValue.increment(-1 * (addon.quantity || 1)) });
     }
     
     const points = Math.floor((booking.totalAmount || 0) / 100);
@@ -143,6 +153,7 @@ exports.razorpayWebhook = functions.https.onRequest(async (req, res) => {
     }
 
     await batch.commit();
+    console.log(`Successfully processed payment for booking ${bookingId}`);
 
   } else if (payload.event === 'payment.failed') {
       const payment = payload.payload.payment.entity;
@@ -163,6 +174,7 @@ exports.razorpayWebhook = functions.https.onRequest(async (req, res) => {
             t.update(slotRef, { status: 'available', bookingId: null });
           }
       });
+      console.log(`Payment failed for booking ${bookingSnap.id}. Slots released.`);
   }
 
   res.status(200).send('ok');
@@ -181,16 +193,17 @@ exports.generateSlots = functions.https.onCall(async (data, context) => {
   const startHour = 5; // 5 AM
   const endHour = 22; // 10 PM
   const venueDoc = await db.doc('venue/avit-ground').get();
-  const basePrice = venueDoc.data().basePricePerHour || 500;
+  const basePrice = venueDoc.data().basePrice || 500;
   const peakSurcharge = 150;
 
   const batch = db.batch();
   const now = new Date();
   for (let d=0; d<days; d++) {
     const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + d);
-    const yyyy = date.toISOString().slice(0,10);
+    const yyyy_mm_dd = date.toISOString().slice(0,10);
+    
     for (let h=startHour; h<endHour; h++) {
-      const slotId = `${yyyy}_${String(h).padStart(2,'0')}`;
+      const slotId = `${yyyy_mm_dd}_${String(h).padStart(2,'0')}`;
       const startAt = new Date(date); startAt.setHours(h,0,0,0);
       const endAt = new Date(date); endAt.setHours(h+1,0,0,0);
       const slotRef = db.collection('slots').doc(slotId);
@@ -198,8 +211,9 @@ exports.generateSlots = functions.https.onCall(async (data, context) => {
 
       batch.set(slotRef, {
         groundId: 'avit-ground',
-        date: yyyy,
-        time: `${String(h).padStart(2,'0')}:00`,
+        dateString: yyyy_mm_dd,
+        startTime: `${String(h).padStart(2,'0')}:00`,
+        endTime: `${String(h+1).padStart(2,'0')}:00`,
         startAt: admin.firestore.Timestamp.fromDate(startAt),
         endAt: admin.firestore.Timestamp.fromDate(endAt),
         price: basePrice + (isPeak ? peakSurcharge : 0),

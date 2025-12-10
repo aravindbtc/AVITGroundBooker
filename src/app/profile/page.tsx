@@ -36,12 +36,13 @@ function ProfileForm() {
             setDisplayName(userProfile.fullName || '');
             setCollegeId(userProfile.collegeId || '');
             setPhone(userProfile.phone || '');
-        } else if (!isUserLoading && !isLoading) {
+        } else if (!isUserLoading && !isLoading && !user) {
+            // Clear form if user logs out
             setDisplayName('');
             setCollegeId('');
             setPhone('');
         }
-    }, [userProfile, isUserLoading, isLoading]);
+    }, [userProfile, isUserLoading, isLoading, user]);
 
     const handleSaveChanges = async () => {
         if (!userProfileRef) return;
@@ -56,12 +57,12 @@ function ProfileForm() {
 
         setDocumentNonBlocking(userProfileRef, dataToSave, { merge: true });
         
+        // Non-blocking update is fast, give user feedback
         setTimeout(() => {
             toast({ title: "Success!", description: "Your profile has been updated." });
             setIsSaving(false);
         }, 1000);
     }
-
 
     if (isUserLoading || (user && isLoading)) {
         return (

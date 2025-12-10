@@ -50,8 +50,9 @@ export type Manpower = {
 export type Slot = {
   id: string;
   groundId: string;
-  date: string; // YYYY-MM-DD
-  time: string; // HH:MM
+  dateString: string; // YYYY-MM-DD
+  startTime: string; // HH:MM
+  endTime: string; // HH:MM
   startAt: Timestamp;
   endAt: Timestamp;
   price: number;
@@ -62,14 +63,19 @@ export type Slot = {
 
 export type Venue = {
     id: string;
-    name: string;
+    fullName: string;
     address: string;
-    phone: string;
+    contact: {
+        general: string;
+        admissions: string;
+        email: string;
+    };
     gps: {
         lat: number;
         lng: number;
     };
-    basePricePerHour: number;
+    basePrice: number;
+    rating: number;
     images: string[];
 };
 

@@ -15,6 +15,7 @@ import { useState } from "react";
 import { format } from "date-fns";
 
 interface BookingSummaryProps {
+    selectedDate: Date;
     slotDetails: Slot[];
     bookingAddons: BookingItem[];
     onBookingSuccess: () => void;
@@ -26,7 +27,7 @@ declare global {
     }
 }
 
-export function BookingSummary({ slotDetails, bookingAddons, onBookingSuccess }: BookingSummaryProps) {
+export function BookingSummary({ selectedDate, slotDetails, bookingAddons, onBookingSuccess }: BookingSummaryProps) {
     const firestore = useFirestore();
     const { user, isUserLoading } = useUser();
     const { toast } = useToast();
@@ -36,14 +37,11 @@ export function BookingSummary({ slotDetails, bookingAddons, onBookingSuccess }:
     const { data: userProfile } = useDoc<UserProfile>(userProfileRef);
     const [isBooking, setIsBooking] = useState(false);
 
-    const pricePerHour = venue?.basePrice ?? 500;
-    const peakHourSurcharge = 150;
-
     const slotItems: BookingItem[] = slotDetails.map(slot => ({
         id: slot.id,
         name: `Ground Booking (${slot.startTime} - ${slot.endTime})`,
         quantity: 1,
-        price: pricePerHour + (slot.isPeak ? peakHourSurcharge : 0),
+        price: slot.price,
         type: 'slot'
     }));
 
@@ -52,7 +50,7 @@ export function BookingSummary({ slotDetails, bookingAddons, onBookingSuccess }:
     const total = allItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
 
     const handleConfirmBooking = async () => {
-        if (!firestore || !user || !userProfile) {
+        if (!user || !userProfile) {
             toast({
                 variant: 'destructive',
                 title: 'Please log in',
@@ -78,34 +76,32 @@ export function BookingSummary({ slotDetails, bookingAddons, onBookingSuccess }:
             const createRazorpayOrder = httpsCallable(functions, 'createRazorpayOrder');
 
             const orderRequestData = {
-                amount: total,
-                receipt: `booking_${Date.now()}`,
-                notes: {
-                    slotIds: slotDetails.map(s => s.id),
-                    addons: bookingAddons.map(a => ({ id: a.id, name: a.name, quantity: a.quantity, price: a.price, type: a.type })),
-                }
+                slots: slotDetails.map(s => s.id),
+                addons: bookingAddons.map(a => ({ id: a.id, name: a.name, quantity: a.quantity, price: a.price, type: a.type })),
+                totalAmount: total,
             };
             
             const result: any = await createRazorpayOrder(orderRequestData);
-            const { orderId, bookingId } = result.data;
+            const { orderId, bookingId, key } = result.data;
 
             const options = {
-                key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID, // Use environment variable
+                key: key,
                 amount: total * 100,
                 currency: "INR",
                 name: "AVIT Cricket Booker",
-                description: `Booking ID: ${bookingId}`,
+                description: `Booking ID: ${bookingId.substring(0,8)}`,
                 order_id: orderId,
                 handler: function (response: any) {
                     toast({
                         title: "Payment Successful!",
-                        description: "Your booking is being confirmed. Please wait.",
+                        description: "Your booking is confirmed.",
                     });
-                    // Webhook will handle the rest
+                    // Webhook will handle the rest, but we can optimistically update UI
                     onBookingSuccess();
+                    setIsBooking(false);
                 },
                 prefill: {
-                    name: userProfile.name,
+                    name: userProfile.fullName,
                     email: userProfile.email,
                     contact: userProfile.phone || '',
                 },
@@ -114,7 +110,18 @@ export function BookingSummary({ slotDetails, bookingAddons, onBookingSuccess }:
                     userId: user.uid,
                 },
                 theme: {
-                    color: "#228B22"
+                    color: "#16a34a" // Green color
+                },
+                 modal: {
+                    ondismiss: function() {
+                        toast({
+                            variant: 'destructive',
+                            title: 'Payment Cancelled',
+                            description: 'Your slots have been released. Please try again.',
+                        });
+                        setIsBooking(false);
+                        // A function could be triggered here to release blocked slots
+                    }
                 }
             };
             
@@ -130,19 +137,18 @@ export function BookingSummary({ slotDetails, bookingAddons, onBookingSuccess }:
 
             rzp.open();
 
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error creating booking:", error);
             toast({
                 variant: 'destructive',
                 title: 'Booking Failed',
-                description: 'Could not initiate the payment process. Please try again.',
+                description: error.message || 'Could not initiate the payment process. Please try again.',
             });
             setIsBooking(false);
         }
     }
 
-    const firstSlotDate = slotDetails[0]?.date;
-    const dateDisplay = firstSlotDate ? format(firstSlotDate.toDate(), 'do MMMM yyyy') : 'No date selected';
+    const dateDisplay = selectedDate ? format(selectedDate, 'do MMMM yyyy') : 'No date selected';
 
 
     return (
@@ -202,4 +208,3 @@ export function BookingSummary({ slotDetails, bookingAddons, onBookingSuccess }:
         </div>
     );
 }
-    
