@@ -3,8 +3,8 @@
 
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
 import { User as UserIcon, Loader2, Save, AlertCircle, LogIn } from "lucide-react";
-import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
-import { doc, setDoc } from "firebase/firestore";
+import { useUser, useFirestore, useDoc, useMemoFirebase, setDocumentNonBlocking } from "@/firebase";
+import { doc } from "firebase/firestore";
 import type { UserProfile } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,36 +28,38 @@ function ProfileForm() {
 
     const [displayName, setDisplayName] = useState('');
     const [collegeId, setCollegeId] = useState('');
+    const [phone, setPhone] = useState('');
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         if (userProfile) {
             setDisplayName(userProfile.fullName || '');
             setCollegeId(userProfile.collegeId || '');
-        } else {
-            // Explicitly clear fields if no user profile is loaded
+            setPhone(userProfile.phone || '');
+        } else if (!isUserLoading && !isLoading) {
             setDisplayName('');
             setCollegeId('');
+            setPhone('');
         }
-    }, [userProfile]);
+    }, [userProfile, isUserLoading, isLoading]);
 
     const handleSaveChanges = async () => {
         if (!userProfileRef) return;
         setIsSaving(true);
         toast({ title: "Saving profile..." });
         
-        try {
-            await setDoc(userProfileRef, {
-                fullName: displayName,
-                collegeId: collegeId,
-            }, { merge: true });
+        const dataToSave = {
+            fullName: displayName,
+            collegeId: collegeId,
+            phone: phone,
+        };
+
+        setDocumentNonBlocking(userProfileRef, dataToSave, { merge: true });
+        
+        setTimeout(() => {
             toast({ title: "Success!", description: "Your profile has been updated." });
-        } catch (e) {
-            console.error(e);
-            toast({ variant: "destructive", title: "Error", description: "Could not save your profile." });
-        } finally {
             setIsSaving(false);
-        }
+        }, 1000);
     }
 
 
@@ -69,6 +71,10 @@ function ProfileForm() {
                     <Skeleton className="h-10 w-full" />
                 </div>
                 <div className="space-y-2">
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-10 w-full" />
+                </div>
+                 <div className="space-y-2">
                     <Skeleton className="h-4 w-20" />
                     <Skeleton className="h-10 w-full" />
                 </div>
@@ -118,6 +124,10 @@ function ProfileForm() {
             <div className="space-y-2">
                 <Label htmlFor="collegeId">College ID</Label>
                 <Input id="collegeId" value={collegeId} onChange={(e) => setCollegeId(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+                <Label htmlFor="phone">Contact Number</Label>
+                <Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g., +919876543210" />
             </div>
             <Button onClick={handleSaveChanges} disabled={isSaving || !displayName || !collegeId}>
                 {isSaving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Saving...</> : <><Save className="mr-2 h-4 w-4" /> Save Changes</>}

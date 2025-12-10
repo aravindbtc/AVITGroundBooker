@@ -6,6 +6,7 @@ export type UserProfile = {
   email: string;
   fullName: string;
   collegeId: string;
+  phone?: string;
   role: 'user' | 'admin';
   loyaltyPoints: number;
   createdAt: Timestamp;
@@ -77,5 +78,5 @@ export type BookingItem = {
     name: string;
     quantity: number;
     price: number;
-    type: 'slot' | 'addon' | 'manpower';
+    type: 'slot' | 'item' | 'manpower';
 }

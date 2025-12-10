@@ -6,9 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { Booking } from '@/lib/types';
-import { ShieldAlert, Save, CalendarPlus, Loader2, AlertCircle, CalendarDays } from "lucide-react";
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import type { Booking, UserProfile } from '@/lib/types';
+import { ShieldAlert, Save, CalendarPlus, Loader2, AlertCircle, CalendarDays, Users, Trash2 } from "lucide-react";
+import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { writeBatch, doc, collection, Timestamp, query, orderBy, where } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
@@ -16,6 +16,17 @@ import { format } from 'date-fns';
 import { VenueManagement } from '@/components/admin/venue-management';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 
 function SlotGenerator() {
@@ -93,21 +104,17 @@ function PriceStockManagement() {
     const firestore = useFirestore();
     const { toast } = useToast();
 
-    const accessoriesQuery = useMemoFirebase(() => firestore && query(collection(firestore, 'accessories'), where('type', '==', 'item')), [firestore]);
-    const { data: accessoriesData, isLoading: accessoriesLoading } = useCollection<ItemForManagement>(accessoriesQuery);
+    const accessoriesQuery = useMemoFirebase(() => firestore && query(collection(firestore, 'accessories')), [firestore]);
+    const { data, isLoading: dataLoading } = useCollection<ItemForManagement>(accessoriesQuery);
     
-    const manpowerQuery = useMemoFirebase(() => firestore && query(collection(firestore, 'accessories'), where('type', '==', 'manpower')), [firestore]);
-    const { data: manpowerData, isLoading: manpowerLoading } = useCollection<ItemForManagement>(manpowerQuery);
-
     const [items, setItems] = useState<ItemForManagement[]>([]);
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
-        const allItems = [...(accessoriesData || []), ...(manpowerData || [])];
-        if (allItems.length > 0) {
-            setItems(allItems);
+        if (data) {
+            setItems(data);
         }
-    }, [accessoriesData, manpowerData]);
+    }, [data]);
 
     const handleItemUpdate = (id: string, field: 'price' | 'stock', value: string) => {
         const numValue = parseInt(value, 10);
@@ -140,7 +147,7 @@ function PriceStockManagement() {
     
     const accessories = items.filter(item => item.type === 'item');
     const manpower = items.filter(item => item.type === 'manpower');
-    const isLoading = accessoriesLoading || manpowerLoading;
+    const isLoading = dataLoading;
 
     return (
          <Card className="w-full max-w-4xl mx-auto shadow-lg rounded-xl">
@@ -251,6 +258,7 @@ function PriceStockManagement() {
 
 function AllBookings() {
     const firestore = useFirestore();
+    const { toast } = useToast();
 
     const bookingsQuery = useMemoFirebase(() => {
         if (!firestore) return null;
@@ -258,6 +266,16 @@ function AllBookings() {
     }, [firestore]);
 
     const { data: bookings, isLoading, error } = useCollection<Booking>(bookingsQuery);
+
+    const handleCancelBooking = (bookingId: string) => {
+        if (!firestore) return;
+        const bookingRef = doc(firestore, 'bookings', bookingId);
+        updateDocumentNonBlocking(bookingRef, { status: 'cancelled' });
+        toast({
+            title: "Booking Cancelled",
+            description: `Booking #${bookingId.substring(0,7)} has been marked as cancelled.`
+        })
+    }
 
     return (
         <Card className="shadow-lg rounded-xl">
@@ -289,7 +307,8 @@ function AllBookings() {
                                 <TableHead>User ID</TableHead>
                                 <TableHead>Date</TableHead>
                                 <TableHead>Total</TableHead>
-                                <TableHead className="text-right">Status</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -301,10 +320,31 @@ function AllBookings() {
                                         {booking.createdAt instanceof Timestamp ? format(booking.createdAt.toDate(), 'PPP') : 'Processing...'}
                                     </TableCell>
                                     <TableCell>RS.{booking.totalAmount.toFixed(2)}</TableCell>
-                                    <TableCell className="text-right">
-                                        <Badge variant={booking.status === 'paid' ? 'default' : 'secondary'}>
+                                    <TableCell>
+                                        <Badge variant={booking.status === 'paid' ? 'default' : booking.status === 'cancelled' ? 'destructive' : 'secondary'}>
                                             {booking.status}
                                         </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <Button variant="ghost" size="icon" disabled={booking.status === 'cancelled' || booking.status === 'failed'}>
+                                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    This will cancel the user's booking. This action cannot be undone.
+                                                </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                <AlertDialogCancel>Back</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => handleCancelBooking(booking.id)}>Confirm Cancellation</AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
                                     </TableCell>
                                 </TableRow>
                             ))}
@@ -320,6 +360,72 @@ function AllBookings() {
     );
 }
 
+function UserManagement() {
+    const firestore = useFirestore();
+
+    const usersQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return query(collection(firestore, "users"), orderBy("createdAt", "desc"));
+    }, [firestore]);
+
+    const { data: users, isLoading, error } = useCollection<UserProfile>(usersQuery);
+
+    return (
+        <Card className="shadow-lg rounded-xl">
+            <CardHeader>
+                <CardTitle className="font-headline flex items-center gap-2">
+                    <Users className="h-6 w-6 text-primary" />
+                    User Management
+                </CardTitle>
+                <CardDescription>View and manage all registered users.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                 {isLoading ? (
+                    <div className="space-y-2">
+                        <Skeleton className="h-12 w-full" />
+                        <Skeleton className="h-12 w-full" />
+                    </div>
+                ) : error ? (
+                    <div className="text-center py-10 text-destructive flex flex-col items-center gap-2">
+                        <AlertCircle />
+                        <p>Could not load users.</p>
+                        <p className="text-sm">{error.message}</p>
+                    </div>
+                ) : users && users.length > 0 ? (
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Full Name</TableHead>
+                                <TableHead>Email</TableHead>
+                                <TableHead>College ID</TableHead>
+                                <TableHead>Role</TableHead>
+                                <TableHead className="text-right">Loyalty Points</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {users.map((user) => (
+                                <TableRow key={user.id}>
+                                    <TableCell className="font-medium">{user.fullName}</TableCell>
+                                    <TableCell>{user.email}</TableCell>
+                                    <TableCell>{user.collegeId || 'N/A'}</TableCell>
+                                    <TableCell>
+                                        <Badge variant={user.role === 'admin' ? 'destructive' : 'secondary'}>{user.role}</Badge>
+                                    </TableCell>
+                                    <TableCell className="text-right">{user.loyaltyPoints}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                ) : (
+                    <div className="text-center py-10">
+                        <p className="text-muted-foreground">There are no users yet.</p>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    )
+}
+
 export default function AdminPage() {
   return (
     <div className="container mx-auto px-4 py-8">
@@ -329,9 +435,8 @@ export default function AdminPage() {
           <SlotGenerator />
           <PriceStockManagement />
           <AllBookings />
+          <UserManagement />
       </div>
     </div>
   );
 }
-
-    

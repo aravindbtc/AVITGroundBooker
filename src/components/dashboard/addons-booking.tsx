@@ -39,11 +39,11 @@ type ItemForBooking = {
 export function AddonsBooking({ bookingAddons, onAddonsChange }: AddonsBookingProps) {
   const firestore = useFirestore();
 
-  const accessoriesQuery = useMemoFirebase(() => firestore && query(collection(firestore, 'accessories'), where('type', '==', 'item')), [firestore]);
-  const { data: accessoriesData, isLoading: accessoriesLoading } = useCollection<ItemForBooking>(accessoriesQuery);
+  const accessoriesQuery = useMemoFirebase(() => firestore && query(collection(firestore, 'accessories')), [firestore]);
+  const { data: allItems, isLoading: dataLoading } = useCollection<ItemForBooking>(accessoriesQuery);
   
-  const manpowerQuery = useMemoFirebase(() => firestore && query(collection(firestore, 'accessories'), where('type', '==', 'manpower')), [firestore]);
-  const { data: manpowerData, isLoading: manpowerLoading } = useCollection<ItemForBooking>(manpowerQuery);
+  const accessoriesData = allItems?.filter(item => item.type === 'item');
+  const manpowerData = allItems?.filter(item => item.type === 'manpower');
 
   const handleQuantityChange = (item: ItemForBooking, delta: number) => {
     onAddonsChange(currentCart => {
@@ -129,7 +129,7 @@ export function AddonsBooking({ bookingAddons, onAddonsChange }: AddonsBookingPr
                 </div>
             </AccordionTrigger>
             <AccordionContent className="pt-4 space-y-4">
-                {accessoriesLoading ? <Skeleton className="h-10"/> : renderItems(accessoriesData, 'item')}
+                {dataLoading ? <Skeleton className="h-10"/> : renderItems(accessoriesData, 'item')}
             </AccordionContent>
           </AccordionItem>
           <AccordionItem value="manpower">
@@ -140,7 +140,7 @@ export function AddonsBooking({ bookingAddons, onAddonsChange }: AddonsBookingPr
                 </div>
             </AccordionTrigger>
             <AccordionContent className="pt-4 space-y-4">
-                {manpowerLoading ? <Skeleton className="h-10"/> : renderItems(manpowerData, 'manpower')}
+                {dataLoading ? <Skeleton className="h-10"/> : renderItems(manpowerData, 'manpower')}
             </AccordionContent>
           </AccordionItem>
         </Accordion>
@@ -148,5 +148,3 @@ export function AddonsBooking({ bookingAddons, onAddonsChange }: AddonsBookingPr
     </Card>
   );
 }
-
-    
