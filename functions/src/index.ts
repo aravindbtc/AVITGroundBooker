@@ -200,7 +200,11 @@ exports.generateSlots = functions.https.onCall(async (data, context) => {
     throw new functions.https.HttpsError('failed-precondition', 'Venue details not found. Please fill out and save the venue information before generating slots.');
   }
   
-  const basePrice = venueDoc.data().basePrice || 500;
+  const venueData = venueDoc.data();
+  if (typeof venueData.basePrice !== 'number') {
+      throw new functions.https.HttpsError('failed-precondition', 'Base price for the venue is not set or invalid. Please update it in Venue Management.');
+  }
+  const basePrice = venueData.basePrice;
   const peakSurcharge = 150;
 
   const batch = db.batch();
@@ -221,8 +225,8 @@ exports.generateSlots = functions.https.onCall(async (data, context) => {
         dateString: yyyy_mm_dd,
         startTime: `${String(h).padStart(2,'0')}:00`,
         endTime: `${String(h+1).padStart(2,'0')}:00`,
-        startAt: admin.firestore.Timestamp.fromDate(startAt),
-        endAt: admin.firestore.Timestamp.fromDate(endAt),
+        startAt: startAt,
+        endAt: endAt,
         price: basePrice + (isPeak ? peakSurcharge : 0),
         isPeak,
         status: 'available',
@@ -233,3 +237,5 @@ exports.generateSlots = functions.https.onCall(async (data, context) => {
   await batch.commit();
   return { success: true, message: `Generated/updated slots for the next ${days} days.` };
 });
+
+    
