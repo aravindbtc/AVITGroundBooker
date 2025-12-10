@@ -11,10 +11,15 @@ import type { Venue } from "@/lib/types";
 import { Skeleton } from "../ui/skeleton";
 
 export function VenueGrid() {
-  const venueImage = PlaceHolderImages.find(img => img.id === "avit-ground-1");
   const firestore = useFirestore();
   const venueRef = useMemoFirebase(() => firestore && doc(firestore, 'venue', 'avit-ground'), [firestore]);
   const { data: venue, isLoading } = useDoc<Venue>(venueRef);
+  const fallbackImage = PlaceHolderImages.find(img => img.id === "avit-ground-1");
+
+  const primaryImage = (venue?.images && venue.images.length > 0)
+        ? { imageUrl: venue.images[0], description: venue.fullName, imageHint: 'cricket ground' }
+        : fallbackImage;
+
 
   if (isLoading || !venue) {
     return (
@@ -46,13 +51,13 @@ export function VenueGrid() {
             <Card className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 group">
                 <CardHeader className="p-0">
                     <div className="relative aspect-video w-full">
-                        {venueImage && (
+                        {primaryImage && (
                             <Image
-                                src={venueImage.imageUrl}
-                                alt={venueImage.description}
+                                src={primaryImage.imageUrl}
+                                alt={primaryImage.description}
                                 fill
                                 className="object-cover transition-transform duration-300 group-hover:scale-105"
-                                data-ai-hint={venueImage.imageHint}
+                                data-ai-hint={primaryImage.imageHint}
                             />
                         )}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>

@@ -69,7 +69,7 @@ export type Venue = {
   };
   basePrice: number;
   rating: number;
-  images?: string[];
+  images: string[];
 };
 
 

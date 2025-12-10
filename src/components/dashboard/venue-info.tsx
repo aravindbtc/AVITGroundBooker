@@ -22,8 +22,13 @@ export function VenueInfo() {
   const firestore = useFirestore();
   const venueRef = useMemoFirebase(() => firestore && doc(firestore, 'venue', 'avit-ground'), [firestore]);
   const { data: venue, isLoading } = useDoc<Venue>(venueRef);
-  const venueImages = PlaceHolderImages.filter(img => img.id.startsWith("avit-ground"));
+  const fallbackImages = PlaceHolderImages.filter(img => img.id.startsWith("avit-ground"));
   
+  const venueImages = (venue?.images && venue.images.length > 0) 
+    ? venue.images.map((url, index) => ({ id: `venue-img-${index}`, imageUrl: url, description: venue.fullName, imageHint: 'cricket ground' }))
+    : fallbackImages;
+
+
   if (isLoading) {
     return (
       <Card className="shadow-lg rounded-xl overflow-hidden">

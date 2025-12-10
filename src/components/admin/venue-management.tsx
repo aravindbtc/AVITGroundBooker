@@ -10,8 +10,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc, setDoc } from "firebase/firestore";
 import type { Venue } from "@/lib/types";
-import { Building, Loader2, Save } from "lucide-react";
+import { Building, Loader2, Save, Image as ImageIcon } from "lucide-react";
 import { Skeleton } from "../ui/skeleton";
+import { Separator } from "../ui/separator";
 
 export function VenueManagement() {
     const firestore = useFirestore();
@@ -24,7 +25,11 @@ export function VenueManagement() {
 
     useEffect(() => {
         if (venue) {
-            setFormData(venue);
+            const images = Array.isArray(venue.images) ? venue.images : [];
+            while (images.length < 3) {
+                images.push('');
+            }
+            setFormData({...venue, images: images.slice(0, 3)});
         }
     }, [venue]);
 
@@ -56,6 +61,15 @@ export function VenueManagement() {
             } as Venue['gps']
         }));
     }
+    
+    const handleImageChange = (index: number, value: string) => {
+        setFormData(prev => {
+            const newImages = [...(prev.images || [])];
+            newImages[index] = value;
+            return { ...prev, images: newImages };
+        })
+    }
+
 
     const handleSaveChanges = async () => {
         if (!venueRef) return;
@@ -67,6 +81,7 @@ export function VenueManagement() {
                 ...formData,
                 rating: parseFloat(String(formData.rating)) || 0,
                 basePrice: parseFloat(String(formData.basePrice)) || 0,
+                images: (formData.images || []).filter(img => img.trim() !== '')
             };
 
             await setDoc(venueRef, dataToSave, { merge: true });
@@ -169,6 +184,30 @@ export function VenueManagement() {
                         <Input id="rating" name="rating" type="number" step="0.1" max="5" min="0" value={formData.rating || ''} onChange={handleInputChange} />
                     </div>
                 </div>
+
+                <Separator className="my-6" />
+
+                 <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                        <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                        <h4 className="font-medium">Venue Images</h4>
+                    </div>
+                    <p className="text-sm text-muted-foreground">Add up to 3 image URLs. These will be displayed in the venue carousel.</p>
+                     <div className="grid grid-cols-1 gap-4">
+                         <div className="space-y-2">
+                            <Label htmlFor="image1">Image URL 1</Label>
+                            <Input id="image1" name="image1" value={formData.images?.[0] || ''} onChange={(e) => handleImageChange(0, e.target.value)} placeholder="https://example.com/image1.jpg"/>
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="image2">Image URL 2</Label>
+                            <Input id="image2" name="image2" value={formData.images?.[1] || ''} onChange={(e) => handleImageChange(1, e.target.value)} placeholder="https://example.com/image2.jpg"/>
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="image3">Image URL 3</Label>
+                            <Input id="image3" name="image3" value={formData.images?.[2] || ''} onChange={(e) => handleImageChange(2, e.target.value)} placeholder="https://example.com/image3.jpg"/>
+                        </div>
+                    </div>
+                </div>
             </CardContent>
             <CardFooter>
                  <Button onClick={handleSaveChanges} disabled={isSaving}>
@@ -180,7 +219,7 @@ export function VenueManagement() {
                     ) : (
                         <>
                             <Save className="mr-2 h-4 w-4" />
-                            Save Changes
+                            Save All Changes
                         </>
                     )}
                 </Button>
@@ -188,5 +227,3 @@ export function VenueManagement() {
         </Card>
     )
 }
-
-    
