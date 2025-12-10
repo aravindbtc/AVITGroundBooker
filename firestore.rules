@@ -37,7 +37,8 @@ service cloud.firestore {
 
     match /bookings/{bookingId} {
       allow read: if isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
-      allow list: if isAdmin() || (isSignedIn() && request.query.where[0][0] == "uid" && request.query.where[0][2] == request.auth.uid);
+      // Admins can list all bookings. Users can only list their own bookings via a 'uid' query.
+      allow list: if isAdmin() || (request.query.where[0][0] == "uid" && request.query.where[0][2] == request.auth.uid);
 
       allow create: if isSignedIn()
                     && request.resource.data.uid == request.auth.uid
