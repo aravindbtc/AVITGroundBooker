@@ -6,9 +6,6 @@ export type UserProfile = {
   uid: string;
   email: string;
   fullName: string;
-  contact?: string;
-  address?: string;
-  profilePic?: string;
   collegeId?: string;
   phone?: string;
   role: 'user' | 'admin';
@@ -91,5 +88,3 @@ export type BookingItem = {
     price: number;
     type: 'slot' | 'item' | 'manpower';
 }
-
-    

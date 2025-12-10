@@ -182,11 +182,13 @@ exports.razorpayWebhook = functions.https.onRequest(async (req, res) => {
 
 
 exports.generateSlots = functions.https.onCall(async (data, context) => {
-  if (!context.auth) throw new functions.https.HttpsError('unauthenticated','Sign in');
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated','Sign in required to perform this action.');
+  }
   const uid = context.auth.uid;
   const userSnap = await db.collection('users').doc(uid).get();
   if (!userSnap.exists || userSnap.data().role !== 'admin') {
-    throw new functions.https.HttpsError('permission-denied','Only admin can perform this action.');
+    throw new functions.https.HttpsError('permission-denied','Only an administrator can perform this action.');
   }
 
   const days = data.days || 30;
@@ -220,9 +222,9 @@ exports.generateSlots = functions.https.onCall(async (data, context) => {
         isPeak,
         status: 'available',
         bookingId: null
-      }, { merge: true });
+      }, { merge: true }); // Use merge to avoid overwriting booked slots if re-run
     }
   }
   await batch.commit();
-  return { success: true, message: `Generated slots for ${days} days.` };
+  return { success: true, message: `Generated/updated slots for the next ${days} days.` };
 });

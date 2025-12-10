@@ -8,9 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { Booking, UserProfile } from '@/lib/types';
 import { ShieldAlert, Save, CalendarPlus, Loader2, AlertCircle, CalendarDays, Users, Trash2 } from "lucide-react";
-import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { writeBatch, doc, collection, Timestamp, query, orderBy, where } from 'firebase/firestore';
+import { writeBatch, doc, collection, Timestamp, query, orderBy, updateDoc } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
 import { format } from 'date-fns';
 import { VenueManagement } from '@/components/admin/venue-management';
@@ -69,7 +69,7 @@ function SlotGenerator() {
                     Generate Time Slots
                 </CardTitle>
                 <CardDescription>
-                    Populate the database with available time slots for booking. This will generate hourly slots from 5 AM to 10 PM for the next 30 days. This can be re-run safely.
+                    Populate the database with available time slots for booking. This will generate hourly slots from 5 AM to 10 PM for the next 30 days. This can be re-run safely to update slots without affecting existing bookings.
                 </CardDescription>
             </CardHeader>
             <CardFooter>
@@ -267,14 +267,23 @@ function AllBookings() {
 
     const { data: bookings, isLoading, error } = useCollection<Booking>(bookingsQuery);
 
-    const handleCancelBooking = (bookingId: string) => {
+    const handleCancelBooking = async (bookingId: string) => {
         if (!firestore) return;
         const bookingRef = doc(firestore, 'bookings', bookingId);
-        updateDocumentNonBlocking(bookingRef, { status: 'cancelled' });
-        toast({
-            title: "Booking Cancelled",
-            description: `Booking #${bookingId.substring(0,7)} has been marked as cancelled.`
-        })
+        try {
+            await updateDoc(bookingRef, { status: 'cancelled' });
+            toast({
+                title: "Booking Cancelled",
+                description: `Booking #${bookingId.substring(0,7)} has been marked as cancelled.`
+            })
+        } catch (e) {
+            console.error(e);
+             toast({
+                variant: 'destructive',
+                title: "Error",
+                description: "Could not cancel booking."
+            })
+        }
     }
 
     return (
@@ -353,6 +362,7 @@ function AllBookings() {
                 ) : (
                     <div className="text-center py-10">
                         <p className="text-muted-foreground">There are no bookings yet.</p>
+                         <p className="text-sm text-muted-foreground mt-1">Try generating slots to enable bookings.</p>
                     </div>
                 )}
             </CardContent>
@@ -440,5 +450,3 @@ export default function AdminPage() {
     </div>
   );
 }
-
-    

@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { useDoc, useFirestore, useMemoFirebase, setDocumentNonBlocking } from "@/firebase";
-import { doc } from "firebase/firestore";
+import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
+import { doc, setDoc } from "firebase/firestore";
 import type { Venue } from "@/lib/types";
 import { Building, Loader2, Save } from "lucide-react";
 import { Skeleton } from "../ui/skeleton";
@@ -57,27 +57,34 @@ export function VenueManagement() {
         }));
     }
 
-    const handleSaveChanges = () => {
+    const handleSaveChanges = async () => {
         if (!venueRef) return;
         setIsSaving(true);
         toast({ title: "Saving venue details..." });
         
-        const dataToSave = {
-            ...formData,
-            rating: parseFloat(String(formData.rating)) || 0,
-            basePrice: parseFloat(String(formData.basePrice)) || 0,
-        };
+        try {
+            const dataToSave = {
+                ...formData,
+                rating: parseFloat(String(formData.rating)) || 0,
+                basePrice: parseFloat(String(formData.basePrice)) || 0,
+            };
 
-        setDocumentNonBlocking(venueRef, dataToSave, { merge: true });
+            await setDoc(venueRef, dataToSave, { merge: true });
 
-        // A slight delay to allow the user to see the toast, as the non-blocking update is very fast.
-        setTimeout(() => {
             toast({
                 title: "Success!",
                 description: "Venue details have been updated.",
             });
+        } catch (error) {
+            console.error(error);
+            toast({
+                variant: 'destructive',
+                title: "Error",
+                description: "Could not save venue details.",
+            });
+        } finally {
             setIsSaving(false);
-        }, 1000);
+        }
     };
 
     if (isVenueLoading) {
@@ -116,7 +123,7 @@ export function VenueManagement() {
                     Venue Management
                 </CardTitle>
                 <CardDescription>
-                    Edit the details of the cricket ground. These details will be shown to users across the app.
+                    Edit the details of the cricket ground. These details will be shown to users across the app. Fill this out first to get started.
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -181,5 +188,3 @@ export function VenueManagement() {
         </Card>
     )
 }
-
-    
