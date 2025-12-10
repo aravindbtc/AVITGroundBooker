@@ -4,13 +4,14 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { Booking, UserProfile } from '@/lib/types';
-import { ShieldAlert, Save, CalendarPlus, Loader2, AlertCircle, CalendarDays, Users, Trash2 } from "lucide-react";
+import { ShieldAlert, Save, CalendarPlus, Loader2, AlertCircle, CalendarDays, Users, Trash2, PlusCircle } from "lucide-react";
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { writeBatch, doc, collection, Timestamp, query, orderBy, updateDoc } from 'firebase/firestore';
+import { writeBatch, doc, collection, Timestamp, query, orderBy, updateDoc, addDoc } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
 import { format } from 'date-fns';
 import { VenueManagement } from '@/components/admin/venue-management';
@@ -26,7 +27,24 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 
 function SlotGenerator() {
@@ -105,10 +123,19 @@ function PriceStockManagement() {
     const { toast } = useToast();
 
     const accessoriesQuery = useMemoFirebase(() => firestore && query(collection(firestore, 'accessories')), [firestore]);
-    const { data, isLoading: dataLoading } = useCollection<ItemForManagement>(accessoriesQuery);
+    const { data, isLoading: dataLoading, error } = useCollection<ItemForManagement>(accessoriesQuery);
     
     const [items, setItems] = useState<ItemForManagement[]>([]);
     const [isSaving, setIsSaving] = useState(false);
+    
+    // State for Add New Item dialog
+    const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+    const [newItemName, setNewItemName] = useState('');
+    const [newItemPrice, setNewItemPrice] = useState(0);
+    const [newItemStock, setNewItemStock] = useState(0);
+    const [newItemType, setNewItemType] = useState<'item' | 'manpower'>('item');
+    const [isAdding, setIsAdding] = useState(false);
+
 
     useEffect(() => {
         if (data) {
@@ -144,6 +171,39 @@ function PriceStockManagement() {
             setIsSaving(false);
         }
     };
+
+    const handleAddNewItem = async () => {
+        if (!firestore) return;
+        if (!newItemName || newItemPrice < 0 || newItemStock < 0) {
+            toast({ variant: 'destructive', title: "Invalid Input", description: "Please provide a valid name, price, and stock."});
+            return;
+        }
+
+        setIsAdding(true);
+        toast({ title: "Adding new item..." });
+
+        try {
+            const accessoriesCollection = collection(firestore, 'accessories');
+            await addDoc(accessoriesCollection, {
+                name: newItemName,
+                price: newItemPrice,
+                stock: newItemStock,
+                type: newItemType,
+            });
+
+            toast({ title: "Success!", description: `${newItemName} has been added.`});
+            // Reset form and close dialog
+            setNewItemName('');
+            setNewItemPrice(0);
+            setNewItemStock(0);
+            setIsAddDialogOpen(false);
+        } catch (error) {
+             console.error("Error adding new item:", error);
+            toast({ variant: 'destructive', title: "Error", description: "Could not add the new item." });
+        } finally {
+            setIsAdding(false);
+        }
+    }
     
     const accessories = items.filter(item => item.type === 'item');
     const manpower = items.filter(item => item.type === 'manpower');
@@ -151,11 +211,75 @@ function PriceStockManagement() {
 
     return (
          <Card className="w-full max-w-4xl mx-auto shadow-lg rounded-xl">
-            <CardHeader>
-            <CardTitle className="flex items-center gap-2 font-headline">
-                <ShieldAlert className="h-6 w-6 text-primary" />
-                Price & Stock Management
-            </CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between">
+                <div className="space-y-1">
+                    <CardTitle className="flex items-center gap-2 font-headline">
+                        <ShieldAlert className="h-6 w-6 text-primary" />
+                        Price & Stock Management
+                    </CardTitle>
+                    <CardDescription>Edit prices and available stock for accessories and manpower.</CardDescription>
+                </div>
+                 <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                    <DialogTrigger asChild>
+                        <Button>
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            Add New Item
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[425px]">
+                        <DialogHeader>
+                        <DialogTitle>Add New Item</DialogTitle>
+                        <DialogDescription>
+                            Add a new accessory or manpower service to the booking system.
+                        </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="name" className="text-right">
+                                Name
+                                </Label>
+                                <Input id="name" value={newItemName} onChange={e => setNewItemName(e.target.value)} className="col-span-3" />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="price" className="text-right">
+                                Price (RS.)
+                                </Label>
+                                <Input id="price" type="number" value={newItemPrice} onChange={e => setNewItemPrice(Number(e.target.value))} className="col-span-3" />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="stock" className="text-right">
+                                Stock
+                                </Label>
+                                <Input id="stock" type="number" value={newItemStock} onChange={e => setNewItemStock(Number(e.target.value))} className="col-span-3" />
+                            </div>
+                             <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="type" className="text-right">
+                                Type
+                                </Label>
+                                 <Select onValueChange={(value: 'item' | 'manpower') => setNewItemType(value)} defaultValue={newItemType}>
+                                    <SelectTrigger className="col-span-3">
+                                        <SelectValue placeholder="Select a type" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="item">Accessory</SelectItem>
+                                        <SelectItem value="manpower">Manpower</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <DialogClose asChild>
+                                <Button type="button" variant="secondary">
+                                Cancel
+                                </Button>
+                            </DialogClose>
+                            <Button type="button" onClick={handleAddNewItem} disabled={isAdding}>
+                                {isAdding && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Save Item
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </CardHeader>
             <CardContent>
             {isLoading ? (
@@ -163,6 +287,11 @@ function PriceStockManagement() {
                     <Skeleton className="h-10 w-full" />
                     <Skeleton className="h-20 w-full" />
                     <Skeleton className="h-20 w-full" />
+                </div>
+             ) : error ? (
+                 <div className="text-center py-10 text-destructive flex flex-col items-center gap-2">
+                    <AlertCircle />
+                    <p>Could not load items.</p>
                 </div>
             ) : (
                 <>
