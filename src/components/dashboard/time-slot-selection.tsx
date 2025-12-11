@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Clock, Zap, Sun, Moon, Sparkles, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from '@/lib/utils';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, query, where, doc } from 'firebase/firestore';
-import type { Slot } from '@/lib/types';
+import type { Slot, Venue } from '@/lib/types';
 import { Skeleton } from '../ui/skeleton';
 import { useEffect, useState } from "react";
 
@@ -27,19 +27,26 @@ export function TimeSlotSelection({ selectedDate, selectedSlots, onSlotsChange }
     const firestore = useFirestore();
     const dateString = format(selectedDate, 'yyyy-MM-dd');
 
+    const venueRef = useMemoFirebase(() => firestore && doc(firestore, 'venue', 'avit-ground'), [firestore]);
+    const { data: venue, isLoading: isVenueLoading } = useDoc<Venue>(venueRef);
+
     // Query for existing slots on the selected date
     const slotsQuery = useMemoFirebase(() => {
         if (!firestore) return null;
         return query(collection(firestore, 'slots'), where('dateString', '==', dateString));
     }, [firestore, dateString]);
 
-    const { data: bookedSlots, isLoading } = useCollection<Slot>(slotsQuery);
+    const { data: bookedSlots, isLoading: areSlotsLoading } = useCollection<Slot>(slotsQuery);
     
     const [allSlots, setAllSlots] = useState<ClientGeneratedSlot[]>([]);
 
     useEffect(() => {
+        if (isVenueLoading || !venue) return;
+
         const startHour = 5; // 5 AM
         const endHour = 22; // 10 PM
+        const basePrice = venue.basePrice || 500; // Fallback price
+        const peakSurcharge = 150;
         
         const generatedSlots: ClientGeneratedSlot[] = [];
         for (let h = startHour; h < endHour; h++) {
@@ -49,6 +56,7 @@ export function TimeSlotSelection({ selectedDate, selectedSlots, onSlotsChange }
             if (existingSlot) {
                 generatedSlots.push(existingSlot);
             } else {
+                const isPeak = (h >= 17 && h <= 20);
                 // If slot doesn't exist in DB, it's available by default
                 generatedSlots.push({
                     id: slotId,
@@ -56,8 +64,8 @@ export function TimeSlotSelection({ selectedDate, selectedSlots, onSlotsChange }
                     dateString: dateString,
                     startTime: `${String(h).padStart(2,'0')}:00`,
                     endTime: `${String(h+1).padStart(2,'0')}:00`,
-                    price: 0, // Price will be determined server-side
-                    isPeak: (h >= 17 && h <= 20),
+                    price: basePrice + (isPeak ? peakSurcharge : 0),
+                    isPeak: isPeak,
                     status: 'available',
                     bookingId: null,
                 });
@@ -65,7 +73,7 @@ export function TimeSlotSelection({ selectedDate, selectedSlots, onSlotsChange }
         }
         setAllSlots(generatedSlots);
 
-    }, [dateString, bookedSlots]);
+    }, [dateString, bookedSlots, venue, isVenueLoading]);
 
 
     const handleSlotClick = (slotId: string, status: Slot['status']) => {
@@ -76,6 +84,8 @@ export function TimeSlotSelection({ selectedDate, selectedSlots, onSlotsChange }
                 : [...selectedSlots, slotId]
         );
     };
+    
+    const isLoading = areSlotsLoading || isVenueLoading;
 
     const sortedSlots = allSlots?.sort((a,b) => a.startTime.localeCompare(b.startTime));
     const morningSlots = sortedSlots?.filter(s => parseInt(s.startTime) < 12);

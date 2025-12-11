@@ -78,15 +78,15 @@ export function BookingSummary({ selectedDate, slotDetails, bookingAddons, onBoo
             const orderRequestData = {
                 slots: slotDetails.map(s => s.id),
                 addons: bookingAddons.map(a => ({ id: a.id, name: a.name, quantity: a.quantity, price: a.price, type: a.type })),
-                totalAmount: total,
+                // totalAmount is now calculated server-side for security
             };
             
             const result: any = await createRazorpayOrder(orderRequestData);
-            const { orderId, bookingId, key } = result.data;
+            const { orderId, bookingId, amount, key } = result.data;
 
             const options = {
                 key: key,
-                amount: total * 100,
+                amount: amount,
                 currency: "INR",
                 name: "AVIT Cricket Booker",
                 description: `Booking ID: ${bookingId.substring(0,8)}`,

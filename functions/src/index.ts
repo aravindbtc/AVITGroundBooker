@@ -24,7 +24,7 @@ exports.createRazorpayOrder = functions.https.onCall(async (data, context) => {
   if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Sign in required');
 
   const { uid } = context.auth;
-  const { slots, addons, totalAmount } = data;
+  const { slots, addons } = data;
   if (!Array.isArray(slots) || slots.length === 0) {
     throw new functions.https.HttpsError('invalid-argument', 'No slots selected');
   }
@@ -42,19 +42,68 @@ exports.createRazorpayOrder = functions.https.onCall(async (data, context) => {
   const bookingId = bookingDocId();
   const bookingRef = db.collection('bookings').doc(bookingId);
 
+  // Server-side calculation of total amount
+  let calculatedTotal = 0;
+
   // Transaction: verify all slots are still available and create a pending booking
   try {
     await db.runTransaction(async (t) => {
       const slotRefsAndData = [];
+      let slotPriceTotal = 0;
 
       for (const slotId of slots) {
         const slotRef = db.collection('slots').doc(slotId);
         const slotSnap = await t.get(slotRef);
         if (slotSnap.exists && slotSnap.data()?.status !== 'available') {
-          throw new functions.https.HttpsError('failed-precondition', `A selected time slot is no longer available.`);
+          throw new functions.https.HttpsError('failed-precondition', `A selected time slot (${slotId}) is no longer available.`);
         }
-        slotRefsAndData.push({ ref: slotRef, snap: slotSnap });
+        
+        const [dateString, hour] = slotId.split('_');
+        const h = parseInt(hour, 10);
+        const isPeak = (h >= 17 && h <= 20);
+        const price = basePrice + (isPeak ? peakSurcharge : 0);
+        slotPriceTotal += price;
+
+        const date = new Date(dateString);
+        const startAt = new Date(date); startAt.setUTCHours(h,0,0,0);
+        const endAt = new Date(date); endAt.setUTCHours(h+1,0,0,0);
+        
+        slotRefsAndData.push({ 
+            ref: slotRef, 
+            snap: slotSnap,
+            data: {
+                groundId: 'avit-ground',
+                dateString: dateString,
+                startTime: `${String(h).padStart(2,'0')}:00`,
+                endTime: `${String(h+1).padStart(2,'0')}:00`,
+                startAt: startAt,
+                endAt: endAt,
+                price: price,
+                isPeak,
+                status: 'blocked',
+                bookingId: bookingId
+            }
+        });
       }
+
+      // Calculate addon prices
+      let addonPriceTotal = 0;
+      if (addons && addons.length > 0) {
+        for (const addon of addons) {
+            const addonRef = db.collection('accessories').doc(addon.id);
+            const addonSnap = await t.get(addonRef);
+            if (!addonSnap.exists) {
+                throw new functions.https.HttpsError('not-found', `Addon with ID ${addon.id} not found.`);
+            }
+            const addonData = addonSnap.data();
+            if (addonData.stock < addon.quantity) {
+                 throw new functions.https.HttpsError('failed-precondition', `Not enough stock for ${addon.name}.`);
+            }
+            addonPriceTotal += addonData.price * addon.quantity;
+        }
+      }
+      
+      calculatedTotal = slotPriceTotal + addonPriceTotal;
 
       // Create booking doc with status pending
       const bookingData = {
@@ -63,40 +112,19 @@ exports.createRazorpayOrder = functions.https.onCall(async (data, context) => {
         date: slots[0].split('_')[0],
         slots,
         addons: addons || [],
-        totalAmount,
+        totalAmount: calculatedTotal,
         status: 'pending',
         payment: { orderId: null, status: 'pending', createdAt: admin.firestore.FieldValue.serverTimestamp() },
         createdAt: admin.firestore.FieldValue.serverTimestamp()
       };
       t.set(bookingRef, bookingData);
       
-      // Mark slots as blocked (reserved)
-      // This will create the slot doc if it doesn't exist
-      for (const { ref, snap } of slotRefsAndData) {
+      // Mark slots as blocked (or create them if they don't exist)
+      for (const { ref, snap, data } of slotRefsAndData) {
           if (snap.exists) {
             t.update(ref, { status: 'blocked', bookingId: bookingId });
           } else {
-            // Slot doesn't exist, so create it as blocked
-            const [dateString, hour] = ref.id.split('_');
-            const h = parseInt(hour, 10);
-            const isPeak = (h >= 17 && h <= 20);
-
-            const date = new Date(dateString);
-            const startAt = new Date(date); startAt.setUTCHours(h,0,0,0);
-            const endAt = new Date(date); endAt.setUTCHours(h+1,0,0,0);
-
-            t.set(ref, {
-              groundId: 'avit-ground',
-              dateString: dateString,
-              startTime: `${String(h).padStart(2,'0')}:00`,
-              endTime: `${String(h+1).padStart(2,'0')}:00`,
-              startAt: startAt,
-              endAt: endAt,
-              price: basePrice + (isPeak ? peakSurcharge : 0),
-              isPeak,
-              status: 'blocked',
-              bookingId: bookingId
-            });
+            t.set(ref, data);
           }
       }
     });
@@ -109,7 +137,7 @@ exports.createRazorpayOrder = functions.https.onCall(async (data, context) => {
   }
 
   // Create Razorpay order
-  const amountInPaise = Math.round(totalAmount * 100);
+  const amountInPaise = Math.round(calculatedTotal * 100);
   const orderOptions = {
     amount: amountInPaise,
     currency: "INR",
