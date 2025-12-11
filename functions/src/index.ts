@@ -11,113 +11,112 @@ const razorpay = new Razorpay({
   key_secret: functions.config().razorpay.key_secret,
 });
 
-// NEW: Handle custom proposals with overlap check
+// REWRITTEN: Direct booking and payment model. No more proposals.
 export const createRazorpayOrder = functions.https.onCall(async (data, context) => {
   if (!context.auth) {
-    throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated.');
+    throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated to book a slot.');
   }
-  const { slots, addons, totalAmount } = data; // slots: array<{id?: string, start: Timestamp, end: Timestamp, durationMins: number}>
+  const { slots, addons } = data; // slots: array<{startAt: string, endAt: string, durationMins: number, price: number}>
+
+  if (!slots || !Array.isArray(slots) || slots.length === 0) {
+    throw new functions.https.HttpsError('invalid-argument', 'Slot information is required.');
+  }
+
+  // Fetch venue for base price - ensures server-side price validation
+  const venueDoc = await db.doc('venue/avit-ground').get();
+  if (!venueDoc.exists) {
+      throw new functions.https.HttpsError('not-found', 'Venue details not configured. Please contact admin.');
+  }
+  const basePrice = venueDoc.data()?.basePrice || 500;
 
   return await db.runTransaction(async (transaction) => {
     const slotRefs: admin.firestore.DocumentReference[] = [];
-    let pendingSlots: any[] = []; // For new proposals
+    let calculatedTotal = 0;
 
-    // Validate/lock existing slots
     for (const slot of slots) {
-      if (slot.id) { // Existing slot
-        const slotRef = db.collection('venues/cricket/slots').doc(slot.id);
-        const slotSnap = await transaction.get(slotRef);
-        if (!slotSnap.exists || slotSnap.data()?.status !== 'available') {
-          throw new functions.https.HttpsError('invalid-argument', `Slot ${slot.id} unavailable.`);
-        }
-        transaction.update(slotRef, { status: 'booked', bookedBy: context.auth.uid });
-        slotRefs.push(slotRef);
-      } else { // New custom proposal
-        // Check overlaps on date/time
-        const date = new Date(slot.startAt).toISOString().split('T')[0];
-        const overlapQuery = db.collection('venues/cricket/slots')
-          .where('date', '==', date)
-          .where('status', '!=', 'maintenance');
-        const overlaps = await transaction.get(overlapQuery);
-        const proposedStart = new Date(slot.startAt);
-        const proposedEnd = new Date(slot.endAt);
-        if (overlaps.docs.some(doc => {
+      const proposedStart = new Date(slot.startAt);
+      const proposedEnd = new Date(slot.endAt);
+      const dateString = proposedStart.toISOString().split('T')[0];
+
+      // Security check for overlaps
+      const overlapQuery = db.collection('slots')
+        .where('dateString', '==', dateString);
+      
+      const overlapsSnap = await transaction.get(overlapQuery);
+      
+      const hasOverlap = overlapsSnap.docs.some(doc => {
           const s = doc.data();
           const existingStart = s.startAt.toDate();
           const existingEnd = s.endAt.toDate();
-          return !(existingEnd <= proposedStart || existingStart >= proposedEnd);
-        })) {
-          throw new functions.https.HttpsError('invalid-argument', 'Proposed slot overlaps existing—adjust times.');
-        }
-        // Create pending slot
-        const newSlotRef = db.collection('venues/cricket/slots').doc();
-        const price = calculatePrice(proposedStart.getHours(), slot.durationMins); // e.g., (duration/60 * 500) + peak
-        transaction.set(newSlotRef, {
-          ...slot,
-          status: 'pending',
-          proposerUID: context.auth.uid,
-          price,
-          date: admin.firestore.Timestamp.fromDate(proposedStart),
-        });
-        pendingSlots.push({ id: newSlotRef.id, ...slot });
-        slotRefs.push(newSlotRef);
+          // Check if !(existingEnd <= proposedStart || existingStart >= proposedEnd)
+          return existingEnd > proposedStart && existingStart < proposedEnd;
+      });
+
+      if (hasOverlap) {
+        throw new functions.https.HttpsError('already-exists', 'The selected time slot overlaps with an existing booking. Please choose a different time.');
       }
+
+      // Server-side price calculation
+      const durationHours = slot.durationMins / 60;
+      const isPeak = proposedStart.getHours() >= 17; // 5 PM onwards
+      const slotPrice = isPeak ? (basePrice * 1.2) * durationHours : basePrice * durationHours;
+      calculatedTotal += slotPrice;
+
+      // Prepare to create new slot document
+      const newSlotRef = db.collection('slots').doc();
+      transaction.set(newSlotRef, {
+        groundId: 'avit-ground',
+        dateString: dateString,
+        startTime: proposedStart.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit'}),
+        endTime: proposedEnd.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit'}),
+        startAt: admin.firestore.Timestamp.fromDate(proposedStart),
+        endAt: admin.firestore.Timestamp.fromDate(proposedEnd),
+        price: slotPrice,
+        isPeak: isPeak,
+        status: 'blocked', // Block temporarily until payment
+        bookingId: null,
+      });
+      slotRefs.push(newSlotRef);
+    }
+    
+    // Calculate addons price if any
+    for (const addon of addons || []) {
+        calculatedTotal += addon.price * addon.quantity;
     }
 
-    // Create Razorpay order (only if all valid; for pending, charge deposit or full?)
+    // Create Razorpay order with server-calculated total
     const order = await razorpay.orders.create({
-      amount: totalAmount * 100, // Paise
+      amount: calculatedTotal * 100, // To paise
       currency: 'INR',
-      receipt: `booking_${Date.now()}`,
-      notes: { userUID: context.auth.uid, slots: slots.map((s: any) => s.id || 'new') },
+      receipt: `booking_${context.auth.uid}_${Date.now()}`,
+      notes: { userUID: context.auth.uid },
     });
 
-    // Create pending booking
+    // Create the booking document
     const bookingRef = db.collection('bookings').doc();
     transaction.set(bookingRef, {
-      userUID: context.auth.uid,
-      slots: slotRefs.map(ref => ref.path),
-      addons,
-      totalAmount,
-      status: pendingSlots.length > 0 ? 'pending_approval' : 'pending',
-      razorpayOrderID: order.id,
+      uid: context.auth.uid,
+      groundId: 'avit-ground',
+      date: slots[0].startAt.split('T')[0],
+      slots: slotRefs.map(ref => ref.id),
+      addons: addons || [],
+      totalAmount: calculatedTotal,
+      payment: {
+        orderId: order.id,
+        status: 'created',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      status: 'pending', // Booking status is pending until payment is complete
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
+    
+    // Pass back slot IDs and booking ID to webhook/client
+    const newSlotIds = slotRefs.map(ref => ref.id);
+    transaction.update(bookingRef, { 'payment.notes': { slotIds: newSlotIds, bookingId: bookingRef.id } });
 
-    // TODO: Decrement add-on stock if applicable
-
-    return { orderId: order.id, bookingId: bookingRef.id, pendingSlots };
+    return { orderId: order.id, bookingId: bookingRef.id };
   });
 });
-
-// NEW: Admin approval
-export const approveSlot = functions.https.onCall(async (data, context) => {
-  if (context.auth?.token.email !== 'admin@avit.ac.in') {
-    throw new functions.https.HttpsError('permission-denied', 'Admin only.');
-  }
-  const { slotId, action } = data; // action: 'approve' | 'reject'
-  const slotRef = db.collection('venues/cricket/slots').doc(slotId);
-  const slotSnap = await slotRef.get();
-  if (!slotSnap.exists || slotSnap.data()?.status !== 'pending') {
-    throw new functions.https.HttpsError('invalid-argument', 'Invalid slot.');
-  }
-  await slotRef.update({
-    status: action === 'approve' ? 'available' : 'rejected',
-    approverUID: context.auth.uid,
-    approvedAt: admin.firestore.FieldValue.serverTimestamp(),
-  });
-  // FCM notify proposer
-  const proposerUID = slotSnap.data()?.proposerUID;
-  if (proposerUID) {
-    // await admin.messaging().sendToDevice(...); // Implement FCM
-  }
-  return { success: true };
-});
-
-function calculatePrice(hour: number, durationMins: number): number {
-  const base = (durationMins / 60) * 500;
-  return hour > 17 ? base * 1.2 : base; // Peak after 5PM
-}
 
 
 // Webhook to be set in Razorpay dashboard
@@ -138,7 +137,7 @@ export const razorpayWebhook = functions.https.onRequest(async (req, res) => {
     const payment = payload.payload.payment.entity;
     const razorpayOrderId = payment.order_id;
     
-    const bookingsQuery = await db.collection('bookings').where('razorpayOrderID', '==', razorpayOrderId).limit(1).get();
+    const bookingsQuery = await db.collection('bookings').where('payment.orderId', '==', razorpayOrderId).limit(1).get();
     if (bookingsQuery.empty) {
       console.error('Booking not found for order', razorpayOrderId);
       return res.status(200).send('ok');
@@ -148,7 +147,6 @@ export const razorpayWebhook = functions.https.onRequest(async (req, res) => {
     const bookingId = bookingSnap.id;
     const booking = bookingSnap.data();
 
-    // Idempotency check: if booking is already paid, do nothing.
     if (booking.status === 'paid') {
         console.log(`Booking ${bookingId} already marked as paid. Ignoring webhook.`);
         return res.status(200).send('ok');
@@ -163,9 +161,9 @@ export const razorpayWebhook = functions.https.onRequest(async (req, res) => {
       'payment.capturedAt': admin.firestore.FieldValue.serverTimestamp()
     });
 
-    for (const slotPath of booking.slots) {
-      const slotRef = db.doc(slotPath);
-      batch.update(slotRef, { status: 'booked' });
+    for (const slotId of booking.slots) {
+      const slotRef = db.collection('slots').doc(slotId);
+      batch.update(slotRef, { status: 'booked', bookingId: bookingId });
     }
 
     for (const addon of booking.addons || []) {
@@ -185,7 +183,7 @@ export const razorpayWebhook = functions.https.onRequest(async (req, res) => {
   } else if (payload.event === 'payment.failed') {
       const payment = payload.payload.payment.entity;
       const razorpayOrderId = payment.order_id;
-      const bookingsQuery = await db.collection('bookings').where('razorpayOrderID', '==', razorpayOrderId).limit(1).get();
+      const bookingsQuery = await db.collection('bookings').where('payment.orderId', '==', razorpayOrderId).limit(1).get();
       if (bookingsQuery.empty) {
         return res.status(200).send('ok');
       }
@@ -197,15 +195,14 @@ export const razorpayWebhook = functions.https.onRequest(async (req, res) => {
       const bookingRef = db.collection('bookings').doc(bookingId);
       batch.update(bookingRef, { status: 'failed', 'payment.status': 'failed' });
 
-      for (const slotPath of booking.slots) {
-        const slotRef = db.doc(slotPath);
-        // This makes them available again for the dynamic checker
-        batch.update(slotRef, { status: 'available' });
+      // Instead of making slots available, delete the transient slot documents
+      for (const slotId of booking.slots) {
+        const slotRef = db.collection('slots').doc(slotId);
+        batch.delete(slotRef);
       }
       
       await batch.commit();
-
-      console.log(`Payment failed for booking ${bookingId}. Slots released.`);
+      console.log(`Payment failed for booking ${bookingId}. Transient slots deleted.`);
   }
 
   res.status(200).send('ok');

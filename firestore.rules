@@ -3,52 +3,46 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    function noOverlap(date, start, end) {
-      // Simplified: Assume no client-side query; defer to function
-      // In prod, use exists() on potential overlaps if indexed
-      return request.time < timestamp.date(2026, 1, 1); // Temp broad allow; tighten with indexes
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // Flexible slots: Users propose pending, admins approve
-    match /venues/{venueId}/slots/{slotId} {
-      // Read/list for all auth users (realtime dashboard)
-      allow read, list: if request.auth != null;
-      
-      // Users create pending proposals (with validation)
-      allow create: if request.auth != null 
-        && request.resource.data.status == 'pending'
-        && request.resource.data.proposerUID == request.auth.uid
-        && noOverlap(request.resource.data.date, request.resource.data.start, request.end);
-      
-      // Users update own pending/rejected
-      allow update: if request.auth != null 
-        && resource.data.proposerUID == request.auth.uid
-        && resource.data.status in ['pending', 'rejected'];
-      
-      // Admins full control
-      allow update, delete: if request.auth != null 
-        && request.auth.token.email == 'admin@avit.ac.in';
+    // USERS collection
+    match /users/{userId} {
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+      allow list: if isAdmin();
     }
     
-    // Bookings: Auth creates, owner/admin updates
+    // SLOTS: Only trusted server code (Cloud Functions) can create/modify slots
+    match /slots/{slotId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin(); // Admin can override/block slots
+    }
+    
+    // BOOKINGS collection
     match /bookings/{bookingId} {
-      allow create: if request.auth != null && request.resource.data.userUID == request.auth.uid;
-      allow read: if request.auth != null && (resource.data.userUID == request.auth.uid || request.auth.token.email == 'admin@avit.ac.in');
-      allow update, delete: if request.auth != null 
-        && (resource.data.userUID == request.auth.uid || request.auth.token.email == 'admin@avit.ac.in');
+      // Read access: Admin can read any, user can read their own.
+      allow read: if isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
+      allow list: if isAdmin() || (request.query.where[0][0] == "uid" && request.query.where[0][2] == request.auth.uid);
+      
+      // Write access: All writes are handled by trusted Cloud Functions.
+      // Client-side creation/updates are disallowed.
+      allow write: if false; 
     }
     
-    // Fallback for other collections (e.g., addons, users, venue)
-    match /users/{uid} {
-      allow read, write: if request.auth.uid == uid;
-    }
+    // ACCESSORIES & VENUE: Read for all, write for admin
     match /accessories/{id} {
-      allow read, write: if request.auth != null;
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
     match /venue/{id} {
-      allow read, write: if request.auth != null;
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
   }
 }
-
     

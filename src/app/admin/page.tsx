@@ -389,7 +389,7 @@ function AllBookings() {
                         <TableBody>
                             {bookings.map((booking) => (
                                 <TableRow key={booking.id}>
-                                    <TableCell className="font-mono text-xs">#{booking.id.substring(0, 7)}</TableCell>
+                                    <TableCell className="font-mono text-xs">#{booking.id?.substring(0, 7)}</TableCell>
                                     <TableCell className="font-mono text-xs text-muted-foreground">@{booking.uid.substring(0, 8)}</TableCell>
                                     <TableCell className="font-medium">
                                         {booking.createdAt instanceof Timestamp ? format(booking.createdAt.toDate(), 'PPP') : 'Processing...'}
@@ -416,7 +416,7 @@ function AllBookings() {
                                                 </AlertDialogHeader>
                                                 <AlertDialogFooter>
                                                 <AlertDialogCancel>Back</AlertDialogCancel>
-                                                <AlertDialogAction onClick={() => handleCancelBooking(booking.id)}>Confirm Cancellation</AlertDialogAction>
+                                                <AlertDialogAction onClick={() => handleCancelBooking(booking.id!)}>Confirm Cancellation</AlertDialogAction>
                                                 </AlertDialogFooter>
                                             </AlertDialogContent>
                                         </AlertDialog>
