@@ -4,13 +4,14 @@ import { useState, useEffect, useMemo } from 'react';
 import { Calendar } from '@/components/ui/calendar'; // ShadCN
 import { FlexibleTimeSlotSelection } from './time-slot-selection';
 import { BookingSummary } from './booking-summary';
-import { useUser, useFirestore } from '@/firebase';
+import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { format } from 'date-fns';
 import type { Slot } from '@/lib/types';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import type { User } from 'firebase/auth';
 
 function useSlots(date: Date) {
     const firestore = useFirestore();
@@ -25,12 +26,17 @@ function useSlots(date: Date) {
         const q = query(collection(firestore, 'venues/cricket/slots'), where('dateString', '==', dateString));
         
         const unsubscribe = onSnapshot(q, (snapshot) => {
-            const fetchedSlots = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data(),
-                startAt: doc.data().startAt.toDate(),
-                endAt: doc.data().endAt.toDate(),
-            })) as Slot[];
+            const fetchedSlots = snapshot.docs.map(doc => {
+                const data = doc.data();
+                return {
+                    id: doc.id,
+                    ...data,
+                    // Ensure Timestamps are converted to Dates
+                    startAt: data.startAt?.toDate ? data.startAt.toDate() : new Date(data.startAt),
+                    endAt: data.endAt?.toDate ? data.endAt.toDate() : new Date(data.endAt),
+                    date: data.date?.toDate ? data.date.toDate() : new Date(data.date),
+                } as Slot;
+            });
             setSlots(fetchedSlots);
             setIsLoading(false);
         }, (error) => {
@@ -57,37 +63,53 @@ function overlaps(s1: Slot, s2: Slot) {
 function ProposeModal({ date, onClose, onPropose }: { date: Date; onClose: () => void; onPropose: (slot: Slot) => void }) {
   const [start, setStart] = useState(date);
   const [end, setEnd] = useState(new Date(date.getTime() + 60 * 60 * 1000)); // 1hr default
-  const duration = (end.getTime() - start.getTime()) / (1000 * 60);
+  const {toast} = useToast();
+
+  const handlePropose = () => {
+    const duration = (end.getTime() - start.getTime()) / (1000 * 60);
+    if (duration < 30 || duration > 180) { // Increased max duration
+      toast({
+        variant: "destructive",
+        title: "Invalid Duration",
+        description: "Slot duration must be between 30 and 180 minutes."
+      });
+      return;
+    }
+    if (end <= start) {
+        toast({
+            variant: "destructive",
+            title: "Invalid Time",
+            description: "End time must be after start time."
+        });
+        return;
+    }
+
+    onPropose({ 
+        startAt: start, 
+        endAt: end, 
+        durationMins: duration, 
+        status: 'pending' as const,
+        date: start, // for querying
+        price: 0, // server will calculate
+      });
+    onClose();
+  }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <Card className="p-4 w-full max-w-md">
-        <h3 className="font-headline text-lg mb-4">Propose Custom Slot</h3>
-        <div className="space-y-4">
-            <div>
-                <label className="text-sm font-medium">Start Time</label>
-                <input type="datetime-local" value={start.toISOString().slice(0,16)} onChange={e => setStart(new Date(e.target.value))} className="w-full p-2 border rounded-md"/>
-            </div>
-            <div>
-                <label className="text-sm font-medium">End Time</label>
-                <input type="datetime-local" value={end.toISOString().slice(0,16)} onChange={e => setEnd(new Date(e.target.value))} className="w-full p-2 border rounded-md"/>
-            </div>
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+      <Card className="p-6 w-full max-w-md space-y-4">
+        <h3 className="font-headline text-lg mb-4">Propose Custom Time Slot</h3>
+        <div className="space-y-2">
+            <label className="text-sm font-medium">Start Time</label>
+            <input type="datetime-local" defaultValue={start.toISOString().slice(0,16)} onChange={e => setStart(new Date(e.target.value))} className="w-full p-2 border rounded-md bg-background"/>
         </div>
-        <p className="text-sm text-muted-foreground mt-2">Duration: {duration} mins (Min 30, Max 120)</p>
+        <div className="space-y-2">
+            <label className="text-sm font-medium">End Time</label>
+            <input type="datetime-local" defaultValue={end.toISOString().slice(0,16)} onChange={e => setEnd(new Date(e.target.value))} className="w-full p-2 border rounded-md bg-background"/>
+        </div>
         <div className="flex justify-end gap-2 mt-4">
             <Button variant="outline" onClick={onClose}>Cancel</Button>
-            <Button onClick={() => {
-            if (duration < 30 || duration > 120) return alert('Invalid duration');
-            onPropose({ 
-                startAt: start, 
-                endAt: end, 
-                durationMins: duration, 
-                status: 'pending' as const,
-                date: start, // for querying
-                price: 0, // server will calculate
-             });
-            onClose();
-            }}>Propose</Button>
+            <Button onClick={handlePropose}>Propose Slot</Button>
         </div>
       </Card>
     </div>
@@ -146,14 +168,11 @@ export function Dashboard() {
             date={date} 
             onClose={() => setShowProposeModal(false)} 
             onPropose={(newSlot) => {
-            setSelectedSlots(prev => [...prev, newSlot]);
-            // Optimistic add; real propose in mutation
+              setSelectedSlots(prev => [...prev, newSlot]);
             }} 
         />
-        )}
-      {selectedSlots.length > 0 && <BookingSummary slots={selectedSlots} user={user} />}
+      )}
+      {selectedSlots.length > 0 && <BookingSummary slots={selectedSlots} />}
     </div>
   );
 }
-
-    
