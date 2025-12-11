@@ -1,171 +1,120 @@
 
-"use client";
-import { Button } from "@/components/ui/button";
-import { Clock, Zap, Sun, Moon, Sparkles, CheckCircle2 } from "lucide-react";
-import { format } from "date-fns";
-import { cn } from '@/lib/utils';
-import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, query, where, doc } from 'firebase/firestore';
-import type { Slot, Venue } from '@/lib/types';
-import { Skeleton } from '../ui/skeleton';
-import { useEffect, useState } from "react";
+'use client';
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Clock, Zap } from 'lucide-react';
+import type { Slot } from '@/lib/types'; // Updated type
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { useToast } from '@/hooks/use-toast';
+import { useUser } from '@/firebase';
 
-type TimeSlotSelectionProps = {
-    selectedDate: Date;
-    selectedSlots: string[];
-    onSlotsChange: (slots: string[]) => void;
-};
-
-// This represents a slot generated on the client, which may or may not exist in Firestore
-type ClientGeneratedSlot = Omit<Slot, 'startAt' | 'endAt'> & {
-  startAt?: Slot['startAt'];
-  endAt?: Slot['endAt'];
-};
-
-
-export function TimeSlotSelection({ selectedDate, selectedSlots, onSlotsChange }: TimeSlotSelectionProps) {
-    const firestore = useFirestore();
-    const dateString = format(selectedDate, 'yyyy-MM-dd');
-
-    const venueRef = useMemoFirebase(() => firestore && doc(firestore, 'venue', 'avit-ground'), [firestore]);
-    const { data: venue, isLoading: isVenueLoading } = useDoc<Venue>(venueRef);
-
-    // Query for existing slots on the selected date
-    const slotsQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
-        return query(collection(firestore, 'slots'), where('dateString', '==', dateString));
-    }, [firestore, dateString]);
-
-    const { data: bookedSlots, isLoading: areSlotsLoading } = useCollection<Slot>(slotsQuery);
-    
-    const [allSlots, setAllSlots] = useState<ClientGeneratedSlot[]>([]);
-
-    useEffect(() => {
-        if (isVenueLoading || !venue) return;
-
-        const startHour = 5; // 5 AM
-        const endHour = 22; // 10 PM
-        const basePrice = venue.basePrice || 500; // Fallback price
-        const peakSurcharge = 150;
-        
-        const generatedSlots: ClientGeneratedSlot[] = [];
-        for (let h = startHour; h < endHour; h++) {
-            const slotId = `${dateString}_${String(h).padStart(2, '0')}`;
-            const existingSlot = bookedSlots?.find(s => s.id === slotId);
-
-            if (existingSlot) {
-                generatedSlots.push(existingSlot);
-            } else {
-                const isPeak = (h >= 17 && h <= 20);
-                // If slot doesn't exist in DB, it's available by default
-                generatedSlots.push({
-                    id: slotId,
-                    groundId: 'avit-ground',
-                    dateString: dateString,
-                    startTime: `${String(h).padStart(2,'0')}:00`,
-                    endTime: `${String(h+1).padStart(2,'0')}:00`,
-                    price: basePrice + (isPeak ? peakSurcharge : 0),
-                    isPeak: isPeak,
-                    status: 'available',
-                    bookingId: null,
-                });
-            }
-        }
-        setAllSlots(generatedSlots);
-
-    }, [dateString, bookedSlots, venue, isVenueLoading]);
-
-
-    const handleSlotClick = (slotId: string, status: Slot['status']) => {
-        if (status === 'booked' || status === 'blocked') return;
-        onSlotsChange(
-            selectedSlots.includes(slotId)
-                ? selectedSlots.filter(id => id !== slotId)
-                : [...selectedSlots, slotId]
-        );
-    };
-    
-    const isLoading = areSlotsLoading || isVenueLoading;
-
-    const sortedSlots = allSlots?.sort((a,b) => a.startTime.localeCompare(b.startTime));
-    const morningSlots = sortedSlots?.filter(s => parseInt(s.startTime) < 12);
-    const afternoonSlots = sortedSlots?.filter(s => parseInt(s.startTime) >= 12 && parseInt(s.startTime) < 17);
-    const eveningSlots = sortedSlots?.filter(s => parseInt(s.startTime) >= 17);
-
-    const renderSlotButtons = (slots: ClientGeneratedSlot[] | undefined) => {
-        if (!slots || slots.length === 0) {
-             return <p className="col-span-full text-muted-foreground text-sm p-4 text-center">No slots available for this period.</p>
-        }
-        return slots.map(slot => (
-            <Button
-                key={slot.id}
-                variant={selectedSlots.includes(slot.id) ? "default" : "outline"}
-                disabled={slot.status === 'booked' || slot.status === 'blocked'}
-                onClick={() => handleSlotClick(slot.id, slot.status)}
-                className={cn("relative h-12 text-xs md:text-sm transition-all duration-200", 
-                    { 'ring-2 ring-primary ring-offset-2': selectedSlots.includes(slot.id),
-                      'bg-muted hover:bg-muted text-muted-foreground/60 cursor-not-allowed line-through': slot.status === 'booked' || slot.status === 'blocked'
-                    }
-                )}
-            >
-                {slot.isPeak && <Zap className="absolute top-1 right-1 h-3 w-3 text-accent fill-current" />}
-                {slot.startTime}
-            </Button>
-        ));
-    }
-
-    if (isLoading) {
-        return (
-            <div className="space-y-6">
-                 <div className="space-y-3">
-                    <h3 className="font-semibold text-lg flex items-center gap-2"><Sun className="text-amber-500" /> Morning</h3>
-                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
-                        {Array.from({length: 7}).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-                    </div>
-                </div>
-                 <div className="space-y-3">
-                    <h3 className="font-semibold text-lg flex items-center gap-2"><Sparkles className="text-sky-500" /> Afternoon</h3>
-                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
-                        {Array.from({length: 5}).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-                    </div>
-                </div>
-                 <div className="space-y-3">
-                    <h3 className="font-semibold text-lg flex items-center gap-2"><Moon className="text-indigo-500" /> Evening</h3>
-                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
-                        {Array.from({length: 5}).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    return (
-        <div className="space-y-6">
-            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground pt-2">
-                <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm bg-card border-2 border-primary"></div><span>Available</span></div>
-                <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm bg-primary"></div><span>Selected</span></div>
-                <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm bg-muted line-through"></div><span>Booked</span></div>
-                <div className="flex items-center gap-2"><Zap className="h-4 w-4 text-accent fill-accent" /><span>Peak Hour (+RS.150)</span></div>
-            </div>
-
-            <div className="space-y-3">
-                <h3 className="font-semibold text-lg flex items-center gap-2"><Sun className="text-amber-500" /> Morning</h3>
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
-                    {renderSlotButtons(morningSlots)}
-                </div>
-            </div>
-             <div className="space-y-3">
-                <h3 className="font-semibold text-lg flex items-center gap-2"><Sparkles className="text-sky-500" /> Afternoon</h3>
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
-                     {renderSlotButtons(afternoonSlots)}
-                </div>
-            </div>
-             <div className="space-y-3">
-                <h3 className="font-semibold text-lg flex items-center gap-2"><Moon className="text-indigo-500" /> Evening</h3>
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
-                    {renderSlotButtons(eveningSlots)}
-                </div>
-            </div>
-        </div>
-    );
+interface Props {
+  slots: Slot[];
+  selectedSlots: Slot[];
+  onSelect: (slots: Slot[]) => void;
+  onPropose: () => void;
+  date: Date;
 }
+
+export function FlexibleTimeSlotSelection({ slots, selectedSlots, onSelect, onPropose, date }: Props) {
+  const [hoveredGap, setHoveredGap] = useState<{ start: Date; end: Date } | null>(null);
+  const { toast } = useToast();
+  const { user } = useUser();
+
+  const handlePropose = async (proposal: { start: Date; end: Date; durationMins: number }) => {
+      if (!user) {
+          toast({ variant: 'destructive', title: "Authentication required" });
+          return;
+      }
+      try {
+          const functions = getFunctions();
+          const proposeCustomSlot = httpsCallable(functions, 'proposeCustomSlot');
+          const result: any = await proposeCustomSlot({ date, ...proposal });
+
+          // Add optimistic pending slot
+          onSelect([...selectedSlots, { 
+              ...proposal, 
+              id: result.data.slotId, 
+              status: 'pending', 
+              price: result.data.price,
+              proposerUID: user.uid,
+              date: proposal.start,
+            }]);
+          toast({ title: "Proposal Submitted", description: "Your custom slot request has been sent for admin approval."});
+      } catch (error: any) {
+          toast({ variant: 'destructive', title: "Proposal Failed", description: error.message || "Could not submit proposal." });
+      }
+  };
+
+  // Sort slots by start time, find gaps for proposals
+  const sortedSlots = [...slots].sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
+  const gaps: { start: Date; end: Date }[] = [];
+  let prevEnd = new Date(date);
+  prevEnd.setHours(5, 0, 0, 0); // Ground opens 5AM
+
+  sortedSlots.forEach(slot => {
+    const start = new Date(slot.startAt);
+    if (start > prevEnd) {
+      gaps.push({ start: prevEnd, end: start });
+    }
+    prevEnd = new Date(Math.max(prevEnd.getTime(), new Date(slot.endAt).getTime()));
+  });
+
+  // Add end-of-day gap
+  const endOfDay = new Date(date);
+  endOfDay.setHours(22, 0, 0, 0); // Closes 10PM
+  if (prevEnd < endOfDay) {
+    gaps.push({ start: prevEnd, end: endOfDay });
+  }
+
+
+  const toggleSlot = (slot: Slot) => {
+    if (slot.status === 'available') {
+      const isSelected = selectedSlots.some(s => s.id === slot.id);
+      onSelect(isSelected ? selectedSlots.filter(s => s.id !== slot.id) : [...selectedSlots, slot]);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <h3 className="flex items-center gap-2 font-headline"><Clock /> Time Slots</h3>
+      <div className="h-96 overflow-y-auto border rounded-lg p-2 space-y-2 bg-slate-50 dark:bg-slate-900"> {/* Timeline container */}
+        {sortedSlots.map(slot => (
+          <div key={slot.id} className={`flex items-center p-2 border-l-4 rounded-r-md bg-white dark:bg-black ${
+            slot.status === 'available' ? 'border-green-500 cursor-pointer hover:bg-green-50' : 
+            slot.status === 'pending' ? 'border-yellow-500' : 'border-red-500'
+          }`} onClick={() => toggleSlot(slot)}>
+            <Badge variant={slot.status === 'available' ? 'default' : 'secondary'}>
+              {new Date(slot.startAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(slot.endAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </Badge>
+            {new Date(slot.startAt).getHours() > 17 && <Zap className="w-4 h-4 text-yellow-500 ml-auto" />} {/* Peak */}
+            <span className="ml-2 font-semibold">₹{slot.price}</span>
+            {slot.status === 'pending' && <span className="ml-2 text-yellow-600 font-medium">Pending Approval</span>}
+             {selectedSlots.some(s => s.id === slot.id) && <span className="ml-auto text-green-600 font-bold">Selected</span>}
+          </div>
+        ))}
+        {/* Gaps for proposals */}
+        {gaps.map((gap, i) => (
+          <div key={`gap-${i}`} className="p-2 bg-gray-100 dark:bg-gray-800 border-dashed border-y cursor-pointer hover:bg-gray-200" 
+               onMouseEnter={() => setHoveredGap(gap)} onClick={onPropose}>
+            <p className="text-sm text-center text-muted-foreground">Free: {gap.start.toLocaleTimeString([], { hour: '2-digit', minute:'2-digit' })} - {gap.end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+            {hoveredGap === gap && (
+              <div className="text-center mt-2">
+                <Button size="sm" onClick={(e) => { 
+                    e.stopPropagation(); 
+                    handlePropose({ start: gap.start, end: new Date(gap.start.getTime() + 60*60*1000), durationMins: 60 }); 
+                }}>
+                    Propose Here (1hr)
+                </Button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      <Button onClick={onPropose} variant="outline" className="w-full">Propose a Custom Time Slot</Button>
+    </div>
+  );
+}
+
+    

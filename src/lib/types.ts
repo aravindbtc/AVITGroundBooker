@@ -13,23 +13,44 @@ export type UserProfile = {
   createdAt: Timestamp;
 };
 
+export type Slot = {
+  id?: string;
+  startAt: Date | Timestamp; // Can be Date on client, Timestamp in Firestore
+  endAt: Date | Timestamp;
+  durationMins: number; // NEW: Flexible duration
+  status: 'available' | 'booked' | 'pending' | 'rejected' | 'maintenance'; // Extended
+  price: number;
+  proposerUID?: string; // NEW: For custom proposals
+  approverUID?: string;
+  notes?: string;
+  date: Date | Timestamp; // For queries
+  groundId?: string;
+  dateString?: string;
+  startTime?: string;
+  endTime?: string;
+  isPeak?: boolean;
+  bookingId?: string | null;
+};
+
+
 export type Booking = {
-  id: string;
-  uid: string;
-  groundId: string;
-  date: string;
-  slots: string[];
-  addons: BookingItem[];
+  id?: string;
+  uid: string; // Changed from userUID for consistency
+  slots: string[]; // Ref paths
+  addons?: Array<{ itemId: string; quantity: number }>;
   totalAmount: number;
-  payment: {
+  status: 'pending' | 'paid' | 'approved' | 'rejected' | 'pending_approval' | 'cancelled' | 'failed'; // NEW: For proposals
+  razorpayOrderID?: string;
+  createdAt?: Date | Timestamp;
+  groundId?: string;
+  date?: string;
+  payment?: {
       orderId: string;
       razorpayPaymentId?: string;
       status: 'pending' | 'created' | 'paid' | 'failed';
       createdAt: Timestamp;
       capturedAt?: Timestamp;
   };
-  status: 'pending' | 'paid' | 'cancelled' | 'failed';
-  createdAt: Timestamp;
 };
 
 export type Accessory = {
@@ -39,20 +60,6 @@ export type Accessory = {
   stock: number;
   type: 'item' | 'manpower';
 }
-
-export type Slot = {
-  id: string;
-  groundId: string;
-  dateString: string; // YYYY-MM-DD
-  startTime: string; // HH:MM
-  endTime: string; // HH:MM
-  startAt: Timestamp;
-  endAt: Timestamp;
-  price: number;
-  isPeak: boolean;
-  status: 'available' | 'booked' | 'blocked';
-  bookingId: string | null;
-};
 
 export type Venue = {
   id?: string;

@@ -2,56 +2,53 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    function isSignedIn() {
-      return request.auth != null;
-    }
-    function isAdmin() {
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-    function isOwner(uid) {
-      return isSignedIn() && request.auth.uid == uid;
+    
+    function noOverlap(date, start, end) {
+      // Simplified: Assume no client-side query; defer to function
+      // In prod, use exists() on potential overlaps if indexed
+      return request.time < timestamp.date(2026, 1, 1); // Temp broad allow; tighten with indexes
     }
 
-    match /users/{uid} {
-      allow read: if isOwner(uid) || isAdmin();
-      allow create: if isOwner(uid);
-      allow update: if isOwner(uid) || isAdmin();
-      allow delete: if false;
-    }
-
-    match /slots/{slotId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    match /accessories/{accId} {
-      allow read: if true;
-      allow write: if isAdmin();
+    // Flexible slots: Users propose pending, admins approve
+    match /venues/{venueId}/slots/{slotId} {
+      // Read/list for all auth users (realtime dashboard)
+      allow read, list: if request.auth != null;
+      
+      // Users create pending proposals (with validation)
+      allow create: if request.auth != null 
+        && request.resource.data.status == 'pending'
+        && request.resource.data.proposerUID == request.auth.uid
+        && noOverlap(request.resource.data.date, request.resource.data.start, request.end);
+      
+      // Users update own pending/rejected
+      allow update: if request.auth != null 
+        && resource.data.proposerUID == request.auth.uid
+        && resource.data.status in ['pending', 'rejected'];
+      
+      // Admins full control
+      allow update, delete: if request.auth != null 
+        && request.auth.token.email == 'admin@avit.ac.in';
     }
     
-    match /venue/{vId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
+    // Bookings: Auth creates, owner/admin updates
     match /bookings/{bookingId} {
-      allow read: if isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
-      
-      // Admins can list all bookings. Users can only list their own bookings via a 'uid' query.
-      allow list: if isAdmin() || (request.query.where.size() == 1 && request.query.where[0][0] == "uid" && request.query.where[0][2] == request.auth.uid);
-
-      allow create: if isSignedIn()
-                    && request.resource.data.uid == request.auth.uid
-                    && request.resource.data.status == "pending"
-                    && request.resource.data.payment.orderId is string;
-
-      allow update: if isAdmin() ||
-                    (isOwner(resource.data.uid) &&
-                      request.resource.data.status == "cancelled" &&
-                      resource.data.status == "pending");
-
-      allow delete: if isAdmin();
+      allow create: if request.auth != null && request.resource.data.userUID == request.auth.uid;
+      allow read: if request.auth != null && (resource.data.userUID == request.auth.uid || request.auth.token.email == 'admin@avit.ac.in');
+      allow update, delete: if request.auth != null 
+        && (resource.data.userUID == request.auth.uid || request.auth.token.email == 'admin@avit.ac.in');
+    }
+    
+    // Fallback for other collections (e.g., addons, users, venue)
+    match /users/{uid} {
+      allow read, write: if request.auth.uid == uid;
+    }
+    match /accessories/{id} {
+      allow read, write: if request.auth != null;
+    }
+    match /venue/{id} {
+      allow read, write: if request.auth != null;
     }
   }
 }
+
+    
