@@ -31,6 +31,7 @@ service cloud.firestore {
       // LIST (queries): 
       // An admin can list all bookings without restriction.
       // A regular user can ONLY list bookings if the query filters by their own UID.
+      // Firestore enforces this by checking the `allow read` rule on every document the query might return.
       allow list: if isAdmin() || (isSignedIn() && request.query.where.get("uid")[2] == request.auth.uid);
       
       // WRITE: All writes are handled by trusted Cloud Functions to ensure data integrity.
