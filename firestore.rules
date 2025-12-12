@@ -27,8 +27,9 @@ service cloud.firestore {
     match /bookings/{bookingId} {
       // Read access: Admin can read any, user can read their own.
       allow read: if isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
-      // List access: Admin can list all, users can list their own via a query.
-      allow list: if isAdmin() || (isSignedIn() && request.query.where[0][2] == request.auth.uid);
+      
+      // List access: Admin can list all bookings. A user can only list their own bookings.
+      allow list: if isAdmin() || (isSignedIn() && request.query.get("uid") == request.auth.uid);
       
       // Write access: All writes are handled by trusted Cloud Functions.
       // Client-side creation/updates are disallowed.
