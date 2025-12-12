@@ -8,10 +8,11 @@ service cloud.firestore {
     
     function isAdmin() {
       // Check if the user's document in Firestore has the 'admin' role.
+      // This is a secure way to check for admin privileges.
       return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // USERS: Users can read/write their own profile. Admins can list all users.
+    // USERS: Users can read/write their own profile. Admins can read all users.
     match /users/{userId} {
       allow read, write: if isSignedIn() && request.auth.uid == userId;
       allow list: if isAdmin();
@@ -20,10 +21,10 @@ service cloud.firestore {
     // SLOTS: Slots are read-only for clients. All writes are handled by secure Cloud Functions.
     match /slots/{slotId} {
       allow read: if isSignedIn();
-      allow write: if false; 
+      allow write: if false; // All writes must go through Cloud Functions
     }
     
-    // BOOKINGS: This is the critical fix.
+    // BOOKINGS: This is the definitive fix.
     match /bookings/{bookingId} {
       // Admins have full read/write access to all bookings.
       allow read, write: if isAdmin();
@@ -33,7 +34,7 @@ service cloud.firestore {
       // Firestore checks this rule against every document the query tries to return.
       allow read: if isSignedIn() && resource.data.uid == request.auth.uid;
       
-      // All other operations for non-admins are denied at the document level.
+      // Deny all other operations for non-admins at the document level.
       // List is implicitly denied by not having a rule for it. Create/update/delete are handled by functions.
     }
     
