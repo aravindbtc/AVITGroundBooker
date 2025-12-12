@@ -174,15 +174,9 @@ export function VenueManagement() {
                         <Input id="gps.lng" name="gps.lng" type="number" value={formData.gps?.lng || ''} onChange={handleGpsChange} />
                     </div>
                 </div>
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                     <div className="space-y-2">
-                        <Label htmlFor="basePrice">Base Price (per hour)</Label>
-                        <Input id="basePrice" name="basePrice" type="number" value={formData.basePrice || ''} onChange={handleInputChange} />
-                    </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="rating">Rating (1-5)</Label>
-                        <Input id="rating" name="rating" type="number" step="0.1" max="5" min="0" value={formData.rating || ''} onChange={handleInputChange} />
-                    </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="basePrice">Base Price (per hour)</Label>
+                    <Input id="basePrice" name="basePrice" type="number" value={formData.basePrice || ''} onChange={handleInputChange} />
                 </div>
 
                 <Separator className="my-6" />

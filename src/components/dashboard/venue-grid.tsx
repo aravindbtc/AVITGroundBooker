@@ -75,10 +75,10 @@ export function VenueGrid() {
                     <div className="flex items-center gap-2">
                         <div className="flex items-center gap-1 text-accent">
                             {[...Array(5)].map((_, i) => (
-                                <Star key={i} className={`h-5 w-5 ${i < Math.floor(venue.rating) ? 'fill-current' : 'stroke-current text-muted-foreground/50'}`} />
+                                <Star key={i} className={`h-5 w-5 ${i < Math.floor(venue.rating || 0) ? 'fill-current' : 'stroke-current text-muted-foreground/50'}`} />
                             ))}
                         </div>
-                        <span className="font-bold text-base">{venue.rating}/5.0</span>
+                        <span className="font-bold text-base">{venue.rating?.toFixed(1) || 'N/A'}/5.0</span>
                         <span className="text-muted-foreground text-xs">(342 Reviews)</span>
                     </div>
                     <div className="text-right">
