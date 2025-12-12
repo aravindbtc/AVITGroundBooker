@@ -5,11 +5,19 @@ import { useUser } from "@/firebase";
 import { Header } from "./header";
 import { Footer } from "./footer";
 import { Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
     const { isUserLoading } = useUser();
+    const [isClient, setIsClient] = useState(false);
 
-    if (isUserLoading) {
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
+
+    // Only show the loading spinner on the client after it has mounted.
+    // The server will always render the full layout, preventing a mismatch.
+    if (isClient && isUserLoading) {
         return (
             <div className="flex justify-center items-center" style={{ height: '100vh' }}>
                 <div className="text-center">
