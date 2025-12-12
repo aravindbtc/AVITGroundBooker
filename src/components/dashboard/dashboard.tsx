@@ -1,6 +1,6 @@
 
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Calendar } from '@/components/ui/calendar'; // ShadCN
 import { FlexibleTimeSlotSelection } from './time-slot-selection';
 import { BookingSummary } from './booking-summary';
@@ -12,6 +12,7 @@ import type { BookingItem, Slot } from '@/lib/types';
 import { query, collection, where, onSnapshot } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { AddonsBooking } from './addons-booking';
+import { VenueInfo } from './venue-info';
 
 function useSlots(date: Date) {
     const firestore = useFirestore();
@@ -145,6 +146,7 @@ export function Dashboard() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
       <div className="md:col-span-2 space-y-8">
+        <VenueInfo />
         <Card className="p-4">
             <h2 className="text-lg font-semibold font-headline mb-2 text-center">Select Date</h2>
             <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} className="rounded-md border mx-auto" />
