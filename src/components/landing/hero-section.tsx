@@ -1,31 +1,30 @@
 
 'use client';
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar, Users, MapPin, Search } from "lucide-react";
 import Link from 'next/link';
+import type { Venue } from '@/lib/types';
+import Image from "next/image";
 
-export function HeroSection() {
+export function HeroSection({ venue }: { venue: Venue }) {
+    const primaryImage = (venue.images && venue.images.length > 0) ? venue.images[0] : "https://picsum.photos/seed/cricket-poster/1920/1080";
+
     return (
         <section className="relative h-screen flex items-center justify-center text-white">
             <div className="absolute inset-0">
-                <video 
-                    autoPlay 
-                    loop 
-                    muted 
-                    playsInline
-                    className="w-full h-full object-cover"
-                    poster="https://picsum.photos/seed/cricket-poster/1920/1080"
-                >
-                    {/* Provide multiple sources for better browser compatibility */}
-                    <source src="https://storage.googleapis.com/maker-studio-project-images-prod/user-prompt-images/instance-images/11382405-b0b3-4f51-b847-a84ef3381666" type="video/mp4" />
-                    Your browser does not support the video tag.
-                </video>
+                <Image
+                    src={primaryImage}
+                    alt={venue.fullName}
+                    fill
+                    className="object-cover"
+                    data-ai-hint="cricket ground"
+                    priority
+                />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent"></div>
             </div>
             <div className="relative z-10 text-center px-4">
                 <h1 className="text-4xl md:text-6xl font-headline font-bold mb-4 drop-shadow-2xl">
-                    Book Your Perfect Pitch in Seconds
+                    {venue.fullName || "Book Your Perfect Pitch in Seconds"}
                 </h1>
                 <p className="text-lg md:text-xl mb-8 max-w-3xl mx-auto">
                     Discover 100+ premium grounds across India. No more queues—just swipe, book, and bat!
@@ -54,7 +53,7 @@ export function HeroSection() {
                 
                 <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
                     <Button size="lg" asChild className="bg-green-500 hover:bg-green-600 w-full sm:w-auto">
-                        <Link href="/register">Sign Up Free & Get ₹100 Off</Link>
+                        <Link href="/login">Sign Up Free & Get ₹100 Off</Link>
                     </Button>
                 </div>
             </div>
@@ -66,4 +65,3 @@ export function HeroSection() {
 const Input = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
     <input {...props} className={`w-full h-12 px-4 py-2 rounded-md bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 ${props.className || ''}`} />
 );
-

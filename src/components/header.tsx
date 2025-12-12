@@ -129,11 +129,10 @@ export function Header() {
   return (
     <header className={cn(
         "sticky top-0 z-40 w-full border-b backdrop-blur-sm",
-        isLandingPage && !user ? "bg-transparent border-transparent" : "bg-background/95 border-border"
+        isLandingPage && !user ? "bg-transparent border-transparent text-white" : "bg-background/95 border-border text-foreground"
     )}>
       <div className={cn(
-        "container mx-auto flex h-16 items-center justify-between px-4",
-        isLandingPage && !user ? "text-white" : "text-foreground"
+        "container mx-auto flex h-16 items-center justify-between px-4"
       )}>
         <div className="flex items-center gap-6">
             <Link href="/" className="flex items-center gap-2">
@@ -172,12 +171,12 @@ export function Header() {
                 <>
                     <Button asChild variant="outline" className="hidden sm:flex bg-transparent border-white text-white hover:bg-white hover:text-primary">
                         <Link href="/login">
-                            Quick Login
+                            Login
                         </Link>
                     </Button>
                     <Button asChild className="bg-green-500 hover:bg-green-600 text-white">
-                        <Link href="/register">
-                            Sign Up Free
+                        <Link href="/login">
+                            Sign Up
                         </Link>
                     </Button>
                 </>
