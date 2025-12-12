@@ -44,27 +44,40 @@ function BookingList() {
     const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
     const bookingsQuery = useMemoFirebase(() => {
-        if (!firestore || !user || isProfileLoading) {
-          return null; // Don't create a query until everything is loaded.
+        // Return null and wait until we have all the data we need to make a decision.
+        if (isUserLoading || isProfileLoading || !firestore || !user) {
+            return null;
         }
-    
-        // Admins can see all bookings
+
+        // Now we are sure we have user and profile info.
         if (userProfile?.role === 'admin') {
-          return query(
-            collection(firestore, "bookings"),
-            orderBy("createdAt", "desc")
-          );
+            return query(
+                collection(firestore, "bookings"),
+                orderBy("createdAt", "desc") // Admins can order all bookings
+            );
+        } else {
+            // Regular users must have the where clause. The orderBy is removed here.
+            return query(
+                collection(firestore, "bookings"),
+                where("uid", "==", user.uid)
+            );
         }
-    
-        // It's a regular user, so always apply the filter.
-        return query(
-          collection(firestore, "bookings"),
-          where("uid", "==", user.uid),
-          orderBy("createdAt", "desc")
-        );
-      }, [firestore, user, userProfile, isProfileLoading]);
+    }, [firestore, user, isUserLoading, userProfile, isProfileLoading]);
+
 
     const { data: bookings, isLoading: isBookingsLoading, error } = useCollection<Booking>(bookingsQuery);
+    
+    // Client-side sorting for non-admin users
+    const sortedBookings = useMemo(() => {
+        if (!bookings || userProfile?.role === 'admin') {
+            return bookings;
+        }
+        return [...bookings].sort((a, b) => {
+            const timeA = a.createdAt instanceof Timestamp ? a.createdAt.toMillis() : 0;
+            const timeB = b.createdAt instanceof Timestamp ? b.createdAt.toMillis() : 0;
+            return timeB - timeA;
+        });
+    }, [bookings, userProfile]);
 
     const handleCancelBooking = async (bookingId: string) => {
         if (!firestore) return;
@@ -154,7 +167,7 @@ function BookingList() {
         )
     }
 
-    if (!bookings || bookings.length === 0) {
+    if (!sortedBookings || sortedBookings.length === 0) {
         return (
             <div className="text-center py-10">
                 <p className="text-muted-foreground">You have no bookings yet.</p>
@@ -177,7 +190,7 @@ function BookingList() {
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {bookings?.map((booking) => (
+                {sortedBookings?.map((booking) => (
                     <TableRow key={booking.id}>
                         <TableCell className="font-mono text-xs text-muted-foreground">#{booking.id.substring(0,7)}</TableCell>
                         <TableCell className="font-medium">
