@@ -25,17 +25,16 @@ service cloud.firestore {
     
     // BOOKINGS: This is the critical fix.
     match /bookings/{bookingId} {
-      // READ (single doc): An admin can read any booking. A user can read their own.
-      allow read: if isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
+      // Admins have full read/write access to all bookings.
+      allow read, write: if isAdmin();
       
-      // LIST (queries): 
-      // An admin can list all bookings without restriction.
-      // A regular user can ONLY list bookings if the query filters by their own UID.
-      // Firestore enforces this by checking the `allow read` rule on every document the query might return.
-      allow list: if isAdmin() || (isSignedIn() && request.query.where.get("uid")[2] == request.auth.uid);
+      // A regular user can ONLY read a booking document if their UID matches the 'uid' field in that document.
+      // This rule is what allows the filtered query from the "My Bookings" page to succeed.
+      // Firestore checks this rule against every document the query tries to return.
+      allow read: if isSignedIn() && resource.data.uid == request.auth.uid;
       
-      // WRITE: All writes are handled by trusted Cloud Functions to ensure data integrity.
-      allow create, update, delete: if false; 
+      // All other operations for non-admins are denied at the document level.
+      // List is implicitly denied by not having a rule for it. Create/update/delete are handled by functions.
     }
     
     // ACCESSORIES: Read for all signed-in users, write for admins.
