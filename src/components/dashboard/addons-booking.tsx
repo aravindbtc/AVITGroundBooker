@@ -101,7 +101,7 @@ export function AddonsBooking({ bookingAddons, onAddonsChange }: AddonsBookingPr
                         </Badge>}
                   </div>
                   <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold w-20 text-right">RS.{item.price}</span>
+                      <span className="text-sm font-semibold w-20 text-right">Rs.{item.price}</span>
                       <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleQuantityChange(item, -1)} disabled={quantity === 0}><Minus className="h-4 w-4" /></Button>
                       <span className="w-5 text-center font-bold">{quantity}</span>
                       <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleQuantityChange(item, 1)} disabled={isSoldOut || isMaxed}><Plus className="h-4 w-4" /></Button>

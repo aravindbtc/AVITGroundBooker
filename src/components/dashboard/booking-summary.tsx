@@ -90,7 +90,7 @@ export function BookingSummary({ slots, addons, onBookingSuccess }: Props) {
                  {addons.length > 0 ? addons.map((item) => (
                     <div key={item.id} className="flex justify-between py-1 text-sm">
                         <span className="font-medium">{item.name} (x{item.quantity})</span>
-                        <span className="font-semibold">₹{(item.price * item.quantity).toFixed(2)}</span>
+                        <span className="font-semibold">Rs.{(item.price * item.quantity).toFixed(2)}</span>
                     </div>
                 )) : <p className="text-sm text-muted-foreground">No add-ons selected.</p>}
               </div>
@@ -100,7 +100,7 @@ export function BookingSummary({ slots, addons, onBookingSuccess }: Props) {
         <CardFooter className="flex-col items-start gap-4 p-4 bg-slate-50 dark:bg-slate-900/50">
              <div className="flex justify-between w-full font-bold text-lg">
                 <span>Total (est.):</span>
-                <span>₹{totalAmount.toFixed(2)}</span>
+                <span>Rs.{totalAmount.toFixed(2)}</span>
              </div>
             <p className="text-xs text-muted-foreground w-full text-center">Final price will be verified by the server.</p>
             <Button onClick={handleBooking} className="w-full mt-2 font-bold" disabled={isProcessing || slots.length === 0}>

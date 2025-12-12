@@ -53,7 +53,7 @@ export function HeroSection({ venue }: { venue: Venue }) {
                 
                 <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
                     <Button size="lg" asChild className="bg-green-500 hover:bg-green-600 w-full sm:w-auto">
-                        <Link href="/login">Sign Up Free & Get ₹100 Off</Link>
+                        <Link href="/login">Sign Up Free & Get Rs.100 Off</Link>
                     </Button>
                 </div>
             </div>

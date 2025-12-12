@@ -195,7 +195,7 @@ function BookingList() {
                         <TableCell className="font-medium">
                             {booking.createdAt instanceof Timestamp ? format(booking.createdAt.toDate(), 'PPP') : 'N/A'}
                         </TableCell>
-                        <TableCell>RS.{booking.totalAmount.toFixed(2)}</TableCell>
+                        <TableCell>Rs.{booking.totalAmount.toFixed(2)}</TableCell>
                         <TableCell>
                             <Badge variant={booking.status === 'paid' ? 'default' : booking.status === 'cancelled' || booking.status === 'failed' ? 'destructive' : 'secondary'}>
                                 {booking.status}

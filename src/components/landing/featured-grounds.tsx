@@ -54,7 +54,7 @@ export function FeaturedGrounds({ venue }: { venue: Venue }) {
                   </div>
               </div>
               <div className="flex justify-between items-center border-t pt-4">
-                  <p className="text-lg font-bold text-primary">₹{venue.basePrice}<span className="text-sm font-normal text-muted-foreground">/hr</span></p>
+                  <p className="text-lg font-bold text-primary">Rs.{venue.basePrice}<span className="text-sm font-normal text-muted-foreground">/hr</span></p>
                   <Button asChild className="bg-blue-600 hover:bg-blue-700">
                       <Link href="/login">View Details & Book</Link>
                   </Button>

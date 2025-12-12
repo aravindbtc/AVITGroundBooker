@@ -179,7 +179,7 @@ function PriceStockManagement() {
                             </div>
                             <div className="grid grid-cols-4 items-center gap-4">
                                 <Label htmlFor="price" className="text-right">
-                                Price (RS.)
+                                Price (Rs.)
                                 </Label>
                                 <Input id="price" type="number" value={newItemPrice} onChange={e => setNewItemPrice(Number(e.target.value))} className="col-span-3" />
                             </div>
@@ -242,7 +242,7 @@ function PriceStockManagement() {
                         <TableHeader>
                         <TableRow>
                             <TableHead>Item</TableHead>
-                            <TableHead>Price (RS.)</TableHead>
+                            <TableHead>Price (Rs.)</TableHead>
                             <TableHead>Stock</TableHead>
                         </TableRow>
                         </TableHeader>
@@ -394,7 +394,7 @@ function AllBookings() {
                                     <TableCell className="font-medium">
                                         {booking.createdAt instanceof Timestamp ? format(booking.createdAt.toDate(), 'PPP') : 'Processing...'}
                                     </TableCell>
-                                    <TableCell>RS.{booking.totalAmount.toFixed(2)}</TableCell>
+                                    <TableCell>Rs.{booking.totalAmount.toFixed(2)}</TableCell>
                                     <TableCell>
                                         <Badge variant={booking.status === 'paid' ? 'default' : booking.status === 'cancelled' ? 'destructive' : 'secondary'}>
                                             {booking.status}

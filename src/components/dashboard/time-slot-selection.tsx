@@ -89,7 +89,7 @@ export function FlexibleTimeSlotSelection({ slots, selectedSlots, onSelect, onPr
               {new Date(slot.startAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(slot.endAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </Badge>
             {new Date(slot.startAt).getHours() > 17 && <Zap className="w-4 h-4 text-yellow-500 ml-auto" />} {/* Peak */}
-            <span className="ml-2 font-semibold">₹{slot.price}</span>
+            <span className="ml-2 font-semibold">Rs.{slot.price}</span>
             {slot.status === 'pending' && <span className="ml-2 text-yellow-600 font-medium">Pending Approval</span>}
              {selectedSlots.some(s => s.id === slot.id) && <span className="ml-auto text-green-600 font-bold">Selected</span>}
           </div>
@@ -116,5 +116,3 @@ export function FlexibleTimeSlotSelection({ slots, selectedSlots, onSelect, onPr
     </div>
   );
 }
-
-    

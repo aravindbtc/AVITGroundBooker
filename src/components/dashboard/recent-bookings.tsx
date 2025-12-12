@@ -151,7 +151,7 @@ export function RecentBookings() {
                           ? format(booking.createdAt.toDate(), "MMM dd, yyyy")
                           : 'Processing...'}
                   </TableCell>
-                  <TableCell>RS.{booking.totalAmount.toFixed(2)}</TableCell>
+                  <TableCell>Rs.{booking.totalAmount.toFixed(2)}</TableCell>
                   <TableCell className="text-right">
                     <Badge variant={booking.status === 'paid' ? 'default' : 'secondary'}>
                       {booking.status}
