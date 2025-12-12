@@ -20,14 +20,14 @@ service cloud.firestore {
     // SLOTS: Only trusted server code (Cloud Functions) can create/modify slots
     match /slots/{slotId} {
       allow read: if isSignedIn();
-      allow write: if isAdmin(); // Admin can override/block slots
+      allow write: if false; 
     }
     
     // BOOKINGS collection
     match /bookings/{bookingId} {
       // Read access: Admin can read any, user can read their own.
       allow read: if isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
-      allow list: if isAdmin() || (request.query.where[0][0] == "uid" && request.query.where[0][2] == request.auth.uid);
+      allow list: if isAdmin();
       
       // Write access: All writes are handled by trusted Cloud Functions.
       // Client-side creation/updates are disallowed.
@@ -40,7 +40,8 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     match /venue/{id} {
-      allow read: if isSignedIn();
+      // Allow ANYONE to read venue details (for landing page)
+      allow read: if true;
       allow write: if isAdmin();
     }
   }
