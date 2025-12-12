@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, Shield, Trash2 } from "lucide-react";
+import { AlertCircle, Shield, Trash2, Loader2 } from "lucide-react";
 import type { Booking, UserProfile } from "@/lib/types";
 import { format } from "date-fns";
 import Link from "next/link";
@@ -44,15 +44,24 @@ function BookingList() {
     const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
     const bookingsQuery = useMemoFirebase(() => {
-        if (!firestore || !user) {
+        // CRITICAL: Wait for both user and userProfile before creating the query.
+        if (!firestore || !user || !userProfile) {
             return null;
         }
+        // Admins can see all bookings, regular users only see their own.
+        if (userProfile.role === 'admin') {
+            return query(
+                collection(firestore, "bookings"),
+                orderBy("createdAt", "desc")
+            );
+        }
+        // This is the query for regular users. It will only run when we are certain the user is not an admin.
         return query(
             collection(firestore, "bookings"),
             where("uid", "==", user.uid),
             orderBy("createdAt", "desc")
         );
-    }, [firestore, user]);
+    }, [firestore, user, userProfile]); // Depends on userProfile now.
 
     const { data: bookings, isLoading: isBookingsLoading, error } = useCollection<Booking>(bookingsQuery);
 
@@ -66,14 +75,26 @@ function BookingList() {
         })
     }
 
+    // Combined loading state
     const isLoading = isUserLoading || isProfileLoading;
 
-    if (isLoading && isClient) {
+    if (!isClient) {
         return (
-            <div className="space-y-2 p-6">
+             <div className="space-y-2 p-6">
                 <Skeleton className="h-12 w-full" />
                 <Skeleton className="h-12 w-full" />
                 <Skeleton className="h-12 w-full" />
+            </div>
+        )
+    }
+    
+    if (isLoading) {
+        return (
+            <div className="flex justify-center items-center p-10">
+                <div className="text-center">
+                    <Loader2 className="h-12 w-12 animate-spin mx-auto text-muted-foreground" />
+                    <p className="mt-4 text-muted-foreground">Loading your bookings...</p>
+                </div>
             </div>
         );
     }
@@ -111,7 +132,8 @@ function BookingList() {
             </div>
         );
     }
-
+    
+    // This state covers the time when the query is ready but data is still fetching.
     if (isBookingsLoading && bookingsQuery) {
         return (
              <div className="space-y-2 p-6">
