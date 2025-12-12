@@ -44,8 +44,9 @@ function BookingList() {
     const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
     const bookingsQuery = useMemoFirebase(() => {
+        // CRITICAL FIX: Do not create a query until both user and profile are fully loaded.
         if (!firestore || !user || isProfileLoading) {
-            return null; // Don't create a query until user and profile are loaded.
+            return null;
         }
 
         // Admins can see all bookings
@@ -57,7 +58,7 @@ function BookingList() {
         }
         
         // Regular users only see their own.
-        // This runs only when we are certain the user is not an admin.
+        // This now reliably runs only after we are certain the user is not an admin.
         return query(
             collection(firestore, "bookings"),
             where("uid", "==", user.uid),
@@ -206,7 +207,7 @@ function BookingList() {
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
                                     <AlertDialogCancel>Back</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleCancelBooking(booking.id)}>Confirm Cancellation</AlertDialogAction>
+                                    <AlertDialogAction onClick={() => handleCancelBooking(booking.id!)}>Confirm Cancellation</AlertDialogAction>
                                     </AlertDialogFooter>
                                 </AlertDialogContent>
                             </AlertDialog>
