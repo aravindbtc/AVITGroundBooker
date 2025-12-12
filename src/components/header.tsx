@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { doc } from "firebase/firestore";
 import type { UserProfile } from "@/lib/types";
-import { LogOut, User, LayoutGrid, CalendarDays, Gem, MapPin, Shield, LogIn } from "lucide-react";
+import { LogOut, User, LayoutGrid, CalendarDays, Gem, Star, Shield, LogIn } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { signOut } from "firebase/auth";
 import { useToast } from "@/hooks/use-toast";
@@ -96,6 +96,9 @@ function UserProfileDropdown() {
             <DropdownMenuItem asChild>
                 <Link href="/profile"><User className="mr-2 h-4 w-4" /><span>Profile</span></Link>
             </DropdownMenuItem>
+             <DropdownMenuItem asChild>
+                <Link href="/ratings"><Star className="mr-2 h-4 w-4" /><span>Provide Ratings</span></Link>
+            </DropdownMenuItem>
             <DropdownMenuItem asChild>
                 <Link href="/loyalty"><Gem className="mr-2 h-4 w-4" /><span>Loyalty</span></Link>
             </DropdownMenuItem>
@@ -122,6 +125,7 @@ export function Header() {
     { href: "/", label: "Home" },
     { href: "/bookings", label: "My Bookings" },
     { href: "/profile", label: "Profile" },
+    { href: "/ratings", label: "Ratings" },
   ]
   
   const isLandingPage = pathname === '/';
@@ -132,7 +136,7 @@ export function Header() {
         isLandingPage && !user ? "bg-transparent border-transparent text-white" : "bg-background/95 border-border text-foreground"
     )}>
       <div className={cn(
-        "container mx-auto flex h-16 items-center justify-between px-4"
+        "container flex h-16 items-center justify-between px-4"
       )}>
         <div className="flex items-center gap-6">
             <Link href="/" className="flex items-center gap-2">

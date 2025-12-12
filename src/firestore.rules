@@ -49,5 +49,13 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isAdmin();
     }
+
+    // RATINGS: Users can create their own ratings. Admins can read all ratings.
+    match /ratings/{ratingId} {
+        allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+        allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+        allow list: if isAdmin();
+        allow update, delete: if isAdmin();
+    }
   }
 }

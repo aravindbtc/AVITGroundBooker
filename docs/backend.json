@@ -226,6 +226,45 @@
         }
       },
       "required": ["fullName", "address", "contact", "gps", "basePrice"]
+    },
+    "Rating": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Rating",
+      "type": "object",
+      "description": "Represents a rating given by a user for a service or item after a booking.",
+      "properties": {
+        "bookingId": {
+          "type": "string",
+          "description": "The ID of the booking this rating is associated with."
+        },
+        "userId": {
+          "type": "string",
+          "description": "The UID of the user giving the rating."
+        },
+        "ratedItemId": {
+          "type": "string",
+          "description": "The ID of the item being rated (e.g., 'avit-ground', accessory ID)."
+        },
+        "ratedItemType": {
+          "type": "string",
+          "enum": ["ground", "item", "manpower"],
+          "description": "The type of the item being rated."
+        },
+        "rating": {
+          "type": "number",
+          "description": "The star rating given by the user (1-5)."
+        },
+        "comment": {
+          "type": "string",
+          "description": "An optional comment from the user."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the rating was submitted."
+        }
+      },
+      "required": ["bookingId", "userId", "ratedItemId", "ratedItemType", "rating", "createdAt"]
     }
   },
   "auth": {
@@ -255,6 +294,10 @@
       {
         "path": "/venue/avit-ground",
         "definition": { "schema": { "$ref": "#/entities/Venue" } }
+      },
+      {
+        "path": "/ratings/{ratingId}",
+        "definition": { "schema": { "$ref": "#/entities/Rating" } }
       }
     ]
   }

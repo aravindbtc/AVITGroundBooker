@@ -37,7 +37,7 @@ export type Booking = {
   id?: string;
   uid: string; // Changed from userUID for consistency
   slots: string[]; // Ref paths
-  addons?: Array<{ itemId: string; quantity: number }>;
+  addons?: Array<{ id: string; name: string; quantity: number, price: number, type: 'item' | 'manpower' }>;
   totalAmount: number;
   status: 'pending' | 'paid' | 'approved' | 'rejected' | 'pending_approval' | 'cancelled' | 'failed'; // NEW: For proposals
   razorpayOrderID?: string;
@@ -88,4 +88,13 @@ export type BookingItem = {
     type: 'slot' | 'item' | 'manpower';
 }
 
-    
+export type Rating = {
+  id?: string;
+  bookingId: string;
+  userId: string;
+  ratedItemId: string; // e.g., 'avit-ground', 'bat', 'umpire'
+  ratedItemType: 'ground' | 'item' | 'manpower';
+  rating: number; // 1-5
+  comment?: string;
+  createdAt: Timestamp;
+}
