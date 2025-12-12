@@ -10,33 +10,22 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel"
 import { PlaceHolderImages } from "@/lib/placeholder-images";
+import type { Rating } from "@/lib/types";
+import { useEffect, useState } from "react";
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
+import { collection, query, where, limit } from "firebase/firestore";
 
-const testimonials = [
-  {
-    quote: "Finally, no more calling grounds at midnight! Booked my weekend game in a single click. This app is a game-changer for local cricket.",
-    name: "Rohit S.",
-    location: "Mumbai",
-    avatarId: "avatar-1",
-    stars: 5,
-  },
-  {
-    quote: "The interface is so clean and fast. I found a turf near my office and booked it for a corporate match instantly. The payment was seamless.",
-    name: "Priya K.",
-    location: "Delhi",
-    avatarId: "avatar-2",
-    stars: 5,
-  },
-  {
-    quote: "As a team captain, managing bookings was a headache. Now I can see all available slots and book for the entire team. Highly recommended!",
-    name: "Arjun V.",
-    location: "Bangalore",
-    avatarId: "avatar-3",
-    stars: 5,
-  }
-];
+// The hardcoded array is removed. This component will fetch real ratings in the future.
+// For now, it will show nothing until there is data.
+const testimonials: any[] = [];
+
 
 export function Testimonials() {
     const avatarImages = PlaceHolderImages.filter(p => p.id.startsWith('avatar'));
+
+    if (testimonials.length === 0) {
+        return null; // Don't render anything if there are no testimonials yet.
+    }
 
     return (
         <section className="py-16 md:py-24 bg-gray-50">
