@@ -6,10 +6,22 @@ import { Button } from "@/components/ui/button";
 import { MapPin, Star, Users } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "../ui/badge";
-import type { Venue } from "@/lib/types";
+import type { Rating, Venue } from "@/lib/types";
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
+import { collection, query, where } from "firebase/firestore";
 
 export function FeaturedGrounds({ venue }: { venue: Venue }) {
   const primaryImage = (venue.images && venue.images.length > 0) ? venue.images[0] : "https://images.unsplash.com/photo-1639416726422-67dbda6962c2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxjcmlja2V0JTIwdHVyZiUyMG5pZ2h0fGVufDB8fHx8MTc2NTM3MzgzNHww&ixlib=rb-4.1.0&q=80&w=1080";
+  const firestore = useFirestore();
+
+  const ratingsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, "ratings"), where("ratedItemId", "==", "avit-ground"));
+  }, [firestore]);
+
+  const { data: ratings } = useCollection<Rating>(ratingsQuery);
+
+  const reviewCount = ratings?.length ?? 0;
 
   return (
     <section className="py-16 md:py-24 bg-gray-50">
@@ -17,7 +29,7 @@ export function FeaturedGrounds({ venue }: { venue: Venue }) {
         <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-headline font-bold">Our Featured Ground</h2>
             <p className="text-lg text-muted-foreground mt-2 max-w-2xl mx-auto">
-                Our ICC-standard ground is handpicked for a top-tier playing experience. Join 10,000+ players who've booked with us!
+                Experience the thrill of playing on our ICC-standard cricket ground. Your perfect pitch is just a click away.
             </p>
         </div>
 
@@ -46,11 +58,7 @@ export function FeaturedGrounds({ venue }: { venue: Venue }) {
                   <div className="flex items-center gap-1">
                       <Star className="h-5 w-5 text-amber-400 fill-amber-400" />
                       <span className="font-bold">{venue.rating.toFixed(1)}</span>
-                      <span className="text-muted-foreground">(342 reviews)</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                      <Users className="h-5 w-5 text-primary" />
-                      <span className="font-bold">22 Players</span>
+                      <span className="text-muted-foreground">({reviewCount} reviews)</span>
                   </div>
               </div>
               <div className="flex justify-between items-center border-t pt-4">
