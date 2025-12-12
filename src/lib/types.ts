@@ -70,10 +70,7 @@ export type Venue = {
       admissions: string;
       email: string;
   };
-  gps: {
-      lat: number;
-      lng: number;
-  };
+  googleMapsUrl?: string;
   basePrice: number;
   rating: number;
   images: string[];

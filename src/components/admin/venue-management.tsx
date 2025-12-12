@@ -50,18 +50,6 @@ export function VenueManagement() {
         }));
     }
 
-    const handleGpsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target;
-        const field = name.split('.')[1]
-        setFormData(prev => ({
-            ...prev,
-            gps: {
-                ...prev.gps,
-                [field]: parseFloat(value) || 0,
-            } as Venue['gps']
-        }));
-    }
-    
     const handleImageChange = (index: number, value: string) => {
         setFormData(prev => {
             const newImages = [...(prev.images || [])];
@@ -164,15 +152,9 @@ export function VenueManagement() {
                         <Input id="contact.email" name="contact.email" type="email" value={formData.contact?.email || ''} onChange={handleContactChange} />
                     </div>
                 </div>
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                     <div className="space-y-2">
-                        <Label htmlFor="gps.lat">GPS Latitude</Label>
-                        <Input id="gps.lat" name="gps.lat" type="number" value={formData.gps?.lat || ''} onChange={handleGpsChange} />
-                    </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="gps.lng">GPS Longitude</Label>
-                        <Input id="gps.lng" name="gps.lng" type="number" value={formData.gps?.lng || ''} onChange={handleGpsChange} />
-                    </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="googleMapsUrl">Google Maps Link</Label>
+                    <Input id="googleMapsUrl" name="googleMapsUrl" value={formData.googleMapsUrl || ''} onChange={handleInputChange} placeholder="https://maps.app.goo.gl/..." />
                 </div>
                  <div className="space-y-2">
                     <Label htmlFor="basePrice">Base Price (per hour)</Label>

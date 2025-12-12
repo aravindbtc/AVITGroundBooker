@@ -123,13 +123,13 @@ export function VenueInfo() {
             </div>
         </div>
 
-        <div className="h-48 w-full rounded-lg overflow-hidden border">
-          {venue.gps ? <Map position={venue.gps} /> : <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground">GPS data not available</div>}
+        <div className="h-48 w-full rounded-lg overflow-hidden border flex items-center justify-center bg-muted text-muted-foreground">
+          Directions are provided via Google Maps link.
         </div>
       </CardContent>
       <CardFooter className="grid grid-cols-2 gap-3 p-6 pt-0">
-        <Button asChild size="lg" className="font-bold" disabled={!venue.gps}>
-            <a href={venue.gps ? `https://www.google.com/maps/dir/?api=1&destination=${venue.gps.lat},${venue.gps.lng}` : '#'} target="_blank" rel="noopener noreferrer">
+        <Button asChild size="lg" className="font-bold" disabled={!venue.googleMapsUrl}>
+            <a href={venue.googleMapsUrl || '#'} target="_blank" rel="noopener noreferrer">
                 <Navigation />
                 Directions
             </a>

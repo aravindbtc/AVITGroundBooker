@@ -206,13 +206,9 @@
               "email": { "type": "string" }
           }
         },
-        "gps": {
-          "type": "object",
-          "properties": {
-            "lat": { "type": "number" },
-            "lng": { "type": "number" }
-          },
-          "required": ["lat", "lng"]
+        "googleMapsUrl": {
+          "type": "string",
+          "format": "uri"
         },
         "basePrice": {
           "type": "number"
@@ -225,7 +221,7 @@
           "items": { "type": "string" }
         }
       },
-      "required": ["fullName", "address", "contact", "gps", "basePrice"]
+      "required": ["fullName", "address", "contact", "basePrice"]
     },
     "Rating": {
       "$schema": "http://json-schema.org/draft-07/schema#",
