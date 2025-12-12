@@ -14,6 +14,8 @@ import { useToast } from '@/hooks/use-toast';
 import { AddonsBooking } from './addons-booking';
 import { VenueInfo } from './venue-info';
 import { cn } from '@/lib/utils';
+import { Label } from '../ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 function useSlots(date: Date) {
     const firestore = useFirestore();
@@ -51,30 +53,18 @@ function useSlots(date: Date) {
 }
 
 
-// ProposeModal: Simple form with DateTimePickers
+// ProposeModal: Simple form for hourly booking proposals
 function ProposeModal({ date, onClose, onPropose, existingSlots }: { date: Date; onClose: () => void; onPropose: (slot: Slot) => void, existingSlots: Slot[] }) {
-  const [start, setStart] = useState(new Date(new Date(date).setHours(9,0,0,0)));
-  const [end, setEnd] = useState(new Date(new Date(date).setHours(10,0,0,0))); 
-  const {toast} = useToast();
+  const [startHour, setStartHour] = useState<number>(9);
+  const [durationHours, setDurationHours] = useState<number>(1);
+  const { toast } = useToast();
 
   const handlePropose = () => {
-    const duration = (end.getTime() - start.getTime()) / (1000 * 60);
-    if (duration < 30 || duration > 240) {
-      toast({
-        variant: "destructive",
-        title: "Invalid Duration",
-        description: "Slot duration must be between 30 and 240 minutes."
-      });
-      return;
-    }
-    if (end <= start) {
-        toast({
-            variant: "destructive",
-            title: "Invalid Time",
-            description: "End time must be after start time."
-        });
-        return;
-    }
+    const start = new Date(date);
+    start.setHours(startHour, 0, 0, 0);
+
+    const end = new Date(start);
+    end.setHours(start.getHours() + durationHours);
 
     // Client-side overlap check
     const hasOverlap = existingSlots.some(slot => {
@@ -91,28 +81,62 @@ function ProposeModal({ date, onClose, onPropose, existingSlots }: { date: Date;
         });
         return;
     }
+    
+    if (start.getHours() + durationHours > 22) {
+         toast({
+            variant: "destructive",
+            title: "Invalid Time",
+            description: "Booking must end by 10:00 PM."
+        });
+        return;
+    }
 
     onPropose({ 
         startAt: start, 
         endAt: end, 
-        durationMins: duration, 
+        durationMins: durationHours * 60, 
         status: 'available', // Directly bookable
         price: 0, // Server will calculate
       });
     onClose();
   }
+  
+  // 5 AM to 9 PM (for a 1-hour slot ending at 10 PM)
+  const availableHours = Array.from({length: 17}, (_, i) => i + 5);
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
       <Card className="p-6 w-full max-w-md space-y-4">
         <h3 className="font-headline text-lg mb-4">Propose Custom Time Slot</h3>
         <div className="space-y-2">
-            <label className="text-sm font-medium">Start Time</label>
-            <input type="datetime-local" defaultValue={start.toISOString().slice(0,16)} onChange={e => setStart(new Date(e.target.value))} className="w-full p-2 border rounded-md bg-background"/>
+            <Label>Start Time</Label>
+            <Select onValueChange={(value) => setStartHour(parseInt(value))} defaultValue={String(startHour)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a start hour" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableHours.map(hour => (
+                  <SelectItem key={hour} value={String(hour)}>
+                    {`${hour % 12 === 0 ? 12 : hour % 12}:00 ${hour < 12 || hour === 24 ? 'AM' : 'PM'}`}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
         </div>
         <div className="space-y-2">
-            <label className="text-sm font-medium">End Time</label>
-            <input type="datetime-local" defaultValue={end.toISOString().slice(0,16)} onChange={e => setEnd(new Date(e.target.value))} className="w-full p-2 border rounded-md bg-background"/>
+            <Label>Duration</Label>
+             <Select onValueChange={(value) => setDurationHours(parseInt(value))} defaultValue={String(durationHours)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select duration" />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({length: 4}, (_, i) => i + 1).map(hour => (
+                  <SelectItem key={hour} value={String(hour)}>
+                    {hour} hour{hour > 1 ? 's' : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
         </div>
         <div className="flex justify-end gap-2 mt-4">
             <Button variant="outline" onClick={onClose}>Cancel</Button>
@@ -139,7 +163,7 @@ export function Dashboard() {
   const showSummary = selectedSlots.length > 0;
 
   if (isLoading) return <div className="text-center p-10">Loading slots...</div>;
-  if (!user) return <div>Please login.</div>
+  if (!user) return <div>Please login.</div>;
 
   const allItems: BookingItem[] = [
     ...selectedSlots.map(s => ({...s, id: new Date(s.startAt).getTime().toString(), name: `Slot`, type: 'slot' as const, quantity: 1})),
