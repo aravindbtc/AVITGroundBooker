@@ -3,19 +3,19 @@
     {
       "id": "avit-ground-1",
       "description": "AVIT cricket ground with the main building in the background.",
-      "imageUrl": "https://storage.googleapis.com/maker-studio-project-images-prod/user-prompt-images/instance-images/11382405-b0b3-4f51-b847-a84ef3381666",
+      "imageUrl": "https://ik.imagekit.io/aravindbtc/AVIT%20ground.webp",
       "imageHint": "cricket ground"
     },
     {
       "id": "avit-ground-2",
       "description": "A wide shot of the AVIT campus building behind the cricket pitch.",
-      "imageUrl": "https://storage.googleapis.com/maker-studio-project-images-prod/user-prompt-images/instance-images/11382405-b0b3-4f51-b847-a84ef3381666",
+      "imageUrl": "https://ik.imagekit.io/aravindbtc/AVIT%20ground.webp",
       "imageHint": "college campus"
     },
     {
       "id": "avit-ground-3",
       "description": "The expansive green field of the AVIT cricket ground.",
-      "imageUrl": "https://storage.googleapis.com/maker-studio-project-images-prod/user-prompt-images/instance-images/11382405-b0b3-4f51-b847-a84ef3381666",
+      "imageUrl": "https://ik.imagekit.io/aravindbtc/AVIT%20ground.webp",
       "imageHint": "green field"
     },
     {
@@ -51,7 +51,7 @@
     {
       "id": "avatar-3",
       "description": "Avatar of Arjun V.",
-      "imageUrl": "https://picsum.photos/seed/avatar3/100/100",
+      "imageUrl": "https://images.unsplash.com/photo-1522556189639-b150ed9c4330?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxtYW4lMjBzbWlsaW5nfGVufDB8fHx8MTc2NTUyMzU2N3ww&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "man smiling"
     }
   ]

@@ -81,7 +81,7 @@ export function VenueInfo() {
                 <div className="relative aspect-video w-full">
                   <Image
                     src={image.imageUrl}
-                    alt={image.description}
+                    alt={image.description || 'Venue image'}
                     fill
                     className="object-cover"
                     data-ai-hint={image.imageHint}
