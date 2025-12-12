@@ -21,8 +21,8 @@ export function FeaturedGrounds({ venue }: { venue: Venue }) {
             </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 justify-center">
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden group transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 lg:col-span-2">
+        <div className="grid grid-cols-1 justify-center">
+          <div className="bg-white rounded-xl shadow-lg overflow-hidden group transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 max-w-3xl mx-auto">
             <div className="relative">
               <Image
                 src={primaryImage}
