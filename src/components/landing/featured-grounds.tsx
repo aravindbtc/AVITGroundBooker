@@ -7,21 +7,13 @@ import { MapPin, Star, Users } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "../ui/badge";
 import type { Rating, Venue } from "@/lib/types";
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection, query, where } from "firebase/firestore";
 
-export function FeaturedGrounds({ venue }: { venue: Venue }) {
+// This component no longer needs to fetch ratings, simplifying its dependencies
+export function FeaturedGrounds({ venue }: { venue: Venue & { reviewCount?: number } }) {
   const primaryImage = (venue.images && venue.images.length > 0) ? venue.images[0] : "https://images.unsplash.com/photo-1639416726422-67dbda6962c2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxjcmlja2V0JTIwdHVyZiUyMG5pZ2h0fGVufDB8fHx8MTc2NTM3MzgzNHww&ixlib=rb-4.1.0&q=80&w=1080";
-  const firestore = useFirestore();
 
-  const ratingsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(collection(firestore, "ratings"), where("ratedItemId", "==", "avit-ground"));
-  }, [firestore]);
-
-  const { data: ratings } = useCollection<Rating>(ratingsQuery);
-
-  const reviewCount = ratings?.length ?? 0;
+  // The review count is now passed in as a prop if it exists on the venue object
+  const reviewCount = venue.reviewCount ?? 0;
 
   return (
     <section className="py-16 md:py-24 bg-gray-50">
@@ -58,7 +50,9 @@ export function FeaturedGrounds({ venue }: { venue: Venue }) {
                   <div className="flex items-center gap-1">
                       <Star className="h-5 w-5 text-amber-400 fill-amber-400" />
                       <span className="font-bold">{venue.rating.toFixed(1)}</span>
-                      <span className="text-muted-foreground">({reviewCount} reviews)</span>
+                      {reviewCount > 0 && (
+                        <span className="text-muted-foreground">({reviewCount} reviews)</span>
+                      )}
                   </div>
               </div>
               <div className="flex justify-between items-center border-t pt-4">
