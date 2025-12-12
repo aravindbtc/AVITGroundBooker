@@ -44,27 +44,25 @@ function BookingList() {
     const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
     const bookingsQuery = useMemoFirebase(() => {
-        // CRITICAL FIX: Do not create a query until both user and profile are fully loaded.
         if (!firestore || !user || isProfileLoading) {
-            return null;
+          return null; // Don't create a query until everything is loaded.
         }
-
+    
         // Admins can see all bookings
         if (userProfile?.role === 'admin') {
-            return query(
-                collection(firestore, "bookings"),
-                orderBy("createdAt", "desc")
-            );
-        }
-        
-        // Regular users only see their own.
-        // This now reliably runs only after we are certain the user is not an admin.
-        return query(
+          return query(
             collection(firestore, "bookings"),
-            where("uid", "==", user.uid),
             orderBy("createdAt", "desc")
+          );
+        }
+    
+        // It's a regular user, so always apply the filter.
+        return query(
+          collection(firestore, "bookings"),
+          where("uid", "==", user.uid),
+          orderBy("createdAt", "desc")
         );
-    }, [firestore, user, userProfile, isProfileLoading]);
+      }, [firestore, user, userProfile, isProfileLoading]);
 
     const { data: bookings, isLoading: isBookingsLoading, error } = useCollection<Booking>(bookingsQuery);
 
