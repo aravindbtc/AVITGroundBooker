@@ -11,25 +11,28 @@ import { Ticket, Loader2, CreditCard } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 interface Props {
-  slots: Slot[];
+  slots: any[]; // Using any to handle ISO string dates from query param
   addons: BookingItem[];
   onBookingSuccess: () => void;
 }
 
-// This component no longer uses Razorpay, so the window declaration can be removed if not used elsewhere.
-// declare global {
-//     interface Window {
-//         Razorpay: any;
-//     }
-// }
-
 export function BookingSummary({ slots, addons, onBookingSuccess }: Props) {
   const { user } = useUser();
   const { toast } = useToast();
+  const router = useRouter();
   const [isProcessing, setIsProcessing] = useState(false);
   
-  // Prices will be recalculated on the server, this is just for display
-  const totalAmount = slots.reduce((sum, slot) => sum + (slot.price || 0), 0) + addons.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const totalSlotPrice = slots.reduce((sum, slot) => {
+    // Server will calculate final price, this is an estimate
+    const hours = slot.durationMins / 60;
+    const isPeak = new Date(slot.startAt).getHours() >= 17;
+    const estimatedPrice = (isPeak ? 500 * 1.2 : 500) * hours;
+    return sum + estimatedPrice;
+  }, 0);
+
+  const totalAddonPrice = addons.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+  const totalAmount = totalSlotPrice + totalAddonPrice;
 
   const handleBooking = async () => {
       if (!user) {
@@ -40,13 +43,13 @@ export function BookingSummary({ slots, addons, onBookingSuccess }: Props) {
 
       try {
         const functions = getFunctions();
-        // The function is now repurposed to directly book the slot
         const bookSlotDirectly = httpsCallable(functions, 'createRazorpayOrder'); 
         
-        await bookSlotDirectly({ slots, addons });
+        const result: any = await bookSlotDirectly({ slots, addons });
 
         toast({ title: "Booking Successful!", description: "Your booking is confirmed." });
         onBookingSuccess();
+        router.push(`/bookings?id=${result.data.bookingId}`); // Redirect to bookings page on success
 
       } catch (error: any) {
           console.error("Booking Error:", error);
@@ -66,27 +69,40 @@ export function BookingSummary({ slots, addons, onBookingSuccess }: Props) {
             </CardTitle>
         </CardHeader>
         <CardContent>
-            <div className="space-y-2">
-            {slots.map((slot, i) => (
-            <div key={`slot-${i}`} className="flex justify-between py-1 text-sm">
-                <div className="flex flex-col">
-                    <span className="font-medium">{new Date(slot.startAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(slot.endAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                    <span className="text-xs text-muted-foreground">({slot.durationMins} mins)</span>
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-semibold mb-2 border-b pb-1">Ground Slots</h4>
+                {slots.length > 0 ? slots.map((slot, i) => (
+                <div key={`slot-${i}`} className="flex justify-between py-1 text-sm">
+                    <div className="flex flex-col">
+                        <span className="font-medium">{new Date(slot.startAt).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                        <span className="text-xs text-muted-foreground">
+                            {new Date(slot.startAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(slot.endAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            ({slot.durationMins} mins)
+                        </span>
+                    </div>
                 </div>
-                {/* Price is calculated on server, so we omit it here to avoid confusion */}
-            </div>
-            ))}
-            {addons.map((item) => (
-                 <div key={item.id} className="flex justify-between py-1 text-sm">
-                    <span className="font-medium">{item.name} (x{item.quantity})</span>
-                    <span className="font-semibold">₹{(item.price * item.quantity).toFixed(2)}</span>
-                </div>
-            ))}
+                )) : <p className="text-sm text-muted-foreground">No slots selected.</p>}
+              </div>
+              
+              <div>
+                <h4 className="font-semibold mb-2 border-b pb-1">Add-Ons</h4>
+                 {addons.length > 0 ? addons.map((item) => (
+                    <div key={item.id} className="flex justify-between py-1 text-sm">
+                        <span className="font-medium">{item.name} (x{item.quantity})</span>
+                        <span className="font-semibold">₹{(item.price * item.quantity).toFixed(2)}</span>
+                    </div>
+                )) : <p className="text-sm text-muted-foreground">No add-ons selected.</p>}
+              </div>
+
             </div>
         </CardContent>
-        <CardFooter className="flex-col items-start gap-2 p-4 bg-slate-50 dark:bg-slate-900/50">
-             {/* The total is indicative and will be finalized on the server */}
-            <p className="text-xs text-muted-foreground w-full text-center mb-2">Total will be calculated and verified upon booking.</p>
+        <CardFooter className="flex-col items-start gap-4 p-4 bg-slate-50 dark:bg-slate-900/50">
+             <div className="flex justify-between w-full font-bold text-lg">
+                <span>Total (est.):</span>
+                <span>₹{totalAmount.toFixed(2)}</span>
+             </div>
+            <p className="text-xs text-muted-foreground w-full text-center">Final price will be verified by the server.</p>
             <Button onClick={handleBooking} className="w-full mt-2 font-bold" disabled={isProcessing || slots.length === 0}>
                 {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <CreditCard className="mr-2 h-4 w-4" />}
                 Proceed to Pay
@@ -95,3 +111,4 @@ export function BookingSummary({ slots, addons, onBookingSuccess }: Props) {
     </Card>
   );
 }
+

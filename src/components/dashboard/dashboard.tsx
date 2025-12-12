@@ -1,10 +1,9 @@
 
 'use client';
 import { useState, useEffect, useMemo } from 'react';
-import { Calendar } from '@/components/ui/calendar'; // ShadCN
+import { Calendar } from '@/components/ui/calendar';
 import { FlexibleTimeSlotSelection } from './time-slot-selection';
-import { BookingSummary } from './booking-summary';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { format } from 'date-fns';
@@ -16,6 +15,8 @@ import { VenueInfo } from './venue-info';
 import { cn } from '@/lib/utils';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { ShoppingCart } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 function useSlots(date: Date) {
     const firestore = useFirestore();
@@ -149,40 +150,45 @@ function ProposeModal({ date, onClose, onPropose, existingSlots }: { date: Date;
 
 export function Dashboard() {
   const { user } = useUser();
+  const router = useRouter();
   const [date, setDate] = useState(new Date());
   const [selectedSlots, setSelectedSlots] = useState<Slot[]>([]);
   const [bookingAddons, setBookingAddons] = useState<BookingItem[]>([]);
   const [showProposeModal, setShowProposeModal] = useState(false);
   const { data: slots, isLoading } = useSlots(date);
+  
+  const cartItemsCount = selectedSlots.length + bookingAddons.reduce((acc, item) => acc + item.quantity, 0);
 
-  const handleBookingSuccess = () => {
-    setSelectedSlots([]);
-    setBookingAddons([]);
-  };
-
-  const showSummary = selectedSlots.length > 0;
+  const handleGoToCart = () => {
+    // Stringify data to pass in URL query params
+    const cartData = {
+        slots: selectedSlots.map(s => ({
+            startAt: s.startAt.toISOString(),
+            endAt: s.endAt.toISOString(),
+            durationMins: s.durationMins,
+            price: s.price, // Will be recalculated on server
+        })),
+        addons: bookingAddons,
+    };
+    const query = encodeURIComponent(JSON.stringify(cartData));
+    router.push(`/cart?data=${query}`);
+  }
 
   if (isLoading) return <div className="text-center p-10">Loading slots...</div>;
   if (!user) return <div>Please login.</div>;
 
-  const allItems: BookingItem[] = [
-    ...selectedSlots.map(s => ({...s, id: new Date(s.startAt).getTime().toString(), name: `Slot`, type: 'slot' as const, quantity: 1})),
-    ...bookingAddons,
-  ]
 
   return (
     <div
       className={cn(
         "grid grid-cols-1 gap-8 transition-all duration-300",
-        showSummary
-          ? "md:grid-cols-3"
-          : "md:grid-cols-1 justify-center"
+        "md:grid-cols-1 justify-center"
       )}
     >
       <div
         className={cn(
           "space-y-8",
-          showSummary ? "md:col-span-2" : "md:col-span-1 md:max-w-4xl md:mx-auto"
+          "md:col-span-1 md:max-w-4xl md:mx-auto"
         )}
       >
         <VenueInfo />
@@ -203,14 +209,15 @@ export function Dashboard() {
             </CardContent>
         </Card>
         <AddonsBooking bookingAddons={bookingAddons} onAddonsChange={setBookingAddons} />
-      </div>
-
-      <div className={cn("md:col-span-1 transition-opacity duration-300", showSummary ? "opacity-100" : "opacity-0 md:hidden")}>
-          {showSummary && 
-            <div className="sticky top-24">
-                <BookingSummary slots={selectedSlots} addons={bookingAddons} onBookingSuccess={handleBookingSuccess} />
+        
+        {cartItemsCount > 0 && (
+             <div className="sticky bottom-4 z-20 w-full flex justify-center">
+                 <Button size="lg" className="shadow-2xl font-bold text-lg" onClick={handleGoToCart}>
+                    <ShoppingCart className="mr-2 h-5 w-5" />
+                    View Cart ({cartItemsCount} {cartItemsCount === 1 ? 'item' : 'items'})
+                </Button>
             </div>
-          }
+        )}
       </div>
 
       {showProposeModal && (

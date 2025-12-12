@@ -1,17 +1,14 @@
 
 'use client';
 
-import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { Dashboard } from '@/components/dashboard/dashboard';
 import { HeroSection } from '@/components/landing/hero-section';
 import { FeaturedGrounds } from '@/components/landing/featured-grounds';
 import { WhyBookWithUs } from '@/components/landing/why-book-with-us';
 import { Testimonials } from '@/components/landing/testimonials';
-import { Footer } from '@/components/footer';
-import { useState } from 'react';
-import type { BookingItem, Venue } from '@/lib/types';
-import { startOfDay } from 'date-fns';
+import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { doc } from 'firebase/firestore';
+import type { Venue } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 
 function LandingPage() {
@@ -46,15 +43,7 @@ function LandingPage() {
 
 export default function Home() {
   const { user, isUserLoading } = useUser();
-  const [selectedDate, setSelectedDate] = useState<Date>(startOfDay(new Date()));
-  const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
-  const [bookingAddons, setBookingAddons] = useState<BookingItem[]>([]);
-
-  const handleBookingSuccess = () => {
-    setSelectedSlots([]);
-    setBookingAddons([]);
-  };
-
+  
   if (isUserLoading) {
     return (
         <div className="flex justify-center items-center" style={{height: 'calc(100vh - 8rem)'}}>
@@ -71,15 +60,7 @@ export default function Home() {
 
   return (
     <div className="space-y-8">
-      <Dashboard
-        selectedDate={selectedDate}
-        onDateChange={setSelectedDate}
-        selectedSlots={selectedSlots}
-        onSlotsChange={setSelectedSlots}
-        bookingAddons={bookingAddons}
-        onAddonsChange={setBookingAddons}
-        onBookingSuccess={handleBookingSuccess}
-      />
+      <Dashboard />
     </div>
   );
 }
