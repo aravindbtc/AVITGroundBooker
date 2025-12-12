@@ -32,8 +32,10 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         <div className="flex min-h-screen flex-col">
             <Header />
             <main className="flex-1 bg-background">
-                <div className='container mx-auto px-4 py-8'>
-                    {children}
+                <div className="w-full">
+                    <div className='container mx-auto px-4 py-8'>
+                        {children}
+                    </div>
                 </div>
             </main>
             <Footer />
