@@ -1,8 +1,8 @@
 
 'use client';
 
-import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc, updateDocumentNonBlocking } from "@/firebase";
-import { collection, query, where, orderBy, doc, Timestamp } from "firebase/firestore";
+import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase";
+import { collection, query, where, orderBy, doc, Timestamp, updateDoc } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -44,35 +44,46 @@ function BookingList() {
     const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
     const bookingsQuery = useMemoFirebase(() => {
-        // CRITICAL: Wait for both user and userProfile before creating the query.
-        if (!firestore || !user || !userProfile) {
-            return null;
+        if (!firestore || !user || isProfileLoading) {
+            return null; // Don't create a query until user and profile are loaded.
         }
-        // Admins can see all bookings, regular users only see their own.
-        if (userProfile.role === 'admin') {
+
+        // Admins can see all bookings
+        if (userProfile?.role === 'admin') {
             return query(
                 collection(firestore, "bookings"),
                 orderBy("createdAt", "desc")
             );
         }
-        // This is the query for regular users. It will only run when we are certain the user is not an admin.
+        
+        // Regular users only see their own.
+        // This runs only when we are certain the user is not an admin.
         return query(
             collection(firestore, "bookings"),
             where("uid", "==", user.uid),
             orderBy("createdAt", "desc")
         );
-    }, [firestore, user, userProfile]); // Depends on userProfile now.
+    }, [firestore, user, userProfile, isProfileLoading]);
 
     const { data: bookings, isLoading: isBookingsLoading, error } = useCollection<Booking>(bookingsQuery);
 
-    const handleCancelBooking = (bookingId: string) => {
+    const handleCancelBooking = async (bookingId: string) => {
         if (!firestore) return;
         const bookingRef = doc(firestore, 'bookings', bookingId);
-        updateDocumentNonBlocking(bookingRef, { status: 'cancelled' });
-        toast({
-            title: "Booking Cancelled",
-            description: `Your booking has been cancelled.`
-        })
+        try {
+            await updateDoc(bookingRef, { status: 'cancelled' });
+            toast({
+                title: "Booking Cancelled",
+                description: `Your booking has been cancelled.`
+            })
+        } catch (e) {
+             console.error(e);
+             toast({
+                variant: 'destructive',
+                title: "Error",
+                description: "Could not cancel booking."
+            })
+        }
     }
 
     // Combined loading state
@@ -182,7 +193,7 @@ function BookingList() {
                         <TableCell className="text-right">
                              <AlertDialog>
                                 <AlertDialogTrigger asChild>
-                                    <Button variant="ghost" size="icon" disabled={booking.status !== 'pending'}>
+                                    <Button variant="ghost" size="icon" disabled={booking.status !== 'pending' && booking.status !== 'paid'}>
                                         <Trash2 className="h-4 w-4 text-destructive" />
                                     </Button>
                                 </AlertDialogTrigger>
