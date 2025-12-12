@@ -16,11 +16,12 @@ interface Props {
   onBookingSuccess: () => void;
 }
 
-declare global {
-    interface Window {
-        Razorpay: any;
-    }
-}
+// This component no longer uses Razorpay, so the window declaration can be removed if not used elsewhere.
+// declare global {
+//     interface Window {
+//         Razorpay: any;
+//     }
+// }
 
 export function BookingSummary({ slots, addons, onBookingSuccess }: Props) {
   const { user } = useUser();
@@ -39,48 +40,13 @@ export function BookingSummary({ slots, addons, onBookingSuccess }: Props) {
 
       try {
         const functions = getFunctions();
-        const createRazorpayOrder = httpsCallable(functions, 'createRazorpayOrder');
+        // The function is now repurposed to directly book the slot
+        const bookSlotDirectly = httpsCallable(functions, 'createRazorpayOrder'); 
         
-        // The server will calculate the final price
-        const result: any = await createRazorpayOrder({ slots, addons });
+        await bookSlotDirectly({ slots, addons });
 
-        const { orderId, bookingId, totalAmount: serverTotal } = result.data;
-
-        const options = {
-            key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-            amount: serverTotal * 100, // Use server-calculated amount
-            currency: "INR",
-            name: "AVIT Cricket Booker",
-            description: `Booking for ${user.displayName || user.email}`,
-            order_id: orderId,
-            handler: function (response: any) {
-                toast({ title: "Payment Successful!", description: "Your booking is confirmed." });
-                onBookingSuccess();
-            },
-            prefill: {
-                name: user.displayName || "User",
-                email: user.email,
-            },
-            notes: {
-                bookingId: bookingId,
-                userId: user.uid,
-            },
-            theme: {
-                color: "#10B981"
-            },
-             modal: {
-                ondismiss: function() {
-                    toast({
-                        variant: 'destructive',
-                        title: 'Payment Cancelled',
-                        description: 'Your booking has been cancelled and the slots are released.',
-                    });
-                    // Webhook logic will handle deleting the transient slots
-                }
-            }
-        };
-        const rzp = new window.Razorpay(options);
-        rzp.open();
+        toast({ title: "Booking Successful!", description: "Your booking is confirmed." });
+        onBookingSuccess();
 
       } catch (error: any) {
           console.error("Booking Error:", error);
@@ -120,7 +86,7 @@ export function BookingSummary({ slots, addons, onBookingSuccess }: Props) {
         </CardContent>
         <CardFooter className="flex-col items-start gap-2 p-4 bg-slate-50 dark:bg-slate-900/50">
              {/* The total is indicative and will be finalized on the server */}
-            <p className="text-xs text-muted-foreground w-full text-center mb-2">Total will be calculated and verified upon payment.</p>
+            <p className="text-xs text-muted-foreground w-full text-center mb-2">Total will be calculated and verified upon booking.</p>
             <Button onClick={handleBooking} className="w-full mt-2 font-bold" disabled={isProcessing || slots.length === 0}>
                 {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <CreditCard className="mr-2 h-4 w-4" />}
                 Proceed to Pay

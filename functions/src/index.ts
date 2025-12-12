@@ -6,17 +6,14 @@ import crypto = require('crypto');
 
 admin.initializeApp();
 const db = admin.firestore();
-const razorpay = new Razorpay({
-  key_id: functions.config().razorpay.key_id,
-  key_secret: functions.config().razorpay.key_secret,
-});
 
-// REWRITTEN: Direct booking and payment model. No more proposals.
+// This function now directly books the slot and marks it as paid.
+// The Razorpay integration is bypassed for development.
 export const createRazorpayOrder = functions.https.onCall(async (data, context) => {
   if (!context.auth) {
     throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated to book a slot.');
   }
-  const { slots, addons } = data; // slots: array<{startAt: string, endAt: string, durationMins: number, price: number}>
+  const { slots, addons } = data; // slots: array<{startAt: string, endAt: string, durationMins: number}>
 
   if (!slots || !Array.isArray(slots) || slots.length === 0) {
     throw new functions.https.HttpsError('invalid-argument', 'Slot information is required.');
@@ -48,7 +45,6 @@ export const createRazorpayOrder = functions.https.onCall(async (data, context) 
           const s = doc.data();
           const existingStart = s.startAt.toDate();
           const existingEnd = s.endAt.toDate();
-          // Check if !(existingEnd <= proposedStart || existingStart >= proposedEnd)
           return existingEnd > proposedStart && existingStart < proposedEnd;
       });
 
@@ -61,9 +57,9 @@ export const createRazorpayOrder = functions.https.onCall(async (data, context) 
       const isPeak = proposedStart.getHours() >= 17; // 5 PM onwards
       const slotPrice = isPeak ? (basePrice * 1.2) * durationHours : basePrice * durationHours;
       calculatedTotal += slotPrice;
-
-      // Prepare to create new slot document
+      
       const newSlotRef = db.collection('slots').doc();
+      // Set the slot as 'booked' immediately
       transaction.set(newSlotRef, {
         groundId: 'avit-ground',
         dateString: dateString,
@@ -73,8 +69,8 @@ export const createRazorpayOrder = functions.https.onCall(async (data, context) 
         endAt: admin.firestore.Timestamp.fromDate(proposedEnd),
         price: slotPrice,
         isPeak: isPeak,
-        status: 'blocked', // Block temporarily until payment
-        bookingId: null,
+        status: 'booked', // Mark as booked directly
+        bookingId: null, // Will be updated below
       });
       slotRefs.push(newSlotRef);
     }
@@ -83,14 +79,6 @@ export const createRazorpayOrder = functions.https.onCall(async (data, context) 
     for (const addon of addons || []) {
         calculatedTotal += addon.price * addon.quantity;
     }
-
-    // Create Razorpay order with server-calculated total
-    const order = await razorpay.orders.create({
-      amount: calculatedTotal * 100, // To paise
-      currency: 'INR',
-      receipt: `booking_${context.auth.uid}_${Date.now()}`,
-      notes: { userUID: context.auth.uid },
-    });
 
     // Create the booking document
     const bookingRef = db.collection('bookings').doc();
@@ -102,30 +90,50 @@ export const createRazorpayOrder = functions.https.onCall(async (data, context) 
       addons: addons || [],
       totalAmount: calculatedTotal,
       payment: {
-        orderId: order.id,
-        status: 'created',
+        orderId: `dev-booking-${bookingRef.id}`, // Use a dev order ID
+        status: 'paid', // Mark as paid directly
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       },
-      status: 'pending', // Booking status is pending until payment is complete
+      status: 'paid', // Mark as paid directly
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
     
-    // Pass back slot IDs and booking ID to webhook/client
-    const newSlotIds = slotRefs.map(ref => ref.id);
-    transaction.update(bookingRef, { 'payment.notes': { slotIds: newSlotIds, bookingId: bookingRef.id } });
+    // Update the newly created slots with the booking ID
+    for (const slotRef of slotRefs) {
+        transaction.update(slotRef, { bookingId: bookingRef.id });
+    }
 
-    return { orderId: order.id, bookingId: bookingRef.id };
+    // Update stock for addons
+    for (const addon of addons || []) {
+      const accRef = db.collection('accessories').doc(addon.id);
+      transaction.update(accRef, { stock: admin.firestore.FieldValue.increment(-1 * (addon.quantity || 1)) });
+    }
+    
+    // Award loyalty points
+    const points = Math.floor(calculatedTotal / 100);
+    if(points > 0) {
+        const userRef = db.collection('users').doc(context.auth.uid);
+        transaction.update(userRef, { loyaltyPoints: admin.firestore.FieldValue.increment(points) });
+    }
+    
+    return { success: true, bookingId: bookingRef.id };
   });
 });
 
 
-// Webhook to be set in Razorpay dashboard
+// Webhook is not used in the dev flow but kept for future integration.
 export const razorpayWebhook = functions.https.onRequest(async (req, res) => {
   const secret = functions.config().razorpay.webhook_secret;
   const signature = req.headers['x-razorpay-signature'];
-  const body = JSON.stringify(req.body);
+  
+  if (!secret || !signature) {
+    console.warn("Razorpay webhook secret or signature is missing.");
+    return res.status(400).send('Configuration error.');
+  }
 
+  const body = JSON.stringify(req.body);
   const expected = crypto.createHmac('sha256', secret).update(body).digest('hex');
+
   if (expected !== signature) {
     console.warn("Invalid Razorpay webhook signature received.");
     return res.status(400).send('Invalid signature');
@@ -207,5 +215,3 @@ export const razorpayWebhook = functions.https.onRequest(async (req, res) => {
 
   res.status(200).send('ok');
 });
-
-    
