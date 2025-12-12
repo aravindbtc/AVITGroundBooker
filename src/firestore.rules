@@ -1,4 +1,3 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -8,41 +7,44 @@ service cloud.firestore {
     }
     
     function isAdmin() {
+      // Check if the user's document in Firestore has the 'admin' role.
       return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // USERS collection
+    // USERS: Users can read/write their own profile. Admins can list all users.
     match /users/{userId} {
       allow read, write: if isSignedIn() && request.auth.uid == userId;
       allow list: if isAdmin();
     }
     
-    // SLOTS: Only trusted server code (Cloud Functions) can create/modify slots
+    // SLOTS: Slots are read-only for clients. All writes are handled by secure Cloud Functions.
     match /slots/{slotId} {
       allow read: if isSignedIn();
       allow write: if false; 
     }
     
-    // BOOKINGS collection
+    // BOOKINGS: This is the critical fix.
     match /bookings/{bookingId} {
-      // Read access: Admin can read any, user can read their own.
+      // READ (single doc): An admin can read any booking. A user can read their own.
       allow read: if isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
       
-      // List access: Admin can list all bookings. A user can only list their own bookings.
-      allow list: if isAdmin() || (isSignedIn() && request.query.get("uid") == request.auth.uid);
+      // LIST (queries): 
+      // An admin can list all bookings without restriction.
+      // A regular user can ONLY list bookings if the query filters by their own UID.
+      allow list: if isAdmin() || (isSignedIn() && request.query.where.get("uid")[2] == request.auth.uid);
       
-      // Write access: All writes are handled by trusted Cloud Functions.
-      // Client-side creation/updates are disallowed.
-      allow write: if false; 
+      // WRITE: All writes are handled by trusted Cloud Functions to ensure data integrity.
+      allow create, update, delete: if false; 
     }
     
-    // ACCESSORIES & VENUE: Read for all, write for admin
+    // ACCESSORIES: Read for all signed-in users, write for admins.
     match /accessories/{id} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
     }
+
+    // VENUE: Publicly readable for the landing page, but only writable by admins.
     match /venue/{id} {
-      // Allow ANYONE to read venue details (for landing page)
       allow read: if true;
       allow write: if isAdmin();
     }
