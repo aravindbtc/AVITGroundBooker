@@ -13,6 +13,7 @@ import { query, collection, where, onSnapshot } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { AddonsBooking } from './addons-booking';
 import { VenueInfo } from './venue-info';
+import { cn } from '@/lib/utils';
 
 function useSlots(date: Date) {
     const firestore = useFirestore();
@@ -135,6 +136,8 @@ export function Dashboard() {
     setBookingAddons([]);
   };
 
+  const showSummary = selectedSlots.length > 0;
+
   if (isLoading) return <div className="text-center p-10">Loading slots...</div>;
   if (!user) return <div>Please login.</div>
 
@@ -144,8 +147,20 @@ export function Dashboard() {
   ]
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-      <div className="md:col-span-2 space-y-8">
+    <div
+      className={cn(
+        "grid grid-cols-1 gap-8 transition-all duration-300",
+        showSummary
+          ? "md:grid-cols-3"
+          : "md:grid-cols-1 justify-center"
+      )}
+    >
+      <div
+        className={cn(
+          "space-y-8",
+          showSummary ? "md:col-span-2" : "md:col-span-1 md:max-w-4xl md:mx-auto"
+        )}
+      >
         <VenueInfo />
         <Card className="p-4">
             <h2 className="text-lg font-semibold font-headline mb-2 text-center">Select Date</h2>
@@ -165,8 +180,9 @@ export function Dashboard() {
         </Card>
         <AddonsBooking bookingAddons={bookingAddons} onAddonsChange={setBookingAddons} />
       </div>
-      <div className="md:col-span-1">
-          {selectedSlots.length > 0 && 
+
+      <div className={cn("md:col-span-1 transition-opacity duration-300", showSummary ? "opacity-100" : "opacity-0 md:hidden")}>
+          {showSummary && 
             <div className="sticky top-24">
                 <BookingSummary slots={selectedSlots} addons={bookingAddons} onBookingSuccess={handleBookingSuccess} />
             </div>
