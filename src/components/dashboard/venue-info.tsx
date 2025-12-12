@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Map } from "./map";
 import { Button } from "@/components/ui/button";
-import { MapPin, Star, Navigation, Phone, Clock } from "lucide-react";
+import { MapPin, Star, Navigation, Phone, Clock, IndianRupee } from "lucide-react";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import Image from "next/image";
 import {
@@ -103,14 +103,19 @@ export function VenueInfo() {
                 <MapPin className="mt-1 h-5 w-5 flex-shrink-0 text-primary" />
                 <span className="font-medium">{venue.address}</span>
             </div>
-            <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1 text-accent">
-                    {[...Array(5)].map((_, i) => (
-                        <Star key={i} className={`h-5 w-5 ${i < Math.floor(venue.rating || 0) ? 'fill-current' : 'stroke-current text-muted-foreground/50'}`} />
-                    ))}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 text-accent">
+                        {[...Array(5)].map((_, i) => (
+                            <Star key={i} className={`h-5 w-5 ${i < Math.floor(venue.rating || 0) ? 'fill-current' : 'stroke-current text-muted-foreground/50'}`} />
+                        ))}
+                    </div>
+                    <span className="font-bold text-base">{venue.rating?.toFixed(1) || 'N/A'}/5.0</span>
                 </div>
-                <span className="font-bold text-base">{venue.rating?.toFixed(1) || 'N/A'}/5.0</span>
-                <span className="text-muted-foreground text-xs">(342 Reviews)</span>
+                <div className="flex items-center gap-2 font-medium text-muted-foreground">
+                    <IndianRupee className="h-5 w-5 text-primary" />
+                    <span className="font-bold text-base text-foreground">Rs.{venue.basePrice} / hour</span>
+                </div>
             </div>
              <div className="flex items-center gap-3 text-muted-foreground">
                 <Clock className="h-5 w-5 flex-shrink-0 text-primary" />
