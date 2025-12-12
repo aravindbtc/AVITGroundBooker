@@ -24,11 +24,17 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast";
+import { useState, useEffect } from "react";
 
 function BookingList() {
     const { user, isUserLoading } = useUser();
     const firestore = useFirestore();
     const { toast } = useToast();
+    const [isClient, setIsClient] = useState(false);
+
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
 
     const userProfileRef = useMemoFirebase(() => {
         if (!firestore || !user) return null;
@@ -62,7 +68,7 @@ function BookingList() {
 
     const isLoading = isUserLoading || isProfileLoading;
 
-    if (isLoading) {
+    if (isLoading && isClient) {
         return (
             <div className="space-y-2 p-6">
                 <Skeleton className="h-12 w-full" />
