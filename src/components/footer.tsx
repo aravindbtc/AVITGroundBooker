@@ -44,8 +44,8 @@ export function Footer() {
                 </ul>
               ) : venue ? (
                 <ul className="space-y-2 text-muted-foreground">
-                    <li>General: {venue.contact.general}</li>
-                    <li>Support: {venue.contact.admissions}</li>
+                    <li>Primary: {venue.contact.primary}</li>
+                    <li>Admissions: {venue.contact.secondary}</li>
                     <li>Email: <a href={`mailto:${venue.contact.email}`} className="hover:text-primary">{venue.contact.email}</a></li>
                 </ul>
               ) : (

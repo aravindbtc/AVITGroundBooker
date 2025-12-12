@@ -140,12 +140,12 @@ export function VenueManagement() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                      <div className="space-y-2">
-                        <Label htmlFor="contact.general">Contact Phone (General)</Label>
-                        <Input id="contact.general" name="contact.general" value={formData.contact?.general || ''} onChange={handleContactChange} />
+                        <Label htmlFor="contact.primary">Primary Contact ("Call Venue" Button)</Label>
+                        <Input id="contact.primary" name="contact.primary" value={formData.contact?.primary || ''} onChange={handleContactChange} />
                     </div>
                      <div className="space-y-2">
-                        <Label htmlFor="contact.admissions">Contact Phone (Admissions)</Label>
-                        <Input id="contact.admissions" name="contact.admissions" value={formData.contact?.admissions || ''} onChange={handleContactChange} />
+                        <Label htmlFor="contact.secondary">Secondary/Admissions Contact</Label>
+                        <Input id="contact.secondary" name="contact.secondary" value={formData.contact?.secondary || ''} onChange={handleContactChange} />
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="contact.email">Contact Email</Label>

@@ -201,9 +201,9 @@
         "contact": {
           "type": "object",
           "properties": {
-              "general": { "type": "string" },
-              "admissions": { "type": "string" },
-              "email": { "type": "string" }
+              "primary": { "type": "string", "description": "The main contact number for the venue, used for the 'Call Venue' button." },
+              "secondary": { "type": "string", "description": "A secondary contact number, e.g., for admissions." },
+              "email": { "type": "string", "description": "The primary contact email address." }
           }
         },
         "googleMapsUrl": {

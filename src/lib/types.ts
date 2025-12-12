@@ -66,8 +66,8 @@ export type Venue = {
   fullName: string;
   address: string;
   contact: {
-      general: string;
-      admissions: string;
+      primary: string; // For the "Call Venue" button
+      secondary: string; // For admissions or other purposes
       email: string;
   };
   googleMapsUrl?: string;

@@ -1,7 +1,6 @@
 
 "use client";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Map } from "./map";
 import { Button } from "@/components/ui/button";
 import { MapPin, Star, Navigation, Phone, Clock, IndianRupee } from "lucide-react";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
@@ -134,8 +133,8 @@ export function VenueInfo() {
                 Directions
             </a>
         </Button>
-         <Button asChild variant="outline" size="lg" className="font-bold" disabled={!venue.contact?.general}>
-            <a href={venue.contact?.general ? `tel:${venue.contact.general}` : '#'}>
+         <Button asChild variant="outline" size="lg" className="font-bold" disabled={!venue.contact?.primary}>
+            <a href={venue.contact?.primary ? `tel:${venue.contact.primary}` : '#'}>
                 <Phone />
                 Call Venue
             </a>
