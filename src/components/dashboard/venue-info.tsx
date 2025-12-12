@@ -119,18 +119,18 @@ export function VenueInfo() {
         </div>
 
         <div className="h-48 w-full rounded-lg overflow-hidden border">
-          <Map position={venue.gps} />
+          {venue.gps ? <Map position={venue.gps} /> : <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground">GPS data not available</div>}
         </div>
       </CardContent>
       <CardFooter className="grid grid-cols-2 gap-3 p-6 pt-0">
-        <Button asChild size="lg" className="font-bold">
-            <a href={`https://www.google.com/maps/dir/?api=1&destination=${venue.gps.lat},${venue.gps.lng}`} target="_blank" rel="noopener noreferrer">
+        <Button asChild size="lg" className="font-bold" disabled={!venue.gps}>
+            <a href={venue.gps ? `https://www.google.com/maps/dir/?api=1&destination=${venue.gps.lat},${venue.gps.lng}` : '#'} target="_blank" rel="noopener noreferrer">
                 <Navigation />
                 Directions
             </a>
         </Button>
-         <Button asChild variant="outline" size="lg" className="font-bold">
-            <a href={`tel:${venue.contact.general}`}>
+         <Button asChild variant="outline" size="lg" className="font-bold" disabled={!venue.contact?.general}>
+            <a href={venue.contact?.general ? `tel:${venue.contact.general}` : '#'}>
                 <Phone />
                 Call Venue
             </a>
