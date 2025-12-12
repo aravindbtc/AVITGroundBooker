@@ -2,7 +2,7 @@
 'use client';
 
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase";
-import { collection, query, where, orderBy, doc, Timestamp, updateDoc } from "firebase/firestore";
+import { collection, query, where, doc, Timestamp, updateDoc } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +24,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 
 function BookingList() {
     const { user, isUserLoading } = useUser();
@@ -45,18 +45,17 @@ function BookingList() {
 
     const bookingsQuery = useMemoFirebase(() => {
         // Return null and wait until we have all the data we need to make a decision.
-        if (isUserLoading || isProfileLoading || !firestore || !user) {
+        if (isUserLoading || isProfileLoading || !firestore || !user || !userProfile) {
             return null;
         }
 
         // Now we are sure we have user and profile info.
         if (userProfile?.role === 'admin') {
             return query(
-                collection(firestore, "bookings"),
-                orderBy("createdAt", "desc") // Admins can order all bookings
+                collection(firestore, "bookings")
             );
         } else {
-            // Regular users must have the where clause. The orderBy is removed here.
+            // Regular users must have the where clause.
             return query(
                 collection(firestore, "bookings"),
                 where("uid", "==", user.uid)
@@ -69,7 +68,7 @@ function BookingList() {
     
     // Client-side sorting for non-admin users
     const sortedBookings = useMemo(() => {
-        if (!bookings || userProfile?.role === 'admin') {
+        if (!bookings) {
             return bookings;
         }
         return [...bookings].sort((a, b) => {
@@ -77,7 +76,7 @@ function BookingList() {
             const timeB = b.createdAt instanceof Timestamp ? b.createdAt.toMillis() : 0;
             return timeB - timeA;
         });
-    }, [bookings, userProfile]);
+    }, [bookings]);
 
     const handleCancelBooking = async (bookingId: string) => {
         if (!firestore) return;
