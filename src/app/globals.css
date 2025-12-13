@@ -63,6 +63,7 @@
 
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
+    /* This will not impact the calendar */
     --ring: 217 91% 60%;
   }
 }
@@ -75,6 +76,8 @@
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
+  /* Add this reset for table elements to prevent conflicts */
+  table, tr {
+    display: contents;
+  }
 }
-
-    
