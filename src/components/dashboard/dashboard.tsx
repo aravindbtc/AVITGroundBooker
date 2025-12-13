@@ -14,7 +14,8 @@ import { cn } from '@/lib/utils';
 import { ShoppingCart } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from '../ui/skeleton';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { BookingFlow } from './booking-flow';
+
 
 function useSlots(date: Date) {
     const firestore = useFirestore();
@@ -49,36 +50,6 @@ function useSlots(date: Date) {
     }, [firestore, dateString]);
 
     return { data: slots, isLoading };
-}
-
-function DateStripPicker({ selectedDate, onDateChange }: { selectedDate: Date, onDateChange: (date: Date) => void }) {
-    const today = new Date();
-    const dates = Array.from({ length: 30 }).map((_, i) => addDays(today, i));
-
-    return (
-        <Card>
-            <CardContent className="p-4">
-                 <h2 className="text-lg font-semibold font-headline mb-4 text-center">Select Date</h2>
-                <ScrollArea className="w-full whitespace-nowrap rounded-md">
-                    <div className="flex w-max space-x-2 pb-4">
-                        {dates.map((date, index) => (
-                            <Button
-                                key={index}
-                                variant={format(selectedDate, 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd') ? 'default' : 'outline'}
-                                className="h-16 flex flex-col items-center justify-center p-2"
-                                onClick={() => onDateChange(date)}
-                            >
-                                <span className="text-xs font-semibold">{format(date, 'EEE')}</span>
-                                <span className="text-lg font-bold">{format(date, 'd')}</span>
-                                <span className="text-xs">{format(date, 'MMM')}</span>
-                            </Button>
-                        ))}
-                    </div>
-                     <ScrollBar orientation="horizontal" />
-                </ScrollArea>
-            </CardContent>
-        </Card>
-    );
 }
 
 export function Dashboard() {
@@ -139,19 +110,14 @@ export function Dashboard() {
         )}
       >
         <VenueInfo />
-        <DateStripPicker selectedDate={date} onDateChange={setDate} />
-        <Card>
-            <CardContent className="p-4">
-                <h2 className="text-lg font-semibold font-headline mb-2">Select Time for {format(date, 'PPP')}</h2>
-                <FlexibleTimeSlotSelection 
-                    slots={slots || []} 
-                    selectedSlots={selectedSlots} 
-                    onSelect={setSelectedSlots}
-                    date={date}
-                    venue={venue}
-                />
-            </CardContent>
-        </Card>
+        <BookingFlow
+            selectedDate={date}
+            onDateChange={setDate}
+            selectedSlots={selectedSlots}
+            onSlotsChange={setSelectedSlots}
+            availableSlots={slots || []}
+            venue={venue}
+        />
         <AddonsBooking bookingAddons={bookingAddons} onAddonsChange={setBookingAddons} />
         
         {cartItemsCount > 0 && (

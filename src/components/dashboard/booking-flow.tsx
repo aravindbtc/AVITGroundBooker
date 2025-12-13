@@ -5,19 +5,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { TimeSlotSelection } from "./time-slot-selection";
+import { FlexibleTimeSlotSelection } from "./time-slot-selection";
 import { addDays, format, isValid, startOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Calendar as CalendarIcon, CalendarDays } from 'lucide-react';
+import type { Slot, Venue } from '@/lib/types';
 
 interface BookingFlowProps {
     selectedDate: Date;
     onDateChange: (date: Date) => void;
-    selectedSlots: string[];
-    onSlotsChange: (slots: string[]) => void;
+    selectedSlots: Slot[];
+    onSlotsChange: (slots: Slot[]) => void;
+    availableSlots: Slot[];
+    venue: Venue | null;
 }
 
-export function BookingFlow({ selectedDate, onDateChange, selectedSlots, onSlotsChange }: BookingFlowProps) {
+export function BookingFlow({ selectedDate, onDateChange, selectedSlots, onSlotsChange, availableSlots, venue }: BookingFlowProps) {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   
   const today = startOfDay(new Date());
@@ -65,10 +68,12 @@ export function BookingFlow({ selectedDate, onDateChange, selectedSlots, onSlots
         </CardHeader>
         <CardContent>
             {selectedDate && (
-                <TimeSlotSelection 
-                    selectedDate={selectedDate} 
-                    selectedSlots={selectedSlots}
-                    onSlotsChange={onSlotsChange}
+                 <FlexibleTimeSlotSelection 
+                    slots={availableSlots}
+                    selectedSlots={selectedSlots} 
+                    onSelect={onSlotsChange}
+                    date={selectedDate}
+                    venue={venue}
                 />
             )}
         </CardContent>
