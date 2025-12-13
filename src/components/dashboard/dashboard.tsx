@@ -1,23 +1,20 @@
 
 'use client';
 import { useState, useEffect, useMemo } from 'react';
-import { Calendar } from '@/components/ui/calendar';
 import { FlexibleTimeSlotSelection } from './time-slot-selection';
 import { useUser, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { format } from 'date-fns';
+import { format, addDays } from 'date-fns';
 import type { BookingItem, Slot, Venue } from '@/lib/types';
 import { query, collection, where, onSnapshot, doc } from 'firebase/firestore';
-import { useToast } from '@/hooks/use-toast';
 import { AddonsBooking } from './addons-booking';
 import { VenueInfo } from './venue-info';
 import { cn } from '@/lib/utils';
-import { Label } from '../ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { ShoppingCart } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from '../ui/skeleton';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
 function useSlots(date: Date) {
     const firestore = useFirestore();
@@ -52,6 +49,36 @@ function useSlots(date: Date) {
     }, [firestore, dateString]);
 
     return { data: slots, isLoading };
+}
+
+function DateStripPicker({ selectedDate, onDateChange }: { selectedDate: Date, onDateChange: (date: Date) => void }) {
+    const today = new Date();
+    const dates = Array.from({ length: 30 }).map((_, i) => addDays(today, i));
+
+    return (
+        <Card>
+            <CardContent className="p-4">
+                 <h2 className="text-lg font-semibold font-headline mb-4 text-center">Select Date</h2>
+                <ScrollArea className="w-full whitespace-nowrap rounded-md">
+                    <div className="flex w-max space-x-2 pb-4">
+                        {dates.map((date, index) => (
+                            <Button
+                                key={index}
+                                variant={format(selectedDate, 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd') ? 'default' : 'outline'}
+                                className="h-16 flex flex-col items-center justify-center p-2"
+                                onClick={() => onDateChange(date)}
+                            >
+                                <span className="text-xs font-semibold">{format(date, 'EEE')}</span>
+                                <span className="text-lg font-bold">{format(date, 'd')}</span>
+                                <span className="text-xs">{format(date, 'MMM')}</span>
+                            </Button>
+                        ))}
+                    </div>
+                     <ScrollBar orientation="horizontal" />
+                </ScrollArea>
+            </CardContent>
+        </Card>
+    );
 }
 
 export function Dashboard() {
@@ -112,10 +139,7 @@ export function Dashboard() {
         )}
       >
         <VenueInfo />
-        <Card className="p-4">
-            <h2 className="text-lg font-semibold font-headline mb-2 text-center">Select Date</h2>
-            <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} className="rounded-md border mx-auto" />
-        </Card>
+        <DateStripPicker selectedDate={date} onDateChange={setDate} />
         <Card>
             <CardContent className="p-4">
                 <h2 className="text-lg font-semibold font-headline mb-2">Select Time for {format(date, 'PPP')}</h2>
