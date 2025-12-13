@@ -3,12 +3,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Calendar } from '@/components/ui/calendar';
 import { FlexibleTimeSlotSelection } from './time-slot-selection';
-import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { format } from 'date-fns';
-import type { BookingItem, Slot } from '@/lib/types';
-import { query, collection, where, onSnapshot } from 'firebase/firestore';
+import type { BookingItem, Slot, Venue } from '@/lib/types';
+import { query, collection, where, onSnapshot, doc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { AddonsBooking } from './addons-booking';
 import { VenueInfo } from './venue-info';
@@ -17,6 +17,7 @@ import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { ShoppingCart } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { Skeleton } from '../ui/skeleton';
 
 function useSlots(date: Date) {
     const firestore = useFirestore();
@@ -55,11 +56,15 @@ function useSlots(date: Date) {
 
 export function Dashboard() {
   const { user } = useUser();
+  const firestore = useFirestore();
   const router = useRouter();
   const [date, setDate] = useState(new Date());
   const [selectedSlots, setSelectedSlots] = useState<Slot[]>([]);
   const [bookingAddons, setBookingAddons] = useState<BookingItem[]>([]);
-  const { data: slots, isLoading } = useSlots(date);
+  
+  const { data: slots, isLoading: isLoadingSlots } = useSlots(date);
+  const venueRef = useMemoFirebase(() => firestore && doc(firestore, 'venue', 'avit-ground'), [firestore]);
+  const { data: venue, isLoading: isLoadingVenue } = useDoc<Venue>(venueRef);
   
   const cartItemsCount = selectedSlots.length + bookingAddons.reduce((acc, item) => acc + item.quantity, 0);
 
@@ -70,7 +75,7 @@ export function Dashboard() {
             startAt: s.startAt.toISOString(),
             endAt: s.endAt.toISOString(),
             durationMins: s.durationMins,
-            price: s.price, // Will be recalculated on server
+            price: s.price, // Will be recalculated on server, but good for client estimate
         })),
         addons: bookingAddons,
     };
@@ -78,7 +83,18 @@ export function Dashboard() {
     router.push(`/cart?data=${query}`);
   }
 
-  if (isLoading) return <div className="text-center p-10">Loading slots...</div>;
+  const isLoading = isLoadingSlots || isLoadingVenue;
+  
+  if (isLoading) return (
+    <div className="grid grid-cols-1 gap-8 md:grid-cols-1 justify-center">
+         <div className="space-y-8 md:col-span-1 md:max-w-4xl md:mx-auto">
+             <Skeleton className="h-96 w-full" />
+             <Skeleton className="h-64 w-full" />
+             <Skeleton className="h-48 w-full" />
+         </div>
+    </div>
+  );
+
   if (!user) return <div>Please login.</div>;
 
 
@@ -108,6 +124,7 @@ export function Dashboard() {
                     selectedSlots={selectedSlots} 
                     onSelect={setSelectedSlots}
                     date={date}
+                    venue={venue}
                 />
             </CardContent>
         </Card>

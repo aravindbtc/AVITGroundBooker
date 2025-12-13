@@ -22,13 +22,7 @@ export function BookingSummary({ slots, addons, onBookingSuccess }: Props) {
   const router = useRouter();
   const [isProcessing, setIsProcessing] = useState(false);
   
-  const totalSlotPrice = slots.reduce((sum, slot) => {
-    // Server will calculate final price, this is an estimate
-    const hours = slot.durationMins / 60;
-    const isPeak = new Date(slot.startAt).getHours() >= 17;
-    const estimatedPrice = (isPeak ? 500 * 1.2 : 500) * hours;
-    return sum + estimatedPrice;
-  }, 0);
+  const totalSlotPrice = slots.reduce((sum, slot) => sum + slot.price, 0);
 
   const totalAddonPrice = addons.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
@@ -78,9 +72,9 @@ export function BookingSummary({ slots, addons, onBookingSuccess }: Props) {
                         <span className="font-medium">{new Date(slot.startAt).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}</span>
                         <span className="text-xs text-muted-foreground">
                             {new Date(slot.startAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(slot.endAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            ({slot.durationMins} mins)
                         </span>
                     </div>
+                     <span className="font-semibold">Rs.{slot.price.toFixed(2)}</span>
                 </div>
                 )) : <p className="text-sm text-muted-foreground">No slots selected.</p>}
               </div>
@@ -99,10 +93,9 @@ export function BookingSummary({ slots, addons, onBookingSuccess }: Props) {
         </CardContent>
         <CardFooter className="flex-col items-start gap-4 p-4 bg-slate-50 dark:bg-slate-900/50">
              <div className="flex justify-between w-full font-bold text-lg">
-                <span>Total (est.):</span>
+                <span>Total:</span>
                 <span>Rs.{totalAmount.toFixed(2)}</span>
              </div>
-            <p className="text-xs text-muted-foreground w-full text-center">Final price will be verified by the server.</p>
             <Button onClick={handleBooking} className="w-full mt-2 font-bold" disabled={isProcessing || slots.length === 0}>
                 {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <CreditCard className="mr-2 h-4 w-4" />}
                 Proceed to Pay
@@ -111,4 +104,3 @@ export function BookingSummary({ slots, addons, onBookingSuccess }: Props) {
     </Card>
   );
 }
-

@@ -213,6 +213,18 @@
         "basePrice": {
           "type": "number"
         },
+        "morningPrice": {
+            "type": "number",
+            "description": "Price for a morning slot (e.g., 6am-12pm)."
+        },
+        "afternoonPrice": {
+            "type": "number",
+            "description": "Price for an afternoon slot (e.g., 12pm-6pm)."
+        },
+        "eveningPrice": {
+            "type": "number",
+            "description": "Price for an evening slot (peak hours, e.g., 6pm-10pm)."
+        },
         "rating": {
           "type": "number"
         },

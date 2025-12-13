@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc, setDoc } from "firebase/firestore";
 import type { Venue } from "@/lib/types";
-import { Building, Loader2, Save, Image as ImageIcon } from "lucide-react";
+import { Building, Loader2, Save, Image as ImageIcon, IndianRupee } from "lucide-react";
 import { Skeleton } from "../ui/skeleton";
 import { Separator } from "../ui/separator";
 
@@ -37,6 +37,11 @@ export function VenueManagement() {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
     };
+
+    const handleNumberInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: parseFloat(value) || 0 }));
+    }
     
     const handleContactChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -69,6 +74,9 @@ export function VenueManagement() {
                 ...formData,
                 rating: parseFloat(String(formData.rating)) || 0,
                 basePrice: parseFloat(String(formData.basePrice)) || 0,
+                morningPrice: parseFloat(String(formData.morningPrice)) || 0,
+                afternoonPrice: parseFloat(String(formData.afternoonPrice)) || 0,
+                eveningPrice: parseFloat(String(formData.eveningPrice)) || 0,
                 images: (formData.images || []).filter(img => img.trim() !== '')
             };
 
@@ -156,9 +164,33 @@ export function VenueManagement() {
                     <Label htmlFor="googleMapsUrl">Google Maps Link</Label>
                     <Input id="googleMapsUrl" name="googleMapsUrl" value={formData.googleMapsUrl || ''} onChange={handleInputChange} placeholder="https://maps.app.goo.gl/..." />
                 </div>
-                 <div className="space-y-2">
-                    <Label htmlFor="basePrice">Base Price (per hour)</Label>
-                    <Input id="basePrice" name="basePrice" type="number" value={formData.basePrice || ''} onChange={handleInputChange} />
+
+                <Separator className="my-6" />
+                
+                <div className="space-y-4">
+                     <div className="flex items-center gap-2">
+                        <IndianRupee className="h-5 w-5 text-muted-foreground" />
+                        <h4 className="font-medium">Slot Pricing (per 2 hours)</h4>
+                    </div>
+                     <p className="text-sm text-muted-foreground">Set the prices for different times of the day. The base price will be used if a specific slot price is not set.</p>
+                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="basePrice">Base Price</Label>
+                            <Input id="basePrice" name="basePrice" type="number" value={formData.basePrice || ''} onChange={handleNumberInputChange} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="morningPrice">Morning (6am-12pm)</Label>
+                            <Input id="morningPrice" name="morningPrice" type="number" value={formData.morningPrice || ''} onChange={handleNumberInputChange} />
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="afternoonPrice">Afternoon (12pm-6pm)</Label>
+                            <Input id="afternoonPrice" name="afternoonPrice" type="number" value={formData.afternoonPrice || ''} onChange={handleNumberInputChange} />
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="eveningPrice">Evening (6pm-10pm)</Label>
+                            <Input id="eveningPrice" name="eveningPrice" type="number" value={formData.eveningPrice || ''} onChange={handleNumberInputChange} />
+                        </div>
+                    </div>
                 </div>
 
                 <Separator className="my-6" />

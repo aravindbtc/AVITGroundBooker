@@ -19,12 +19,26 @@ export const createRazorpayOrder = functions.https.onCall(async (data, context) 
     throw new functions.https.HttpsError('invalid-argument', 'Slot information is required.');
   }
 
-  // Fetch venue for base price - ensures server-side price validation
+  // Fetch venue for server-side price validation
   const venueDoc = await db.doc('venue/avit-ground').get();
-  if (!venueDoc.exists) {
+  const venueData = venueDoc.data();
+  if (!venueDoc.exists || !venueData) {
       throw new functions.https.HttpsError('not-found', 'Venue details not configured. Please contact admin.');
   }
-  const basePrice = venueDoc.data()?.basePrice || 500;
+
+  const getPriceForSlot = (hour: number) => {
+    if (hour >= 6 && hour < 12) { // Morning
+      return venueData.morningPrice || venueData.basePrice || 500;
+    }
+    if (hour >= 12 && hour < 18) { // Afternoon
+      return venueData.afternoonPrice || venueData.basePrice || 500;
+    }
+    if (hour >= 18 && hour < 22) { // Evening (Peak)
+      return venueData.eveningPrice || venueData.basePrice * 1.2 || 600;
+    }
+    return venueData.basePrice || 500; // Default/fallback
+  };
+
 
   return await db.runTransaction(async (transaction) => {
     const slotRefs: admin.firestore.DocumentReference[] = [];
@@ -54,8 +68,8 @@ export const createRazorpayOrder = functions.https.onCall(async (data, context) 
 
       // Server-side price calculation
       const durationHours = slot.durationMins / 60;
-      const isPeak = proposedStart.getHours() >= 17; // 5 PM onwards
-      const slotPrice = isPeak ? (basePrice * 1.2) * durationHours : basePrice * durationHours;
+      const pricePerHour = getPriceForSlot(proposedStart.getHours());
+      const slotPrice = pricePerHour * durationHours;
       calculatedTotal += slotPrice;
       
       const newSlotRef = db.collection('slots').doc();
@@ -68,7 +82,7 @@ export const createRazorpayOrder = functions.https.onCall(async (data, context) 
         startAt: admin.firestore.Timestamp.fromDate(proposedStart),
         endAt: admin.firestore.Timestamp.fromDate(proposedEnd),
         price: slotPrice,
-        isPeak: isPeak,
+        isPeak: proposedStart.getHours() >= 18,
         status: 'booked', // Mark as booked directly
         bookingId: null, // Will be updated below
       });

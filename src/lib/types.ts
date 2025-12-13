@@ -72,6 +72,9 @@ export type Venue = {
   };
   googleMapsUrl?: string;
   basePrice: number;
+  morningPrice?: number;
+  afternoonPrice?: number;
+  eveningPrice?: number;
   rating: number;
   images: string[];
 };

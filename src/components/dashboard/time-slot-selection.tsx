@@ -2,7 +2,7 @@
 'use client';
 import { Button } from '@/components/ui/button';
 import { Clock, Sun, Sunset, Sunrise, Sparkles } from 'lucide-react';
-import type { Slot } from '@/lib/types';
+import type { Slot, Venue } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Badge } from '../ui/badge';
 
@@ -11,6 +11,7 @@ interface Props {
   selectedSlots: Slot[];
   onSelect: (slots: Slot[]) => void;
   date: Date;
+  venue: Venue | null;
 }
 
 const TIME_BLOCKS = [
@@ -42,7 +43,23 @@ const TIME_BLOCKS = [
     }
 ];
 
-export function FlexibleTimeSlotSelection({ slots: existingSlots, selectedSlots, onSelect, date }: Props) {
+export function FlexibleTimeSlotSelection({ slots: existingSlots, selectedSlots, onSelect, date, venue }: Props) {
+    
+    const getPriceForSlot = (startHour: number): number => {
+        if (!venue) return 0; // Or a default price
+        const duration = 2; // All slots are 2 hours
+        
+        if (startHour >= 6 && startHour < 12) { // Morning
+            return (venue.morningPrice || venue.basePrice) * duration;
+        }
+        if (startHour >= 12 && startHour < 18) { // Afternoon
+            return (venue.afternoonPrice || venue.basePrice) * duration;
+        }
+        if (startHour >= 18 && startHour < 22) { // Evening
+            return (venue.eveningPrice || venue.basePrice * 1.2) * duration;
+        }
+        return venue.basePrice * duration; // Fallback
+    };
     
     const isSlotBooked = (startHour: number, endHour: number) => {
         const slotStart = new Date(date);
@@ -81,7 +98,7 @@ export function FlexibleTimeSlotSelection({ slots: existingSlots, selectedSlots,
                  endAt,
                  durationMins: (endAt.getTime() - startAt.getTime()) / 60000,
                  status: 'available',
-                 price: 0, // Price to be calculated by server
+                 price: getPriceForSlot(slotInfo.startHour),
                  date: date,
              }
              onSelect([...selectedSlots, newSlot].sort((a,b) => a.startAt.getTime() - b.startAt.getTime()));
@@ -100,7 +117,8 @@ export function FlexibleTimeSlotSelection({ slots: existingSlots, selectedSlots,
                 {block.slots.map(slot => {
                     const isBooked = isSlotBooked(slot.startHour, slot.endHour);
                     const isSelected = isSlotSelected(`${date.toISOString().split('T')[0]}-${slot.id}`);
-                    const isPeak = slot.startHour >= 17;
+                    const isPeak = slot.startHour >= 18;
+                    const price = getPriceForSlot(slot.startHour);
 
                     return (
                         <Button
@@ -109,18 +127,16 @@ export function FlexibleTimeSlotSelection({ slots: existingSlots, selectedSlots,
                             onClick={() => handleToggleSlot(slot)}
                             disabled={isBooked}
                             className={cn(
-                                "h-16 flex-col items-center justify-center gap-1 text-base relative",
+                                "h-20 flex-col items-center justify-center gap-1 text-base relative",
                                 {
                                     "bg-destructive text-destructive-foreground hover:bg-destructive/90 cursor-not-allowed": isBooked,
                                     "border-primary border-2": isSelected,
-                                    "dark:border-primary-foreground": isSelected && block.name === 'Evening', // Example of further customization
                                 }
                             )}
                         >
                             <span className="font-bold">{slot.label}</span>
-                            {isBooked ? (
-                                <Badge variant="secondary" className="text-xs">Booked</Badge>
-                            ) : isPeak && (
+                            <span className="text-sm font-normal">{isBooked ? 'Booked' : `Rs.${price}`}</span>
+                            {isPeak && !isBooked && (
                                 <Badge variant="destructive" className="text-xs absolute -top-2 -right-2 p-1 leading-none">
                                     <Sparkles className="h-3 w-3 mr-1" />
                                     Peak
