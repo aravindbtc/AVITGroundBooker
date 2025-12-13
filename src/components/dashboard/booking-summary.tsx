@@ -37,9 +37,10 @@ export function BookingSummary({ slots, addons, onBookingSuccess }: Props) {
 
       try {
         const functions = getFunctions();
+        // This function name is kept for consistency, but its backend logic is now modified for direct booking.
         const bookSlotDirectly = httpsCallable(functions, 'createRazorpayOrder'); 
         
-        // Ensure dates are sent as ISO strings, as the backend function expects.
+        // Ensure dates are sent as ISO strings, which the backend function expects.
         const bookingData = {
           slots: slots.map(slot => ({
             ...slot,
@@ -51,9 +52,13 @@ export function BookingSummary({ slots, addons, onBookingSuccess }: Props) {
 
         const result: any = await bookSlotDirectly(bookingData);
 
-        toast({ title: "Booking Successful!", description: "Your booking is confirmed." });
-        onBookingSuccess();
-        router.push(`/bookings?id=${result.data.bookingId}`); // Redirect to bookings page on success
+        if (result.data.success) {
+            toast({ title: "Booking Successful!", description: "Your booking is confirmed." });
+            onBookingSuccess();
+            router.push(`/bookings?id=${result.data.bookingId}`); // Redirect to bookings page on success
+        } else {
+             throw new Error(result.data.error || "An unknown error occurred.");
+        }
 
       } catch (error: any) {
           console.error("Booking Error:", error);

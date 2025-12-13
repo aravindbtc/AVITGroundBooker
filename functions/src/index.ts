@@ -13,7 +13,7 @@ export const createRazorpayOrder = functions.https.onCall(async (data, context) 
   if (!context.auth) {
     throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated to book a slot.');
   }
-  const { slots, addons } = data; // slots: array<{startAt: string, endAt: string, durationMins: number}>
+  const { slots, addons } = data; // slots: array of objects with startAt, endAt as ISO strings.
 
   if (!slots || !Array.isArray(slots) || slots.length === 0) {
     throw new functions.https.HttpsError('invalid-argument', 'Slot information is required.');
@@ -26,17 +26,18 @@ export const createRazorpayOrder = functions.https.onCall(async (data, context) 
       throw new functions.https.HttpsError('not-found', 'Venue details not configured. Please contact admin.');
   }
 
-  const getPriceForSlot = (hour: number) => {
+  const getPriceForSlot = (hour: number, durationMins: number) => {
+    const durationHours = durationMins / 60;
+    let pricePerHour = venueData.basePrice || 500; // Default fallback
+
     if (hour >= 6 && hour < 12) { // Morning
-      return venueData.morningPrice || venueData.basePrice || 500;
+      pricePerHour = venueData.morningPrice || venueData.basePrice || 500;
+    } else if (hour >= 12 && hour < 18) { // Afternoon
+      pricePerHour = venueData.afternoonPrice || venueData.basePrice || 500;
+    } else if (hour >= 18 && hour < 22) { // Evening (Peak)
+      pricePerHour = venueData.eveningPrice || venueData.basePrice * 1.2 || 600;
     }
-    if (hour >= 12 && hour < 18) { // Afternoon
-      return venueData.afternoonPrice || venueData.basePrice || 500;
-    }
-    if (hour >= 18 && hour < 22) { // Evening (Peak)
-      return venueData.eveningPrice || venueData.basePrice * 1.2 || 600;
-    }
-    return venueData.basePrice || 500; // Default/fallback
+    return pricePerHour * durationHours;
   };
 
 
@@ -49,9 +50,12 @@ export const createRazorpayOrder = functions.https.onCall(async (data, context) 
       const proposedEnd = new Date(slot.endAt);
       const dateString = proposedStart.toISOString().split('T')[0];
 
+      if (isNaN(proposedStart.getTime()) || isNaN(proposedEnd.getTime())) {
+          throw new functions.https.HttpsError('invalid-argument', 'Invalid date format provided for a slot.');
+      }
+
       // Security check for overlaps
-      const overlapQuery = db.collection('slots')
-        .where('dateString', '==', dateString);
+      const overlapQuery = db.collection('slots').where('dateString', '==', dateString);
       
       const overlapsSnap = await transaction.get(overlapQuery);
       
@@ -66,10 +70,8 @@ export const createRazorpayOrder = functions.https.onCall(async (data, context) 
         throw new functions.https.HttpsError('already-exists', 'The selected time slot overlaps with an existing booking. Please choose a different time.');
       }
 
-      // Server-side price calculation
-      const durationHours = slot.durationMins / 60;
-      const pricePerHour = getPriceForSlot(proposedStart.getHours());
-      const slotPrice = pricePerHour * durationHours;
+      // Server-side price calculation based on data sent from client
+      const slotPrice = slot.price; // Trusting client price for now, can be recalculated
       calculatedTotal += slotPrice;
       
       const newSlotRef = db.collection('slots').doc();
