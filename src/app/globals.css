@@ -76,8 +76,4 @@
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
-  /* Add this reset for table elements to prevent conflicts */
-  table, tr {
-    display: contents;
-  }
 }
