@@ -53,108 +53,12 @@ function useSlots(date: Date) {
     return { data: slots, isLoading };
 }
 
-
-// ProposeModal: Simple form for hourly booking proposals
-function ProposeModal({ date, onClose, onPropose, existingSlots }: { date: Date; onClose: () => void; onPropose: (slot: Slot) => void, existingSlots: Slot[] }) {
-  const [startHour, setStartHour] = useState<number>(9);
-  const [durationHours, setDurationHours] = useState<number>(1);
-  const { toast } = useToast();
-
-  const handlePropose = () => {
-    const start = new Date(date);
-    start.setHours(startHour, 0, 0, 0);
-
-    const end = new Date(start);
-    end.setHours(start.getHours() + durationHours);
-
-    // Client-side overlap check
-    const hasOverlap = existingSlots.some(slot => {
-        const existingStart = new Date(slot.startAt);
-        const existingEnd = new Date(slot.endAt);
-        return start < existingEnd && end > existingStart;
-    });
-
-    if (hasOverlap) {
-        toast({
-            variant: "destructive",
-            title: "Slot Overlap",
-            description: "Your proposed time overlaps with an existing booking. Please choose another time."
-        });
-        return;
-    }
-    
-    if (start.getHours() + durationHours > 22) {
-         toast({
-            variant: "destructive",
-            title: "Invalid Time",
-            description: "Booking must end by 10:00 PM."
-        });
-        return;
-    }
-
-    onPropose({ 
-        startAt: start, 
-        endAt: end, 
-        durationMins: durationHours * 60, 
-        status: 'available', // Directly bookable
-        price: 0, // Server will calculate
-      });
-    onClose();
-  }
-  
-  // 5 AM to 9 PM (for a 1-hour slot ending at 10 PM)
-  const availableHours = Array.from({length: 17}, (_, i) => i + 5);
-
-  return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-      <Card className="p-6 w-full max-w-md space-y-4">
-        <h3 className="font-headline text-lg mb-4">Propose Custom Time Slot</h3>
-        <div className="space-y-2">
-            <Label>Start Time</Label>
-            <Select onValueChange={(value) => setStartHour(parseInt(value))} defaultValue={String(startHour)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a start hour" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableHours.map(hour => (
-                  <SelectItem key={hour} value={String(hour)}>
-                    {`${hour % 12 === 0 ? 12 : hour % 12}:00 ${hour < 12 || hour === 24 ? 'AM' : 'PM'}`}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-        </div>
-        <div className="space-y-2">
-            <Label>Duration</Label>
-             <Select onValueChange={(value) => setDurationHours(parseInt(value))} defaultValue={String(durationHours)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select duration" />
-              </SelectTrigger>
-              <SelectContent>
-                {Array.from({length: 4}, (_, i) => i + 1).map(hour => (
-                  <SelectItem key={hour} value={String(hour)}>
-                    {hour} hour{hour > 1 ? 's' : ''}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-        </div>
-        <div className="flex justify-end gap-2 mt-4">
-            <Button variant="outline" onClick={onClose}>Cancel</Button>
-            <Button onClick={handlePropose}>Add Slot</Button>
-        </div>
-      </Card>
-    </div>
-  );
-}
-
 export function Dashboard() {
   const { user } = useUser();
   const router = useRouter();
   const [date, setDate] = useState(new Date());
   const [selectedSlots, setSelectedSlots] = useState<Slot[]>([]);
   const [bookingAddons, setBookingAddons] = useState<BookingItem[]>([]);
-  const [showProposeModal, setShowProposeModal] = useState(false);
   const { data: slots, isLoading } = useSlots(date);
   
   const cartItemsCount = selectedSlots.length + bookingAddons.reduce((acc, item) => acc + item.quantity, 0);
@@ -203,7 +107,6 @@ export function Dashboard() {
                     slots={slots || []} 
                     selectedSlots={selectedSlots} 
                     onSelect={setSelectedSlots}
-                    onPropose={() => setShowProposeModal(true)}
                     date={date}
                 />
             </CardContent>
@@ -220,16 +123,6 @@ export function Dashboard() {
         )}
       </div>
 
-      {showProposeModal && (
-        <ProposeModal 
-            date={date} 
-            existingSlots={slots || []}
-            onClose={() => setShowProposeModal(false)} 
-            onPropose={(newSlot) => {
-              setSelectedSlots(prev => [...prev, newSlot]);
-            }} 
-        />
-      )}
     </div>
   );
 }
