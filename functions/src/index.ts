@@ -26,25 +26,35 @@ export const createRazorpayOrder = functions.https.onCall(async (data, context) 
       throw new functions.https.HttpsError('not-found', 'Venue details not configured. Please contact admin.');
   }
 
-  const getPriceForSlot = (hour: number, durationMins: number) => {
-    const durationHours = durationMins / 60;
-    let pricePerHour = venueData.basePrice || 500; // Default fallback
-
-    if (hour >= 6 && hour < 12) { // Morning
-      pricePerHour = venueData.morningPrice || venueData.basePrice || 500;
-    } else if (hour >= 12 && hour < 18) { // Afternoon
-      pricePerHour = venueData.afternoonPrice || venueData.basePrice || 500;
-    } else if (hour >= 18 && hour < 22) { // Evening (Peak)
-      pricePerHour = venueData.eveningPrice || venueData.basePrice * 1.2 || 600;
-    }
-    return pricePerHour * durationHours;
-  };
-
-
   return await db.runTransaction(async (transaction) => {
     const slotRefs: admin.firestore.DocumentReference[] = [];
     let calculatedTotal = 0;
+    const bookingDateString = new Date(slots[0].startAt).toISOString().split('T')[0];
 
+    // Check for overlaps first
+    const overlapQuery = db.collection('slots').where('dateString', '==', bookingDateString);
+    const existingSlotsSnap = await transaction.get(overlapQuery);
+    
+    for (const proposedSlot of slots) {
+      const proposedStart = new Date(proposedSlot.startAt);
+      const proposedEnd = new Date(proposedSlot.endAt);
+    
+      const hasOverlap = existingSlotsSnap.docs.some(doc => {
+          const s = doc.data();
+          // Convert Firestore Timestamps to JS Dates for comparison
+          const existingStart = s.startAt.toDate();
+          const existingEnd = s.endAt.toDate();
+          // Overlap condition: (StartA < EndB) and (EndA > StartB)
+          return proposedStart < existingEnd && proposedEnd > existingStart;
+      });
+
+      if (hasOverlap) {
+        throw new functions.https.HttpsError('already-exists', 'The selected time slot overlaps with an existing booking. Please choose a different time.');
+      }
+    }
+
+
+    // If no overlaps, proceed to create slots and booking
     for (const slot of slots) {
       const proposedStart = new Date(slot.startAt);
       const proposedEnd = new Date(slot.endAt);
@@ -53,29 +63,11 @@ export const createRazorpayOrder = functions.https.onCall(async (data, context) 
       if (isNaN(proposedStart.getTime()) || isNaN(proposedEnd.getTime())) {
           throw new functions.https.HttpsError('invalid-argument', 'Invalid date format provided for a slot.');
       }
-
-      // Security check for overlaps
-      const overlapQuery = db.collection('slots').where('dateString', '==', dateString);
       
-      const overlapsSnap = await transaction.get(overlapQuery);
-      
-      const hasOverlap = overlapsSnap.docs.some(doc => {
-          const s = doc.data();
-          const existingStart = s.startAt.toDate();
-          const existingEnd = s.endAt.toDate();
-          return existingEnd > proposedStart && existingStart < proposedEnd;
-      });
-
-      if (hasOverlap) {
-        throw new functions.https.HttpsError('already-exists', 'The selected time slot overlaps with an existing booking. Please choose a different time.');
-      }
-
-      // Server-side price calculation based on data sent from client
-      const slotPrice = slot.price; // Trusting client price for now, can be recalculated
+      const slotPrice = slot.price; 
       calculatedTotal += slotPrice;
       
       const newSlotRef = db.collection('slots').doc();
-      // Set the slot as 'booked' immediately
       transaction.set(newSlotRef, {
         groundId: 'avit-ground',
         dateString: dateString,
@@ -91,12 +83,10 @@ export const createRazorpayOrder = functions.https.onCall(async (data, context) 
       slotRefs.push(newSlotRef);
     }
     
-    // Calculate addons price if any
     for (const addon of addons || []) {
         calculatedTotal += addon.price * addon.quantity;
     }
 
-    // Create the booking document
     const bookingRef = db.collection('bookings').doc();
     transaction.set(bookingRef, {
       uid: context.auth.uid,
@@ -106,26 +96,23 @@ export const createRazorpayOrder = functions.https.onCall(async (data, context) 
       addons: addons || [],
       totalAmount: calculatedTotal,
       payment: {
-        orderId: `dev-booking-${bookingRef.id}`, // Use a dev order ID
-        status: 'paid', // Mark as paid directly
+        orderId: `dev-booking-${bookingRef.id}`, 
+        status: 'paid', 
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       },
-      status: 'paid', // Mark as paid directly
+      status: 'paid', 
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
     
-    // Update the newly created slots with the booking ID
     for (const slotRef of slotRefs) {
         transaction.update(slotRef, { bookingId: bookingRef.id });
     }
 
-    // Update stock for addons
     for (const addon of addons || []) {
       const accRef = db.collection('accessories').doc(addon.id);
       transaction.update(accRef, { stock: admin.firestore.FieldValue.increment(-1 * (addon.quantity || 1)) });
     }
     
-    // Award loyalty points
     const points = Math.floor(calculatedTotal / 100);
     if(points > 0) {
         const userRef = db.collection('users').doc(context.auth.uid);
