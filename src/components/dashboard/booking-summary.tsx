@@ -39,7 +39,17 @@ export function BookingSummary({ slots, addons, onBookingSuccess }: Props) {
         const functions = getFunctions();
         const bookSlotDirectly = httpsCallable(functions, 'createRazorpayOrder'); 
         
-        const result: any = await bookSlotDirectly({ slots, addons });
+        // Ensure dates are sent as ISO strings, as the backend function expects.
+        const bookingData = {
+          slots: slots.map(slot => ({
+            ...slot,
+            startAt: new Date(slot.startAt).toISOString(),
+            endAt: new Date(slot.endAt).toISOString(),
+          })),
+          addons,
+        };
+
+        const result: any = await bookSlotDirectly(bookingData);
 
         toast({ title: "Booking Successful!", description: "Your booking is confirmed." });
         onBookingSuccess();
