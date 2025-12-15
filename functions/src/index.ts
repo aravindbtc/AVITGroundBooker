@@ -13,7 +13,7 @@ export const createRazorpayOrder = functions.https.onCall(async (data, context) 
   if (!context.auth) {
     throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated to book a slot.');
   }
-  const { slots, addons } = data; // slots: array of objects with startAt, endAt as ISO strings.
+  const { slots, addons = [] } = data; // Default addons to an empty array
 
   if (!slots || !Array.isArray(slots) || slots.length === 0) {
     throw new functions.https.HttpsError('invalid-argument', 'Slot information is required.');
@@ -86,7 +86,7 @@ export const createRazorpayOrder = functions.https.onCall(async (data, context) 
     }
     
     // Calculate total including addons
-    for (const addon of addons || []) {
+    for (const addon of addons) {
         calculatedTotal += addon.price * addon.quantity;
     }
 
@@ -97,7 +97,7 @@ export const createRazorpayOrder = functions.https.onCall(async (data, context) 
       groundId: 'avit-ground',
       date: slots[0].startAt.split('T')[0],
       slots: slotRefs.map(ref => ref.id),
-      addons: addons || [],
+      addons: addons,
       totalAmount: calculatedTotal,
       payment: {
         orderId: `dev-booking-${bookingRef.id}`, // Mock order ID for dev
@@ -114,7 +114,7 @@ export const createRazorpayOrder = functions.https.onCall(async (data, context) 
     }
 
     // Decrement stock for any selected addons
-    for (const addon of addons || []) {
+    for (const addon of addons) {
       const accRef = db.collection('accessories').doc(addon.id);
       transaction.update(accRef, { stock: admin.firestore.FieldValue.increment(-1 * (addon.quantity || 1)) });
     }
@@ -185,7 +185,8 @@ export const razorpayWebhook = functions.https.onRequest(async (req, res) => {
       batch.update(slotRef, { status: 'booked', bookingId: bookingId });
     }
 
-    for (const addon of booking.addons || []) {
+    const addons = booking.addons || [];
+    for (const addon of addons) {
       const accRef = db.collection('accessories').doc(addon.id);
       batch.update(accRef, { stock: admin.firestore.FieldValue.increment(-1 * (addon.quantity || 1)) });
     }
