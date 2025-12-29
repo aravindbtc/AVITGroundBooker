@@ -72,16 +72,28 @@ export const createRazorpayOrder = functions.https.onCall(async (data, context) 
 
             // Re-check manpower availability
              if (manpowerAddons.length > 0) {
-                 const manpowerIds = manpowerAddons.map((m: any) => m.id);
-                 const existingBookingsWithManpower = await transaction.get(
-                     db.collection('bookings')
-                       .where('date', '==', bookingDateString)
-                       .where('status', '==', 'paid')
-                       .where('addons', 'array-contains-any', manpowerAddons)
-                 );
+                const manpowerIds = manpowerAddons.map((m: any) => m.id);
+                // Check confirmed bookings on the same date that use any of the same manpower
+                const bookingsOnDateQuery = db.collection('bookings')
+                    .where('date', '==', bookingDateString)
+                    .where('status', '==', 'paid')
+                    .where('addons', 'array-contains-any', manpowerAddons.map(m => ({id: m.id, name: m.name, price: m.price, quantity: 1, type: 'manpower', contact: m.contact})));
 
-                 if (!existingBookingsWithManpower.empty) {
-                     // ... (manpower check logic remains the same)
+                const existingBookingsWithManpower = await transaction.get(bookingsOnDateQuery);
+
+                if (!existingBookingsWithManpower.empty) {
+                     const busyManpower: string[] = [];
+                     existingBookingsWithManpower.docs.forEach(doc => {
+                         const booking = doc.data();
+                         booking.addons?.forEach((addon: any) => {
+                             if (manpowerIds.includes(addon.id)) {
+                                 busyManpower.push(addon.name);
+                             }
+                         });
+                     });
+                     if (busyManpower.length > 0) {
+                          throw new functions.https.HttpsError('already-exists', `The following are unavailable on this date: ${[...new Set(busyManpower)].join(', ')}.`);
+                     }
                  }
             }
 
@@ -242,8 +254,8 @@ export const razorpayWebhook = functions.https.onRequest(async (req, res) => {
       console.log(`Successfully processed webhook for booking ${bookingId}`);
 
     } else if (event === 'payment.failed') {
-        const order = payload.order.entity;
-        const bookingId = order.receipt;
+        const order = payload.payment.entity;
+        const bookingId = order.notes.bookingId;
         const bookingRef = db.collection('bookings').doc(bookingId);
         const bookingDoc = await bookingRef.get();
         
@@ -314,3 +326,43 @@ export const verifyPayment = functions.https.onCall(async (data, context) => {
         throw new functions.https.HttpsError('internal', 'Could not finalize your booking. Please contact support if payment was deducted.', error);
     }
 });
+
+/**
+ * Scheduled function to clean up expired pending bookings.
+ * Runs periodically (e.g., every hour).
+ */
+export const cleanupExpiredBookings = functions.pubsub.schedule('every 60 minutes').onRun(async (context) => {
+    const now = admin.firestore.Timestamp.now();
+    const query = db.collection('bookings').where('status', '==', 'pending').where('expiresAt', '<=', now);
+    
+    const expiredBookings = await query.get();
+    
+    if (expiredBookings.empty) {
+        console.log("No expired pending bookings to clean up.");
+        return null;
+    }
+
+    const batch = db.batch();
+    
+    expiredBookings.docs.forEach(doc => {
+        const booking = doc.data();
+        console.log(`Cleaning up expired booking: ${doc.id}`);
+        
+        // Mark booking as 'failed'
+        batch.update(doc.ref, { status: 'failed', 'payment.status': 'failed' });
+        
+        // Delete the associated pending slots
+        if (booking.slots && Array.isArray(booking.slots)) {
+            booking.slots.forEach((slotId: string) => {
+                const slotRef = db.collection('slots').doc(slotId);
+                batch.delete(slotRef);
+            });
+        }
+    });
+    
+    await batch.commit();
+    console.log(`Cleaned up ${expiredBookings.size} expired bookings.`);
+    return null;
+});
+
+    

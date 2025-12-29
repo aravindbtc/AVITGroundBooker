@@ -1,11 +1,7 @@
 
 'use client';
 import { useState, useEffect, useMemo } from 'react';
-import { FlexibleTimeSlotSelection } from './time-slot-selection';
-import { useUser, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { format, addDays } from 'date-fns';
+import { useUser, useFirestore, useMemoFirebase, useDoc, useCollection } from '@/firebase';
 import type { BookingItem, Slot, Venue } from '@/lib/types';
 import { query, collection, where, onSnapshot, doc, Timestamp } from 'firebase/firestore';
 import { AddonsBooking } from './addons-booking';
@@ -15,42 +11,7 @@ import { ShoppingCart } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from '../ui/skeleton';
 import { BookingFlow } from './booking-flow';
-
-
-function useSlots(date: Date) {
-    const firestore = useFirestore();
-    const [slots, setSlots] = useState<Slot[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-
-    const dateString = useMemoFirebase(() => format(date, 'yyyy-MM-dd'), [date]);
-
-    useEffect(() => {
-        if (!firestore) return;
-        setIsLoading(true);
-        const q = query(collection(firestore, 'slots'), where('dateString', '==', dateString));
-        
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const fetchedSlots = snapshot.docs.map(doc => {
-                const data = doc.data();
-                return {
-                    id: doc.id,
-                    ...data,
-                    startAt: data.startAt?.toDate ? data.startAt.toDate() : new Date(data.startAt),
-                    endAt: data.endAt?.toDate ? data.endAt.toDate() : new Date(data.endAt),
-                } as Slot;
-            });
-            setSlots(fetchedSlots);
-            setIsLoading(false);
-        }, (error) => {
-            console.error("Error fetching slots:", error);
-            setIsLoading(false);
-        });
-
-        return () => unsubscribe();
-    }, [firestore, dateString]);
-
-    return { data: slots, isLoading };
-}
+import { Button } from '../ui/button';
 
 function useAllBookedSlotsForManpower() {
     const firestore = useFirestore();
@@ -97,7 +58,13 @@ export function Dashboard() {
   const [selectedSlots, setSelectedSlots] = useState<Slot[]>([]);
   const [bookingAddons, setBookingAddons] = useState<BookingItem[]>([]);
   
-  const { data: slots, isLoading: isLoadingSlots } = useSlots(date);
+  const slotsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    const dateString = date.toISOString().split('T')[0];
+    return query(collection(firestore, 'slots'), where('dateString', '==', dateString));
+  }, [firestore, date]);
+  
+  const { data: slots, isLoading: isLoadingSlots } = useCollection<Slot>(slotsQuery);
   const { data: allBookedSlotsForManpower } = useAllBookedSlotsForManpower();
 
   const venueRef = useMemoFirebase(() => firestore && doc(firestore, 'venue', 'avit-ground'), [firestore]);
@@ -109,10 +76,9 @@ export function Dashboard() {
     // Stringify data to pass in URL query params
     const cartData = {
         slots: selectedSlots.map(s => ({
+            ...s,
             startAt: s.startAt.toISOString(),
             endAt: s.endAt.toISOString(),
-            durationMins: s.durationMins,
-            price: s.price, 
         })),
         addons: bookingAddons,
     };
@@ -122,7 +88,7 @@ export function Dashboard() {
 
   const isLoading = isLoadingSlots || isLoadingVenue;
   
-  if (isLoading) return (
+  if (isLoading && !venue) return (
     <div className="grid grid-cols-1 gap-8 md:grid-cols-1 justify-center">
          <div className="space-y-8 md:col-span-1 md:max-w-4xl md:mx-auto">
              <Skeleton className="h-96 w-full" />
@@ -177,3 +143,5 @@ export function Dashboard() {
     </div>
   );
 }
+
+    

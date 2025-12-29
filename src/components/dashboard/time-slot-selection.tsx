@@ -46,8 +46,8 @@ const TIME_BLOCKS = [
 export function FlexibleTimeSlotSelection({ slots: existingSlots, selectedSlots, onSelect, date, venue }: Props) {
     
     const getPriceForSlot = (startHour: number): number => {
-        if (!venue) return 0; // Or a default price
-        const duration = 2; // All slots are 2 hours
+        if (!venue) return 0;
+        const duration = 1; // Price is per hour
         
         if (startHour >= 6 && startHour < 12) { // Morning
             return (venue.morningPrice || venue.basePrice) * duration;
@@ -92,16 +92,15 @@ export function FlexibleTimeSlotSelection({ slots: existingSlots, selectedSlots,
              const endAt = new Date(date);
              endAt.setHours(slotInfo.endHour, 0, 0, 0);
 
-             const newSlot: Slot = {
+             const newSlot: Omit<Slot, 'id'> & { id: string } = {
                  id: slotId,
                  startAt,
                  endAt,
-                 durationMins: (endAt.getTime() - startAt.getTime()) / 60000,
                  status: 'available',
-                 price: getPriceForSlot(slotInfo.startHour),
-                 date: date,
+                 price: getPriceForSlot(slotInfo.startHour) * 2, // 2-hour slots
+                 dateString: date.toISOString().split('T')[0],
              }
-             onSelect([...selectedSlots, newSlot].sort((a,b) => a.startAt.getTime() - b.startAt.getTime()));
+             onSelect([...selectedSlots, newSlot].sort((a,b) => (a.startAt as Date).getTime() - (b.startAt as Date).getTime()));
         }
     }
 
@@ -118,7 +117,7 @@ export function FlexibleTimeSlotSelection({ slots: existingSlots, selectedSlots,
                     const isBooked = isSlotBooked(slot.startHour, slot.endHour);
                     const isSelected = isSlotSelected(`${date.toISOString().split('T')[0]}-${slot.id}`);
                     const isPeak = slot.startHour >= 18;
-                    const price = getPriceForSlot(slot.startHour);
+                    const price = getPriceForSlot(slot.startHour) * 2;
 
                     return (
                         <Button
@@ -151,3 +150,5 @@ export function FlexibleTimeSlotSelection({ slots: existingSlots, selectedSlots,
     </div>
   );
 }
+
+    
