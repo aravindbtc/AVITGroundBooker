@@ -90,8 +90,7 @@ export const createRazorpayOrder = functions.https.onCall(async (data, context) 
                         });
                     }
                 });
-
-                const requestedManpowerIds = manpowerAddons.map((m: any) => m.id);
+                
                 const unavailableManpower = manpowerAddons.filter((m: any) => busyManpowerIds.has(m.id));
 
                 if (unavailableManpower.length > 0) {
@@ -367,5 +366,3 @@ export const cleanupExpiredBookings = functions.pubsub.schedule('every 60 minute
     console.log(`Cleaned up ${expiredBookings.size} expired bookings.`);
     return null;
 });
-
-    
