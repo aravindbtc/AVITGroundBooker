@@ -7,7 +7,7 @@ import Script from 'next/script';
 import { ClientLayout } from '@/components/client-layout';
 
 export const metadata: Metadata = {
-  title: 'AVIT Cricket Booker',
+  title: 'AVIT Ground Booker',
   description: 'Book the AVIT ICC-standard cricket ground with ease.',
 };
 

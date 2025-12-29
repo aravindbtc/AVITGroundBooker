@@ -22,12 +22,14 @@ import { Skeleton } from "./ui/skeleton";
 
 
 const AppLogoIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-full w-full">
-        <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
-        <path d="M15.5 8.5 8.5 15.5" />
-        <path d="M15.5 15.5 8.5 8.5" />
-        <path d="m18 6-1.5 1.5" />
-        <path d="m6 18 1.5-1.5" />
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-full w-full">
+      <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Z"/>
+      <path d="M7 7l10 10"/>
+      <path d="M15.5 15.5 17 17"/>
+      <path d="M10 12l2-2"/>
+      <path d="M14 16l-2-2"/>
+      <path d="M7.5 12.5 9 14"/>
+      <path d="M17 7 7 17"/>
     </svg>
 )
 
