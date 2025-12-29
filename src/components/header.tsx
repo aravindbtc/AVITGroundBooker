@@ -1,4 +1,3 @@
-
 "use client"
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -134,7 +133,7 @@ export function Header() {
   return (
     <header className={cn(
         "sticky top-0 z-40 w-full border-b backdrop-blur-sm",
-        isLandingPage && !user ? "bg-transparent border-transparent text-blue-500" : "bg-background/95 border-border text-foreground"
+        isLandingPage && !user ? "bg-transparent border-transparent text-white" : "bg-background/95 border-border text-foreground"
     )}>
       <div className={cn(
         "container flex h-16 items-center justify-between px-4"
@@ -174,12 +173,12 @@ export function Header() {
                 <UserProfileDropdown />
              ) : (
                 <>
-                    <Button asChild variant="outline" className="hidden sm:flex bg-transparent border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white">
+                    <Button asChild variant="outline" className={cn("hidden sm:flex", isLandingPage && "bg-transparent border-white text-white hover:bg-white hover:text-primary")}>
                         <Link href="/login">
                             Login
                         </Link>
                     </Button>
-                    <Button asChild className="bg-green-500 hover:bg-green-600 text-white">
+                    <Button asChild className="bg-primary hover:bg-primary/90">
                         <Link href="/login">
                             Sign Up
                         </Link>
