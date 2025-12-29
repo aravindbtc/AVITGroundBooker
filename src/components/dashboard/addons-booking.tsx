@@ -33,6 +33,7 @@ type ItemForBooking = {
     price: number;
     stock: number;
     type: 'item' | 'manpower';
+    contact?: string;
 };
 
 
@@ -58,7 +59,7 @@ export function AddonsBooking({ bookingAddons, onAddonsChange }: AddonsBookingPr
           return currentCart.filter(cartItem => cartItem.id !== item.id);
         }
       } else if (delta > 0) {
-        return [...currentCart, { id: item.id, name: item.name, quantity: 1, price: item.price, type: item.type }];
+        return [...currentCart, { id: item.id, name: item.name, quantity: 1, price: item.price, type: item.type, contact: item.contact }];
       }
       return currentCart;
     });

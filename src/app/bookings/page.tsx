@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, Shield, Trash2, Loader2 } from "lucide-react";
+import { AlertCircle, Shield, Trash2, Loader2, Phone } from "lucide-react";
 import type { Booking, UserProfile } from "@/lib/types";
 import { format } from "date-fns";
 import Link from "next/link";
@@ -25,58 +25,12 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect, useMemo } from "react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown } from "lucide-react";
 
-function BookingList() {
-    const { user, isUserLoading } = useUser();
-    const firestore = useFirestore();
+function BookingRow({ booking }: { booking: Booking }) {
     const { toast } = useToast();
-    const [isClient, setIsClient] = useState(false);
-
-    useEffect(() => {
-        setIsClient(true);
-    }, []);
-
-    const userProfileRef = useMemoFirebase(() => {
-        if (!firestore || !user) return null;
-        return doc(firestore, "users", user.uid);
-    }, [firestore, user]);
-
-    const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
-
-    const bookingsQuery = useMemoFirebase(() => {
-        // Return null and wait until we have all the data we need to make a decision.
-        if (isUserLoading || isProfileLoading || !firestore || !user || !userProfile) {
-            return null;
-        }
-
-        // Now we are sure we have user and profile info.
-        if (userProfile?.role === 'admin') {
-            return query(
-                collection(firestore, "bookings")
-            );
-        } else {
-            // Regular users must have the where clause.
-            return query(
-                collection(firestore, "bookings"),
-                where("uid", "==", user.uid)
-            );
-        }
-    }, [firestore, user, isUserLoading, userProfile, isProfileLoading]);
-
-
-    const { data: bookings, isLoading: isBookingsLoading, error } = useCollection<Booking>(bookingsQuery);
-    
-    // Client-side sorting for non-admin users
-    const sortedBookings = useMemo(() => {
-        if (!bookings) {
-            return bookings;
-        }
-        return [...bookings].sort((a, b) => {
-            const timeA = a.createdAt instanceof Timestamp ? a.createdAt.toMillis() : 0;
-            const timeB = b.createdAt instanceof Timestamp ? b.createdAt.toMillis() : 0;
-            return timeB - timeA;
-        });
-    }, [bookings]);
+    const firestore = useFirestore();
 
     const handleCancelBooking = async (bookingId: string) => {
         if (!firestore) return;
@@ -97,7 +51,127 @@ function BookingList() {
         }
     }
 
-    // Combined loading state
+    return (
+        <Collapsible asChild>
+            <>
+            <TableRow>
+                <TableCell className="font-mono text-xs text-muted-foreground">#{booking.id.substring(0,7)}</TableCell>
+                <TableCell className="font-medium">
+                    {booking.createdAt instanceof Timestamp ? format(booking.createdAt.toDate(), 'PPP') : 'N/A'}
+                </TableCell>
+                <TableCell>Rs.{booking.totalAmount.toFixed(2)}</TableCell>
+                <TableCell>
+                    <Badge variant={booking.status === 'paid' ? 'default' : booking.status === 'cancelled' || booking.status === 'failed' ? 'destructive' : 'secondary'}>
+                        {booking.status}
+                    </Badge>
+                </TableCell>
+                <TableCell className="text-right">
+                     <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" disabled={booking.status !== 'pending' && booking.status !== 'paid'}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                This will cancel your booking. This action cannot be undone.
+                            </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                            <AlertDialogCancel>Back</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleCancelBooking(booking.id!)}>Confirm Cancellation</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                    {booking.addons && booking.addons.length > 0 && (
+                        <CollapsibleTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                                <ChevronDown className="h-4 w-4" />
+                            </Button>
+                        </CollapsibleTrigger>
+                    )}
+                </TableCell>
+            </TableRow>
+            {booking.addons && booking.addons.length > 0 && (
+                 <CollapsibleContent asChild>
+                     <TableRow>
+                        <TableCell colSpan={5} className="p-0">
+                             <div className="p-4 bg-muted/50">
+                                <h4 className="font-semibold mb-2">Booked Add-ons</h4>
+                                <ul className="space-y-2">
+                                    {booking.addons.map(addon => (
+                                        <li key={addon.id} className="flex justify-between items-center text-sm">
+                                            <span>{addon.name} (x{addon.quantity})</span>
+                                            {addon.type === 'manpower' && addon.contact && (
+                                                <div className="flex items-center gap-2">
+                                                    <Phone className="h-3 w-3 text-muted-foreground" />
+                                                    <a href={`tel:${addon.contact}`} className="text-primary hover:underline">{addon.contact}</a>
+                                                </div>
+                                            )}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </TableCell>
+                    </TableRow>
+                 </CollapsibleContent>
+            )}
+            </>
+        </Collapsible>
+    )
+
+}
+
+function BookingList() {
+    const { user, isUserLoading } = useUser();
+    const firestore = useFirestore();
+    const [isClient, setIsClient] = useState(false);
+
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
+
+    const userProfileRef = useMemoFirebase(() => {
+        if (!firestore || !user) return null;
+        return doc(firestore, "users", user.uid);
+    }, [firestore, user]);
+
+    const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
+
+    const bookingsQuery = useMemoFirebase(() => {
+        if (isUserLoading || isProfileLoading || !firestore || !user || !userProfile) {
+            return null;
+        }
+
+        if (userProfile?.role === 'admin') {
+            return query(
+                collection(firestore, "bookings")
+            );
+        } else {
+            return query(
+                collection(firestore, "bookings"),
+                where("uid", "==", user.uid)
+            );
+        }
+    }, [firestore, user, isUserLoading, userProfile, isProfileLoading]);
+
+
+    const { data: bookings, isLoading: isBookingsLoading, error } = useCollection<Booking>(bookingsQuery);
+    
+    const sortedBookings = useMemo(() => {
+        if (!bookings) {
+            return [];
+        }
+        return [...bookings].sort((a, b) => {
+            const timeA = a.createdAt instanceof Timestamp ? a.createdAt.toMillis() : 0;
+            const timeB = b.createdAt instanceof Timestamp ? b.createdAt.toMillis() : 0;
+            return timeB - timeA;
+        });
+    }, [bookings]);
+
+
     const isLoading = isUserLoading || isProfileLoading;
 
     if (!isClient) {
@@ -155,7 +229,6 @@ function BookingList() {
         );
     }
     
-    // This state covers the time when the query is ready but data is still fetching.
     if (isBookingsLoading && bookingsQuery) {
         return (
              <div className="space-y-2 p-6">
@@ -190,39 +263,7 @@ function BookingList() {
             </TableHeader>
             <TableBody>
                 {sortedBookings?.map((booking) => (
-                    <TableRow key={booking.id}>
-                        <TableCell className="font-mono text-xs text-muted-foreground">#{booking.id.substring(0,7)}</TableCell>
-                        <TableCell className="font-medium">
-                            {booking.createdAt instanceof Timestamp ? format(booking.createdAt.toDate(), 'PPP') : 'N/A'}
-                        </TableCell>
-                        <TableCell>Rs.{booking.totalAmount.toFixed(2)}</TableCell>
-                        <TableCell>
-                            <Badge variant={booking.status === 'paid' ? 'default' : booking.status === 'cancelled' || booking.status === 'failed' ? 'destructive' : 'secondary'}>
-                                {booking.status}
-                            </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                             <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <Button variant="ghost" size="icon" disabled={booking.status !== 'pending' && booking.status !== 'paid'}>
-                                        <Trash2 className="h-4 w-4 text-destructive" />
-                                    </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        This will cancel your booking. This action cannot be undone.
-                                    </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                    <AlertDialogCancel>Back</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleCancelBooking(booking.id!)}>Confirm Cancellation</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                        </TableCell>
-                    </TableRow>
+                   <BookingRow key={booking.id} booking={booking} />
                 ))}
             </TableBody>
         </Table>

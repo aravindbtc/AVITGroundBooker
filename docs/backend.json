@@ -125,7 +125,8 @@
               "id": { "type": "string" },
               "name": { "type": "string" },
               "quantity": { "type": "number" },
-              "price": { "type": "number" }
+              "price": { "type": "number" },
+              "contact": { "type": "string" }
             },
             "required": ["id", "name", "quantity", "price"]
           }
@@ -182,6 +183,10 @@
         "type": {
           "type": "string",
           "enum": ["item", "manpower"]
+        },
+        "contact": {
+          "type": "string",
+          "description": "Contact number, primarily for manpower services."
         }
       },
       "required": ["name", "price", "stock", "type"]

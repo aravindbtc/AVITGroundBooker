@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { Booking, UserProfile } from '@/lib/types';
-import { ShieldAlert, Save, Loader2, AlertCircle, CalendarDays, Users, Trash2, PlusCircle } from "lucide-react";
+import { ShieldAlert, Save, Loader2, AlertCircle, CalendarDays, Users, Trash2, PlusCircle, Phone } from "lucide-react";
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { writeBatch, doc, collection, Timestamp, query, orderBy, updateDoc, addDoc } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
@@ -53,6 +53,7 @@ type ItemForManagement = {
     price: number;
     stock: number;
     type: 'item' | 'manpower';
+    contact?: string;
 };
 
 function PriceStockManagement() {
@@ -71,6 +72,7 @@ function PriceStockManagement() {
     const [newItemPrice, setNewItemPrice] = useState(0);
     const [newItemStock, setNewItemStock] = useState(0);
     const [newItemType, setNewItemType] = useState<'item' | 'manpower'>('item');
+    const [newItemContact, setNewItemContact] = useState('');
     const [isAdding, setIsAdding] = useState(false);
 
 
@@ -80,10 +82,14 @@ function PriceStockManagement() {
         }
     }, [data]);
 
-    const handleItemUpdate = (id: string, field: 'price' | 'stock', value: string) => {
-        const numValue = parseInt(value, 10);
-        if (isNaN(numValue) || numValue < 0) return;
-        setItems(current => current.map(a => a.id === id ? { ...a, [field]: numValue } : a));
+    const handleItemUpdate = (id: string, field: 'price' | 'stock' | 'contact', value: string) => {
+        if (field === 'price' || field === 'stock') {
+            const numValue = parseInt(value, 10);
+            if (isNaN(numValue) || numValue < 0) return;
+            setItems(current => current.map(a => a.id === id ? { ...a, [field]: numValue } : a));
+        } else {
+            setItems(current => current.map(a => a.id === id ? { ...a, [field]: value } : a));
+        }
     };
     
     const handleSaveChanges = async () => {
@@ -96,7 +102,11 @@ function PriceStockManagement() {
 
             items.forEach(item => {
                 const docRef = doc(firestore, 'accessories', item.id);
-                batch.update(docRef, { price: item.price, stock: item.stock });
+                batch.update(docRef, { 
+                    price: item.price, 
+                    stock: item.stock,
+                    contact: item.contact || null // Ensure contact is saved or cleared
+                });
             });
 
             await batch.commit();
@@ -126,6 +136,7 @@ function PriceStockManagement() {
                 price: newItemPrice,
                 stock: newItemStock,
                 type: newItemType,
+                contact: newItemType === 'manpower' ? newItemContact : null,
             });
 
             toast({ title: "Success!", description: `${newItemName} has been added.`});
@@ -133,6 +144,7 @@ function PriceStockManagement() {
             setNewItemName('');
             setNewItemPrice(0);
             setNewItemStock(0);
+            setNewItemContact('');
             setIsAddDialogOpen(false);
         } catch (error) {
              console.error("Error adding new item:", error);
@@ -203,6 +215,14 @@ function PriceStockManagement() {
                                     </SelectContent>
                                 </Select>
                             </div>
+                            {newItemType === 'manpower' && (
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="contact" className="text-right">
+                                    Contact
+                                    </Label>
+                                    <Input id="contact" value={newItemContact} onChange={e => setNewItemContact(e.target.value)} className="col-span-3" placeholder="Phone number"/>
+                                </div>
+                            )}
                         </div>
                         <DialogFooter>
                             <DialogClose asChild>
@@ -279,7 +299,8 @@ function PriceStockManagement() {
                         <TableRow>
                             <TableHead>Service</TableHead>
                             <TableHead>Price (per hour/booking)</TableHead>
-                            <TableHead>Available Count</TableHead>
+                            <TableHead>Available</TableHead>
+                            <TableHead>Contact</TableHead>
                         </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -302,6 +323,15 @@ function PriceStockManagement() {
                                 value={person.stock}
                                 onChange={(e) => handleItemUpdate(person.id, 'stock', e.target.value)}
                                 className="h-9 w-24"
+                                />
+                            </TableCell>
+                            <TableCell>
+                                <Input
+                                type="text"
+                                value={person.contact || ''}
+                                onChange={(e) => handleItemUpdate(person.id, 'contact', e.target.value)}
+                                className="h-9 w-36"
+                                placeholder="Phone number"
                                 />
                             </TableCell>
                             </TableRow>

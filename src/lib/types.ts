@@ -37,7 +37,7 @@ export type Booking = {
   id?: string;
   uid: string; // Changed from userUID for consistency
   slots: string[]; // Ref paths
-  addons?: Array<{ id: string; name: string; quantity: number, price: number, type: 'item' | 'manpower' }>;
+  addons?: Array<{ id: string; name: string; quantity: number, price: number, type: 'item' | 'manpower', contact?: string }>;
   totalAmount: number;
   status: 'pending' | 'paid' | 'approved' | 'rejected' | 'pending_approval' | 'cancelled' | 'failed'; // NEW: For proposals
   razorpayOrderID?: string;
@@ -59,6 +59,7 @@ export type Accessory = {
   price: number;
   stock: number;
   type: 'item' | 'manpower';
+  contact?: string;
 }
 
 export type Venue = {
@@ -86,6 +87,7 @@ export type BookingItem = {
     quantity: number;
     price: number;
     type: 'slot' | 'item' | 'manpower';
+    contact?: string;
 }
 
 export type Rating = {
