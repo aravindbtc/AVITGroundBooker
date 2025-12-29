@@ -70,6 +70,7 @@ export default function LoginPage() {
             const userRole = isPotentialAdmin ? 'admin' : 'user';
 
             await setDoc(userDocRef, {
+                uid: user.uid,
                 fullName: user.displayName || user.email?.split('@')[0] || 'New User',
                 collegeId: '',
                 email: user.email,
@@ -262,5 +263,3 @@ export default function LoginPage() {
         </div>
     );
 }
-
-    
