@@ -1,17 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <style>
-    path {
-      fill: hsl(158 64% 42%);
-    }
-    @media (prefers-color-scheme: dark) {
-      path {
-        fill: hsl(0 0% 100%);
-      }
-    }
-  </style>
-  <g>
-    <path d="M50,100c27.6,0,50-22.4,50-50S77.6,0,50,0S0,22.4,0,50S22.4,100,50,100z M50,10c22.1,0,40,17.9,40,40S72.1,90,50,90S10,72.1,10,50S27.9,10,50,10z"/>
-    <path d="M22.2,29.1l56.6,56.6c-2.5,1.7-5.3,3-8.3,3.8L13.9,32.9C16.4,31.2,19.2,29.9,22.2,29.1z"/>
-    <path d="M70.9,22.2L14.3,78.8c2.5-1.7,5.3-3,8.3-3.8l56.6-56.6C76.5,19.9,73.8,21,70.9,22.2z"/>
-  </g>
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<circle cx="12" cy="12" r="11" fill="#10B981"/>
+<circle cx="12" cy="12" r="11" stroke="white" stroke-width="0.5"/>
+<path d="M4.06253 18.2C6.98063 21.4937 11.5 22.4688 15 21M19.9375 5.8C17.0194 2.50634 12.5 1.53123 9 3" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M3 9C1.53123 12.5 2.50634 17.0194 5.8 19.9375" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M21 15C22.4688 11.5 21.4937 6.98063 18.2 4.06253" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
