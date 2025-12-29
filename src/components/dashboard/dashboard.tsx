@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { format, addDays } from 'date-fns';
 import type { BookingItem, Slot, Venue } from '@/lib/types';
-import { query, collection, where, onSnapshot, doc } from 'firebase/firestore';
+import { query, collection, where, onSnapshot, doc, Timestamp } from 'firebase/firestore';
 import { AddonsBooking } from './addons-booking';
 import { VenueInfo } from './venue-info';
 import { cn } from '@/lib/utils';
@@ -52,6 +52,43 @@ function useSlots(date: Date) {
     return { data: slots, isLoading };
 }
 
+function useAllBookedSlotsForManpower() {
+    const firestore = useFirestore();
+    const [slots, setSlots] = useState<Slot[]>([]);
+
+    useEffect(() => {
+        if (!firestore) return;
+        
+        const q = query(
+            collection(firestore, 'slots'), 
+            where('status', '==', 'booked')
+        );
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+             const fetchedSlots = snapshot.docs.map(doc => {
+                const data = doc.data();
+                // Fetch bookings that have manpower
+                if (data.addons && data.addons.some((a: any) => a.type === 'manpower')) {
+                    return {
+                        id: doc.id,
+                        ...data,
+                        startAt: data.startAt instanceof Timestamp ? data.startAt.toDate() : new Date(data.startAt),
+                        endAt: data.endAt instanceof Timestamp ? data.endAt.toDate() : new Date(data.endAt),
+                    } as Slot;
+                }
+                return null;
+            }).filter((s): s is Slot => s !== null);
+            
+            setSlots(fetchedSlots);
+        });
+
+        return () => unsubscribe();
+    }, [firestore]);
+
+    return { data: slots };
+}
+
+
 export function Dashboard() {
   const { user } = useUser();
   const firestore = useFirestore();
@@ -61,6 +98,8 @@ export function Dashboard() {
   const [bookingAddons, setBookingAddons] = useState<BookingItem[]>([]);
   
   const { data: slots, isLoading: isLoadingSlots } = useSlots(date);
+  const { data: allBookedSlotsForManpower } = useAllBookedSlotsForManpower();
+
   const venueRef = useMemoFirebase(() => firestore && doc(firestore, 'venue', 'avit-ground'), [firestore]);
   const { data: venue, isLoading: isLoadingVenue } = useDoc<Venue>(venueRef);
   
@@ -73,7 +112,7 @@ export function Dashboard() {
             startAt: s.startAt.toISOString(),
             endAt: s.endAt.toISOString(),
             durationMins: s.durationMins,
-            price: s.price, // Will be recalculated on server, but good for client estimate
+            price: s.price, 
         })),
         addons: bookingAddons,
     };
@@ -118,7 +157,12 @@ export function Dashboard() {
             availableSlots={slots || []}
             venue={venue}
         />
-        <AddonsBooking bookingAddons={bookingAddons} onAddonsChange={setBookingAddons} />
+        <AddonsBooking 
+            bookingAddons={bookingAddons} 
+            onAddonsChange={setBookingAddons}
+            selectedDate={date}
+            bookedSlots={allBookedSlotsForManpower || []}
+        />
         
         {cartItemsCount > 0 && (
              <div className="sticky bottom-4 z-20 w-full flex justify-center">

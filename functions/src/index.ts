@@ -1,3 +1,4 @@
+
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import Razorpay from 'razorpay';
@@ -31,6 +32,8 @@ export const createRazorpayOrder = functions.https.onCall(async (data, context) 
     }
 
     const bookingDateString = new Date(slots[0].startAt).toISOString().split('T')[0];
+    const manpowerAddons = addons.filter((a: any) => a.type === 'manpower');
+
 
     // Create a temporary booking document to hold the details
     const bookingRef = db.collection('bookings').doc();
@@ -39,24 +42,48 @@ export const createRazorpayOrder = functions.https.onCall(async (data, context) 
     try {
         await db.runTransaction(async (transaction) => {
             // 1. Check for slot availability before doing anything else
-            const overlapQuery = db.collection('slots').where('dateString', '==', bookingDateString);
-            const existingSlotsSnap = await transaction.get(overlapQuery);
-            
             for (const proposedSlot of slots) {
                 const proposedStart = new Date(proposedSlot.startAt);
                 const proposedEnd = new Date(proposedSlot.endAt);
-                const hasOverlap = existingSlotsSnap.docs.some(doc => {
-                    const s = doc.data();
-                    const existingStart = s.startAt.toDate();
-                    const existingEnd = s.endAt.toDate();
-                    return proposedStart < existingEnd && proposedEnd > existingStart;
-                });
-                if (hasOverlap) {
-                    throw new functions.https.HttpsError('already-exists', `Slot ${proposedStart.toLocaleTimeString()} - ${proposedEnd.toLocaleTimeString()} is no longer available.`);
+                 const overlapQuery = db.collection('slots')
+                    .where('dateString', '==', bookingDateString)
+                    .where('status', '==', 'booked') // Only check against confirmed bookings
+                    .where('startAt', '<', admin.firestore.Timestamp.fromDate(proposedEnd))
+                    .where('endAt', '>', admin.firestore.Timestamp.fromDate(proposedStart));
+                
+                const existingSlotsSnap = await transaction.get(overlapQuery);
+                if (!existingSlotsSnap.empty) {
+                    throw new functions.https.HttpsError('already-exists', `A time slot between ${proposedStart.toLocaleTimeString()} - ${proposedEnd.toLocaleTimeString()} is no longer available.`);
                 }
             }
 
-            // 2. Create temporary slot documents with 'pending' status
+            // 2. Check for manpower availability on the selected date
+            if (manpowerAddons.length > 0) {
+                const manpowerIds = manpowerAddons.map((m: any) => m.id);
+                const existingBookingsWithManpower = await transaction.get(
+                    db.collection('bookings')
+                      .where('date', '==', bookingDateString)
+                      .where('status', '==', 'paid') // only check confirmed bookings
+                      .where('addons', 'array-contains-any', manpowerAddons)
+                );
+
+                if (!existingBookingsWithManpower.empty) {
+                    const busyManpower: string[] = [];
+                    existingBookingsWithManpower.docs.forEach(doc => {
+                        const booking = doc.data();
+                        booking.addons?.forEach((addon: any) => {
+                            if (manpowerIds.includes(addon.id)) {
+                                busyManpower.push(addon.name);
+                            }
+                        })
+                    });
+                    if (busyManpower.length > 0) {
+                         throw new functions.https.HttpsError('already-exists', `The following are unavailable on this date: ${[...new Set(busyManpower)].join(', ')}.`);
+                    }
+                }
+            }
+
+            // 3. Create temporary slot documents with 'pending' status
             for (const slot of slots) {
                  const startAt = new Date(slot.startAt);
                  const endAt = new Date(slot.endAt);
@@ -75,7 +102,7 @@ export const createRazorpayOrder = functions.https.onCall(async (data, context) 
                  tempSlotIds.push(newSlotRef.id);
             }
 
-            // 3. Create the booking document with 'pending' status
+            // 4. Create the booking document with 'pending' status
             transaction.set(bookingRef, {
                 uid: context.auth.uid,
                 groundId: 'avit-ground',
@@ -92,7 +119,7 @@ export const createRazorpayOrder = functions.https.onCall(async (data, context) 
             });
         });
 
-        // 4. Create Razorpay order
+        // 5. Create Razorpay order
         const options = {
             amount: totalAmount * 100, // Amount in paise
             currency: 'INR',
@@ -105,7 +132,7 @@ export const createRazorpayOrder = functions.https.onCall(async (data, context) 
 
         const order = await razorpay.orders.create(options);
         
-        // 5. Update booking with Razorpay order ID
+        // 6. Update booking with Razorpay order ID
         await bookingRef.update({ 'payment.orderId': order.id });
 
         return { success: true, orderId: order.id, bookingId: bookingRef.id, amount: order.amount };
@@ -169,16 +196,21 @@ export const verifyPayment = functions.https.onCall(async (data, context) => {
                 'payment.capturedAt': admin.firestore.FieldValue.serverTimestamp()
             });
 
-            // Update slots to 'booked'
+            // Update slots to 'booked' and add addon info to the slot for future checks
             for (const slotId of bookingData.slots) {
                 const slotRef = db.collection('slots').doc(slotId);
-                transaction.update(slotRef, { status: 'booked' });
+                transaction.update(slotRef, { 
+                    status: 'booked',
+                    addons: bookingData.addons, // Add addons data to the slot
+                });
             }
 
-            // Decrement stock
+            // Decrement stock for 'item' type addons only
             for (const addon of bookingData.addons || []) {
-                const accRef = db.collection('accessories').doc(addon.id);
-                transaction.update(accRef, { stock: admin.firestore.FieldValue.increment(-1 * (addon.quantity || 1)) });
+                if (addon.type === 'item') {
+                    const accRef = db.collection('accessories').doc(addon.id);
+                    transaction.update(accRef, { stock: admin.firestore.FieldValue.increment(-1 * (addon.quantity || 1)) });
+                }
             }
 
             // Award loyalty points
@@ -256,12 +288,17 @@ export const razorpayWebhook = functions.https.onRequest(async (req, res) => {
 
       for (const slotId of bookingData.slots) {
         const slotRef = db.collection('slots').doc(slotId);
-        batch.update(slotRef, { status: 'booked' });
+        batch.update(slotRef, { 
+            status: 'booked',
+            addons: bookingData.addons
+        });
       }
 
       for (const addon of bookingData.addons || []) {
-        const accRef = db.collection('accessories').doc(addon.id);
-        batch.update(accRef, { stock: admin.firestore.FieldValue.increment(-1 * (addon.quantity || 1)) });
+        if (addon.type === 'item') {
+            const accRef = db.collection('accessories').doc(addon.id);
+            batch.update(accRef, { stock: admin.firestore.FieldValue.increment(-1 * (addon.quantity || 1)) });
+        }
       }
       
       const points = Math.floor((bookingData.totalAmount || 0) / 100);

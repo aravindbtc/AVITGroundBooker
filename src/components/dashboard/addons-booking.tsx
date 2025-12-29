@@ -5,15 +5,18 @@ import { Button } from "@/components/ui/button";
 import { ShoppingBasket, Minus, Plus, Users, ShieldCheck, Hammer, Orbit, ToyBrick, Shield, Award, Megaphone, User as UserIcon } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
-import type { BookingItem } from "@/lib/types";
+import type { BookingItem, Slot } from "@/lib/types";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection, query, where } from "firebase/firestore";
 import { Skeleton } from "../ui/skeleton";
-import React from "react";
+import React, { useMemo } from "react";
+import { isSameDay } from "date-fns";
 
 interface AddonsBookingProps {
   bookingAddons: BookingItem[];
   onAddonsChange: (addons: BookingItem[]) => void;
+  selectedDate: Date;
+  bookedSlots: Slot[];
 }
 
 const iconMap: { [key: string]: React.ComponentType<{ className?: string }> } = {
@@ -26,7 +29,6 @@ const iconMap: { [key: string]: React.ComponentType<{ className?: string }> } = 
     'coach': UserIcon,
 };
 
-// Represents both Accessory and Manpower types from schema
 type ItemForBooking = {
     id: string;
     name: string;
@@ -37,7 +39,7 @@ type ItemForBooking = {
 };
 
 
-export function AddonsBooking({ bookingAddons, onAddonsChange }: AddonsBookingProps) {
+export function AddonsBooking({ bookingAddons, onAddonsChange, selectedDate, bookedSlots }: AddonsBookingProps) {
   const firestore = useFirestore();
 
   const accessoriesQuery = useMemoFirebase(() => firestore && query(collection(firestore, 'accessories')), [firestore]);
@@ -45,6 +47,25 @@ export function AddonsBooking({ bookingAddons, onAddonsChange }: AddonsBookingPr
   
   const accessoriesData = allItems?.filter(item => item.type === 'item');
   const manpowerData = allItems?.filter(item => item.type === 'manpower');
+
+  // Find which manpower resources are already booked for the selected date
+  const busyManpowerIds = useMemo(() => {
+      const busyIds = new Set<string>();
+      if (!bookedSlots || bookedSlots.length === 0) {
+          return busyIds;
+      }
+
+      bookedSlots.forEach(slot => {
+          if (isSameDay(new Date(slot.startAt), selectedDate)) {
+               slot.addons?.forEach(addon => {
+                   if (addon.type === 'manpower') {
+                       busyIds.add(addon.id);
+                   }
+               })
+          }
+      });
+      return busyIds;
+  }, [bookedSlots, selectedDate]);
 
   const handleQuantityChange = (item: ItemForBooking, delta: number) => {
     onAddonsChange(currentCart => {
@@ -88,16 +109,26 @@ export function AddonsBooking({ bookingAddons, onAddonsChange }: AddonsBookingPr
 
       return items.map((item: ItemForBooking) => {
           const quantity = getItemQuantity(item.id);
-          const isSoldOut = item.stock <= 0;
-          const isMaxed = quantity >= item.stock;
-          const Icon = iconMap[item.id] || ShieldCheck;
+          
+          let isSoldOut = item.stock <= 0;
+          let isMaxed = quantity >= item.stock;
+          
+          // For manpower, availability is date-specific, not based on global stock
+          if (item.type === 'manpower') {
+              const isBusyToday = busyManpowerIds.has(item.id);
+              // A person can only be booked once per day/booking session
+              isSoldOut = isBusyToday; 
+              isMaxed = quantity >= 1;
+          }
+          
+          const Icon = iconMap[item.name.toLowerCase()] || ShieldCheck;
 
           return (
               <div key={item.id} className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                       <Icon className="h-6 w-6 text-primary/80" />
                       <span className="font-medium">{item.name}</span>
-                       {isSoldOut && <Badge variant="destructive" className="text-xs">
+                       {(isSoldOut && quantity === 0) && <Badge variant="destructive" className="text-xs">
                         {type === 'item' ? 'Sold Out' : 'Unavailable'}
                         </Badge>}
                   </div>

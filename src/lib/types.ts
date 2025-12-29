@@ -28,6 +28,7 @@ export type Slot = {
   endTime?: string;
   isPeak?: boolean;
   bookingId?: string | null;
+  addons?: Array<{ id: string; name: string; quantity: number, price: number, type: 'item' | 'manpower', contact?: string }>;
 };
 
 
