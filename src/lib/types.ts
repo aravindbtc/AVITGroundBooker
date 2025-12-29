@@ -40,6 +40,7 @@ export type Booking = {
   totalAmount: number;
   status: 'pending' | 'paid' | 'cancelled' | 'failed';
   createdAt?: Date | Timestamp;
+  expiresAt?: Timestamp; // For cleaning up pending bookings
   groundId?: string;
   date?: string;
   payment: {
