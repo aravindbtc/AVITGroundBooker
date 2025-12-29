@@ -54,15 +54,15 @@ export function AddonsBooking({ bookingAddons, onAddonsChange, selectedDate, boo
       if (!bookedSlots || bookedSlots.length === 0) {
           return busyIds;
       }
+      
+      const relevantSlots = bookedSlots.filter(slot => isSameDay(slot.startAt, selectedDate));
 
-      bookedSlots.forEach(slot => {
-          if (isSameDay(new Date(slot.startAt), selectedDate)) {
-               slot.addons?.forEach(addon => {
-                   if (addon.type === 'manpower') {
-                       busyIds.add(addon.id);
-                   }
-               })
-          }
+      relevantSlots.forEach(slot => {
+           slot.addons?.forEach(addon => {
+               if (addon.type === 'manpower') {
+                   busyIds.add(addon.id);
+               }
+           })
       });
       return busyIds;
   }, [bookedSlots, selectedDate]);
@@ -110,15 +110,15 @@ export function AddonsBooking({ bookingAddons, onAddonsChange, selectedDate, boo
       return items.map((item: ItemForBooking) => {
           const quantity = getItemQuantity(item.id);
           
-          let isSoldOut = item.stock <= 0;
-          let isMaxed = quantity >= item.stock;
+          let isSoldOut = false;
+          let isMaxed = false;
           
-          // For manpower, availability is date-specific, not based on global stock
           if (item.type === 'manpower') {
-              const isBusyToday = busyManpowerIds.has(item.id);
-              // A person can only be booked once per day/booking session
-              isSoldOut = isBusyToday; 
+              isSoldOut = busyManpowerIds.has(item.id);
               isMaxed = quantity >= 1;
+          } else {
+              isSoldOut = item.stock <= 0;
+              isMaxed = quantity >= item.stock;
           }
           
           const Icon = iconMap[item.name.toLowerCase()] || ShieldCheck;
@@ -180,3 +180,5 @@ export function AddonsBooking({ bookingAddons, onAddonsChange, selectedDate, boo
     </Card>
   );
 }
+
+    

@@ -110,22 +110,28 @@ export function BookingSummary({ slots, addons, onBookingSuccess }: Props) {
             description: "Cricket Ground Booking",
             order_id: orderId,
             handler: async (response) => {
-                // 3. Verify payment on the backend
+                // 3. Verify payment on the backend for quick UI feedback
                 toast({ title: "Verifying Payment..."});
                 const verifyPayment = httpsCallable(functions, 'verifyPayment');
-                const verificationResult: any = await verifyPayment({
-                    razorpay_payment_id: response.razorpay_payment_id,
-                    razorpay_order_id: response.razorpay_order_id,
-                    razorpay_signature: response.razorpay_signature,
-                    bookingId: bookingId,
-                });
+                try {
+                    const verificationResult: any = await verifyPayment({
+                        razorpay_payment_id: response.razorpay_payment_id,
+                        razorpay_order_id: response.razorpay_order_id,
+                        razorpay_signature: response.razorpay_signature,
+                        bookingId: bookingId,
+                    });
 
-                if (verificationResult.data.success) {
-                    toast({ title: "Booking Successful!", description: "Your booking is confirmed." });
-                    onBookingSuccess();
-                    router.push(`/bookings?id=${bookingId}`);
-                } else {
-                    throw new Error(verificationResult.data.error || "Payment verification failed.");
+                    if (verificationResult.data.success) {
+                        toast({ title: "Booking Successful!", description: "Your booking is confirmed." });
+                        onBookingSuccess();
+                        router.push(`/bookings?id=${bookingId}`);
+                    } else {
+                        throw new Error(verificationResult.data.error || "Payment verification failed.");
+                    }
+                } catch(e: any) {
+                    console.error("Verification failed on client:", e);
+                    toast({ variant: 'destructive', title: 'Verification Failed', description: e.message || 'Please check your bookings page or contact support.' });
+                    router.push('/bookings');
                 }
             },
             prefill: {
@@ -138,14 +144,14 @@ export function BookingSummary({ slots, addons, onBookingSuccess }: Props) {
                 user_uid: user.uid,
             },
             theme: {
-                color: "#228B22" // AVIT Green
+                color: "#10B981"
             }
         };
 
         const rzp = new window.Razorpay(options);
         rzp.on('payment.failed', function () {
-            toast({ variant: 'destructive', title: 'Payment Failed', description: 'Your payment could not be processed.' });
-            // Optionally, call a function to cancel the 'pending' booking
+            toast({ variant: 'destructive', title: 'Payment Failed', description: 'Your payment could not be processed. Please try again.' });
+            // The cleanup function on the backend will handle the expired pending booking.
         });
         rzp.open();
 
@@ -208,3 +214,5 @@ export function BookingSummary({ slots, addons, onBookingSuccess }: Props) {
     </Card>
   );
 }
+
+    

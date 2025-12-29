@@ -72,29 +72,32 @@ export const createRazorpayOrder = functions.https.onCall(async (data, context) 
 
             // Re-check manpower availability
              if (manpowerAddons.length > 0) {
-                const manpowerIds = manpowerAddons.map((m: any) => m.id);
-                // Check confirmed bookings on the same date that use any of the same manpower
-                const bookingsOnDateQuery = db.collection('bookings')
-                    .where('date', '==', bookingDateString)
-                    .where('status', '==', 'paid')
-                    .where('addons', 'array-contains-any', manpowerAddons.map(m => ({id: m.id, name: m.name, price: m.price, quantity: 1, type: 'manpower', contact: m.contact})));
+                // Find all *confirmed* slots on the selected date that have manpower addons
+                const bookedSlotsOnDateQuery = db.collection('slots')
+                    .where('dateString', '==', bookingDateString)
+                    .where('status', '==', 'booked');
 
-                const existingBookingsWithManpower = await transaction.get(bookingsOnDateQuery);
+                const bookedSlotsSnap = await transaction.get(bookedSlotsOnDateQuery);
+                const busyManpowerIds = new Set<string>();
 
-                if (!existingBookingsWithManpower.empty) {
-                     const busyManpower: string[] = [];
-                     existingBookingsWithManpower.docs.forEach(doc => {
-                         const booking = doc.data();
-                         booking.addons?.forEach((addon: any) => {
-                             if (manpowerIds.includes(addon.id)) {
-                                 busyManpower.push(addon.name);
-                             }
-                         });
-                     });
-                     if (busyManpower.length > 0) {
-                          throw new functions.https.HttpsError('already-exists', `The following are unavailable on this date: ${[...new Set(busyManpower)].join(', ')}.`);
-                     }
-                 }
+                bookedSlotsSnap.docs.forEach(slotDoc => {
+                    const slotData = slotDoc.data();
+                    if (slotData.addons && Array.isArray(slotData.addons)) {
+                        slotData.addons.forEach((addon: any) => {
+                            if (addon.type === 'manpower') {
+                                busyManpowerIds.add(addon.id);
+                            }
+                        });
+                    }
+                });
+
+                const requestedManpowerIds = manpowerAddons.map((m: any) => m.id);
+                const unavailableManpower = manpowerAddons.filter((m: any) => busyManpowerIds.has(m.id));
+
+                if (unavailableManpower.length > 0) {
+                    const names = unavailableManpower.map(m => m.name).join(', ');
+                    throw new functions.https.HttpsError('already-exists', `The following are unavailable on this date: ${names}.`);
+                }
             }
 
             // Create temporary slot documents with 'pending' status
@@ -295,7 +298,7 @@ export const verifyPayment = functions.https.onCall(async (data, context) => {
         throw new functions.https.HttpsError('invalid-argument', 'Missing payment verification details.');
     }
     
-    // Security: Fetch booking by order ID from a trusted source (the user's own context)
+    // Security: Fetch booking by bookingId, but validate ownership and orderId.
     const bookingRef = db.collection('bookings').doc(bookingId);
     const bookingDoc = await bookingRef.get();
 

@@ -78,7 +78,19 @@ export function useCollection<T = any>(
       (snapshot: QuerySnapshot<DocumentData>) => {
         const results: ResultItemType[] = [];
         for (const doc of snapshot.docs) {
-          results.push({ ...(doc.data() as T), id: doc.id });
+          const data = doc.data();
+          // Ensure Timestamps are converted to Dates for client-side usage
+          const convertedData = Object.keys(data).reduce((acc, key) => {
+            const value = data[key];
+            if (value instanceof Timestamp) {
+              acc[key] = value.toDate();
+            } else {
+              acc[key] = value;
+            }
+            return acc;
+          }, {} as any);
+
+          results.push({ ...(convertedData as T), id: doc.id });
         }
         setData(results);
         setError(null);
@@ -107,8 +119,12 @@ export function useCollection<T = any>(
 
     return () => unsubscribe();
   }, [memoizedTargetRefOrQuery]); // Re-run if the target query/reference changes.
+  
   if(memoizedTargetRefOrQuery && !memoizedTargetRefOrQuery.__memo) {
-    throw new Error(memoizedTargetRefOrQuery + ' was not properly memoized using useMemoFirebase');
+    throw new Error('A firestore query was not properly memoized using useMemoFirebase. This will cause infinite loops.');
   }
+  
   return { data, isLoading, error };
 }
+
+    
