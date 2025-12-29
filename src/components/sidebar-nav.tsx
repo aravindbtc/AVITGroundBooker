@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -11,12 +12,13 @@ import {
 import { LogOut } from "lucide-react";
 import { SidebarLinks } from "./sidebar-links";
 
-const CricketBallIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
-      <circle cx="12" cy="12" r="10" />
-      <path d="M12 2a10 10 0 0 0-7.5 16.8" />
-      <path d="M12 22a10 10 0 0 1-7.5-16.8" />
-      <path d="M2.2 12h19.6" />
+const AppLogoIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
+        <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
+        <path d="M15.5 8.5 8.5 15.5" />
+        <path d="M15.5 15.5 8.5 8.5" />
+        <path d="m18 6-1.5 1.5" />
+        <path d="m6 18 1.5-1.5" />
     </svg>
 )
 
@@ -26,7 +28,7 @@ export function SidebarNav() {
       <SidebarHeader>
         <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <CricketBallIcon />
+                <AppLogoIcon />
             </div>
             <div className="overflow-hidden">
                 <h2 className="truncate font-headline text-lg font-semibold">AVIT Booker</h2>
