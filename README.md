@@ -24,7 +24,7 @@ The application is built on a robust, modern technology stack:
 #### 2. **Admin Module**
 - **Feature:** A dedicated, secure dashboard for administrators to manage the entire booking system.
 - **Working Flow:**
-    1.  **Admin Access:** A pre-configured admin account (`admin@avit.ac.in`) provides special access. When this user logs in, they are automatically redirected to the `/admin` dashboard.
+    1.  **Admin Access:** A pre-configured admin account  provides special access. When this user logs in, they are automatically redirected to the `/admin` dashboard.
     2.  **Venue Management:** Admins can update core details about the venue, such as its name, address, contact info, and base pricing.
     3.  **Slot Management:** Admins can generate time slots for the next 30 days and view all bookings. They have the authority to cancel any booking.
     4.  **Price & Stock Management:** Admins have full control over the pricing and available stock of all accessories and the availability of manpower (e.g., umpires, coaches).
