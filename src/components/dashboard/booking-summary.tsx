@@ -1,14 +1,49 @@
-
 'use client';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import type { BookingItem, Slot } from '@/lib/types';
-import { useUser } from '@/firebase';
+import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { Ticket, Loader2, CreditCard } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import type { UserProfile, Venue } from '@/lib/types';
+import { doc } from 'firebase/firestore';
+
+
+interface RazorpayOptions {
+  key: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description: string;
+  image?: string;
+  order_id: string;
+  handler: (response: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string; }) => void;
+  prefill: {
+    name?: string;
+    email?: string;
+    contact?: string;
+  };
+  notes: {
+    booking_id: string;
+    user_uid: string;
+  };
+  theme: {
+    color: string;
+  };
+}
+
+declare global {
+  interface Window {
+    Razorpay: new (options: RazorpayOptions) => {
+      open: () => void;
+      on: (event: string, callback: () => void) => void;
+    };
+  }
+}
+
 
 interface Props {
   slots: any[]; // Using any to handle ISO string dates from query param
@@ -18,9 +53,16 @@ interface Props {
 
 export function BookingSummary({ slots, addons, onBookingSuccess }: Props) {
   const { user } = useUser();
+  const firestore = useFirestore();
   const { toast } = useToast();
   const router = useRouter();
   const [isProcessing, setIsProcessing] = useState(false);
+
+  const userProfileRef = useMemoFirebase(() => user && firestore && doc(firestore, 'users', user.uid), [user, firestore]);
+  const { data: userProfile } = useDoc<UserProfile>(userProfileRef);
+  
+  const venueRef = useMemoFirebase(() => firestore && doc(firestore, 'venue', 'avit-ground'), [firestore]);
+  const { data: venue } = useDoc<Venue>(venueRef);
   
   const totalSlotPrice = slots.reduce((sum, slot) => sum + slot.price, 0);
 
@@ -28,37 +70,84 @@ export function BookingSummary({ slots, addons, onBookingSuccess }: Props) {
 
   const totalAmount = totalSlotPrice + totalAddonPrice;
 
-  const handleBooking = async () => {
-      if (!user) {
+  const handlePayment = async () => {
+      if (!user || !venue) {
           toast({ variant: 'destructive', title: "Not logged in", description: "You must be logged in to book a slot." });
           return;
       }
       setIsProcessing(true);
+      toast({title: "Initializing Payment..."});
 
       try {
         const functions = getFunctions();
-        // This function name is kept for consistency, but its backend logic is now modified for direct booking.
-        const bookSlotDirectly = httpsCallable(functions, 'createRazorpayOrder'); 
+        const createOrder = httpsCallable(functions, 'createRazorpayOrder');
         
-        // Ensure dates are sent as ISO strings, which the backend function expects.
-        const bookingData = {
+        const bookingPayload = {
           slots: slots.map(slot => ({
             ...slot,
             startAt: new Date(slot.startAt).toISOString(),
             endAt: new Date(slot.endAt).toISOString(),
           })),
           addons,
+          totalAmount,
         };
 
-        const result: any = await bookSlotDirectly(bookingData);
-
-        if (result.data.success) {
-            toast({ title: "Booking Successful!", description: "Your booking is confirmed." });
-            onBookingSuccess();
-            router.push(`/bookings?id=${result.data.bookingId}`); // Redirect to bookings page on success
-        } else {
-             throw new Error(result.data.error || "An unknown error occurred.");
+        // 1. Create a pending booking and a Razorpay Order
+        const orderResult: any = await createOrder(bookingPayload);
+        
+        if (!orderResult.data.success) {
+            throw new Error(orderResult.data.error || "Could not create Razorpay order.");
         }
+        
+        const { orderId, bookingId, amount } = orderResult.data;
+
+        // 2. Open Razorpay Checkout
+        const options: RazorpayOptions = {
+            key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
+            amount: amount,
+            currency: "INR",
+            name: venue.fullName,
+            description: "Cricket Ground Booking",
+            order_id: orderId,
+            handler: async (response) => {
+                // 3. Verify payment on the backend
+                toast({ title: "Verifying Payment..."});
+                const verifyPayment = httpsCallable(functions, 'verifyPayment');
+                const verificationResult: any = await verifyPayment({
+                    razorpay_payment_id: response.razorpay_payment_id,
+                    razorpay_order_id: response.razorpay_order_id,
+                    razorpay_signature: response.razorpay_signature,
+                    bookingId: bookingId,
+                });
+
+                if (verificationResult.data.success) {
+                    toast({ title: "Booking Successful!", description: "Your booking is confirmed." });
+                    onBookingSuccess();
+                    router.push(`/bookings?id=${bookingId}`);
+                } else {
+                    throw new Error(verificationResult.data.error || "Payment verification failed.");
+                }
+            },
+            prefill: {
+                name: userProfile?.fullName,
+                email: user.email!,
+                contact: userProfile?.phone,
+            },
+            notes: {
+                booking_id: bookingId,
+                user_uid: user.uid,
+            },
+            theme: {
+                color: "#228B22" // AVIT Green
+            }
+        };
+
+        const rzp = new window.Razorpay(options);
+        rzp.on('payment.failed', function () {
+            toast({ variant: 'destructive', title: 'Payment Failed', description: 'Your payment could not be processed.' });
+            // Optionally, call a function to cancel the 'pending' booking
+        });
+        rzp.open();
 
       } catch (error: any) {
           console.error("Booking Error:", error);
@@ -111,7 +200,7 @@ export function BookingSummary({ slots, addons, onBookingSuccess }: Props) {
                 <span>Total:</span>
                 <span>Rs.{totalAmount.toFixed(2)}</span>
              </div>
-            <Button onClick={handleBooking} className="w-full mt-2 font-bold" disabled={isProcessing || slots.length === 0}>
+            <Button onClick={handlePayment} className="w-full mt-2 font-bold" disabled={isProcessing || slots.length === 0}>
                 {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <CreditCard className="mr-2 h-4 w-4" />}
                 Proceed to Pay
             </Button>

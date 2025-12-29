@@ -11,19 +11,17 @@ export type UserProfile = {
   role: 'user' | 'admin';
   loyaltyPoints: number;
   createdAt: Timestamp;
+  profilePic?: string;
 };
 
 export type Slot = {
   id?: string;
   startAt: Date | Timestamp; // Can be Date on client, Timestamp in Firestore
   endAt: Date | Timestamp;
-  durationMins: number; // NEW: Flexible duration
-  status: 'available' | 'booked' | 'pending' | 'rejected' | 'maintenance'; // Extended
+  durationMins?: number;
+  status: 'available' | 'booked' | 'pending' | 'blocked';
   price: number;
-  proposerUID?: string; // NEW: For custom proposals
-  approverUID?: string;
-  notes?: string;
-  date: Date | Timestamp; // For queries
+  date?: Date | Timestamp; // For queries
   groundId?: string;
   dateString?: string;
   startTime?: string;
@@ -34,18 +32,17 @@ export type Slot = {
 
 
 export type Booking = {
-  id?: string;
-  uid: string; // Changed from userUID for consistency
+  id: string;
+  uid: string;
   slots: string[]; // Ref paths
   addons?: Array<{ id: string; name: string; quantity: number, price: number, type: 'item' | 'manpower', contact?: string }>;
   totalAmount: number;
-  status: 'pending' | 'paid' | 'approved' | 'rejected' | 'pending_approval' | 'cancelled' | 'failed'; // NEW: For proposals
-  razorpayOrderID?: string;
+  status: 'pending' | 'paid' | 'cancelled' | 'failed';
   createdAt?: Date | Timestamp;
   groundId?: string;
   date?: string;
-  payment?: {
-      orderId: string;
+  payment: {
+      orderId?: string;
       razorpayPaymentId?: string;
       status: 'pending' | 'created' | 'paid' | 'failed';
       createdAt: Timestamp;
