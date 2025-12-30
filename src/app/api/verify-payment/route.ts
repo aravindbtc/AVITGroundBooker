@@ -56,6 +56,11 @@ const finalizeBooking = async (bookingId: string, razorpayPaymentId: string) => 
 
 
 export async function POST(req: Request) {
+     if (!process.env.RAZORPAY_KEY_SECRET) {
+        console.error("Razorpay secret key is not configured.");
+        return NextResponse.json({ success: false, error: "Payment processing is not configured on the server." }, { status: 500 });
+    }
+
      try {
         const db = getAdminDb();
         const { razorpay_payment_id, razorpay_order_id, razorpay_signature, bookingId, user } = await req.json();
@@ -83,6 +88,8 @@ export async function POST(req: Request) {
         const expectedSignature = crypto.createHmac('sha256', secret).update(body.toString()).digest('hex');
 
         if (expectedSignature !== razorpay_signature) {
+            // Immediately mark booking as failed
+             await bookingRef.update({ status: 'failed', 'payment.status': 'failed' });
             return NextResponse.json({ success: false, error: 'Invalid payment signature.' }, { status: 400 });
         }
 

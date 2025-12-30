@@ -9,11 +9,10 @@ export const dynamic = "force-dynamic";
 const PENDING_BOOKING_EXPIRY_MINUTES = 10;
 
 export async function POST(req: Request) {
-    // LAZY INITIALIZATION: Create Razorpay instance inside the handler
-    const razorpay = new Razorpay({
-        key_id: process.env.RAZORPAY_KEY_ID!,
-        key_secret: process.env.RAZORPAY_KEY_SECRET!,
-    });
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+        console.error("Razorpay environment variables are not configured.");
+        return NextResponse.json({ success: false, error: "Payment processing is not configured on the server." }, { status: 500 });
+    }
 
     try {
         const db = getAdminDb();
@@ -32,22 +31,10 @@ export async function POST(req: Request) {
 
         const bookingDateString = new Date(slots[0].startAt).toISOString().split('T')[0];
         const manpowerAddons = addons.filter((a: any) => a.type === 'manpower');
-        const bookingRef = db.collection('bookings').doc(); // Create a new booking ID
+        const bookingRef = db.collection('bookings').doc();
         const tempSlotIds: string[] = [];
     
-        // 1. Create Razorpay order FIRST. We use its ID as our receipt.
-        const options = {
-            amount: totalAmount * 100, // Amount in paise
-            currency: 'INR',
-            receipt: bookingRef.id, // Use our Firestore booking ID as the receipt
-            notes: {
-                bookingId: bookingRef.id,
-                uid: user.uid,
-            }
-        };
-        const order = await razorpay.orders.create(options);
-        
-        // 2. Now, create the pending booking in a transaction
+        // Run Firestore transaction FIRST to validate and reserve slots
         await db.runTransaction(async (transaction) => {
             // Re-check slot availability
             for (const proposedSlot of slots) {
@@ -55,7 +42,7 @@ export async function POST(req: Request) {
                 const proposedEnd = new Date(proposedSlot.endAt);
                  const overlapQuery = db.collection('slots')
                     .where('dateString', '==', bookingDateString)
-                    .where('status', 'in', ['booked', 'pending']) // Check against booked and other pending slots
+                    .where('status', 'in', ['booked', 'pending'])
                     .where('startAt', '<', Timestamp.fromDate(proposedEnd))
                     .where('endAt', '>', Timestamp.fromDate(proposedStart));
                 
@@ -126,18 +113,38 @@ export async function POST(req: Request) {
                 status: 'pending',
                 createdAt: FieldValue.serverTimestamp(),
                 expiresAt: Timestamp.fromDate(expiresAt),
-                payment: {
-                    orderId: order.id,
-                    status: 'created',
-                    createdAt: FieldValue.serverTimestamp(),
-                },
+                // Payment object will be updated after order creation
             });
+        });
+
+        // If transaction succeeds, create the Razorpay order
+        const razorpay = new Razorpay({
+            key_id: process.env.RAZORPAY_KEY_ID!,
+            key_secret: process.env.RAZORPAY_KEY_SECRET!,
+        });
+
+        const options = {
+            amount: totalAmount * 100, // Amount in paise
+            currency: 'INR',
+            receipt: bookingRef.id, // Use our Firestore booking ID as the receipt
+            notes: {
+                bookingId: bookingRef.id,
+                uid: user.uid,
+            }
+        };
+        const order = await razorpay.orders.create(options);
+
+        // Now, update the pending booking with the Razorpay order ID
+        await bookingRef.update({
+            'payment.orderId': order.id,
+            'payment.status': 'created',
+            'payment.createdAt': FieldValue.serverTimestamp(),
         });
 
         return NextResponse.json({ success: true, orderId: order.id, bookingId: bookingRef.id, amount: order.amount });
 
     } catch (error: any) {
-        console.error("Error creating Razorpay order:", error);
+        console.error("Error creating booking intent:", error);
         return NextResponse.json({ success: false, error: error.message || 'Failed to create booking intent.' }, { status: 500 });
     }
 }

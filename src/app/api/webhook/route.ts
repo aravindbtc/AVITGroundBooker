@@ -56,13 +56,17 @@ const finalizeBooking = async (bookingId: string, razorpayPaymentId: string) => 
 
 
 export async function POST(req: Request) {
-    const db = getAdminDb();
-    const secret = process.env.RAZORPAY_WEBHOOK_SECRET!;
+    const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+    if (!secret) {
+        console.error("Razorpay webhook secret is not configured.");
+        return new Response('Webhook service is not configured.', { status: 500 });
+    }
+    
     const signature = req.headers.get('x-razorpay-signature');
 
-    if (!secret || !signature) {
-        console.warn("Razorpay webhook secret or signature is missing.");
-        return new Response('Configuration error.', { status: 400 });
+    if (!signature) {
+        console.warn("Razorpay webhook signature is missing.");
+        return new Response('Signature missing.', { status: 400 });
     }
     
     const bodyText = await req.text();
@@ -80,11 +84,17 @@ export async function POST(req: Request) {
         const body = JSON.parse(bodyText);
         const event = body.event;
         const payload = body.payload;
+        const db = getAdminDb();
 
         if (event === 'order.paid') {
             const order = payload.order.entity;
             const payment = payload.payment.entity;
             const bookingId = order.receipt; 
+
+            if (!bookingId) {
+                console.error('Webhook: Paid event received without a bookingId (receipt).');
+                return new Response('ok (no booking id)', { status: 200 });
+            }
 
             const bookingDoc = await db.collection('bookings').doc(bookingId).get();
             if (!bookingDoc.exists) {
@@ -95,6 +105,7 @@ export async function POST(req: Request) {
             const bookingData = bookingDoc.data()!;
             if (bookingData.totalAmount * 100 !== order.amount) {
                 console.error(`Webhook: Amount mismatch for booking ${bookingId}. Expected ${bookingData.totalAmount * 100}, got ${order.amount}`);
+                await db.collection('bookings').doc(bookingId).update({ status: 'failed', 'payment.status': 'failed', 'payment.error': 'Amount mismatch' });
                 return new Response('Amount mismatch', { status: 400 });
             }
 
@@ -103,7 +114,7 @@ export async function POST(req: Request) {
 
         } else if (event === 'payment.failed') {
             const payment = payload.payment.entity;
-            const bookingId = payment.notes.bookingId;
+            const bookingId = payment.notes?.bookingId;
             if (bookingId) {
                 const bookingRef = db.collection('bookings').doc(bookingId);
                 const bookingDoc = await bookingRef.get();
@@ -111,7 +122,9 @@ export async function POST(req: Request) {
                 if(bookingDoc.exists && bookingDoc.data()!.status === 'pending') {
                     const bookingData = bookingDoc.data()!;
                     const batch = db.batch();
+                    // Mark booking as failed
                     batch.update(bookingRef, { status: 'failed', 'payment.status': 'failed' });
+                    // Delete the temporary pending slots to release them
                     for (const slotId of bookingData.slots) {
                         batch.delete(db.collection('slots').doc(slotId));
                     }
