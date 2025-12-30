@@ -22,14 +22,12 @@ import { Skeleton } from "./ui/skeleton";
 
 
 const AppLogoIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-full w-full">
-      <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Z"/>
-      <path d="M7 7l10 10"/>
-      <path d="M15.5 15.5 17 17"/>
-      <path d="M10 12l2-2"/>
-      <path d="M14 16l-2-2"/>
-      <path d="M7.5 12.5 9 14"/>
-      <path d="M17 7 7 17"/>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-full w-full">
+        <path d="M6 6v12" />
+        <path d="M12 6v12" />
+        <path d="M18 6v12" />
+        <path d="M7 6h4" />
+        <path d="M13 6h4" />
     </svg>
 )
 
@@ -144,14 +142,14 @@ export function Header() {
             <Link href="/" className="flex items-center gap-2">
                 <div className={cn(
                     "flex h-8 w-8 items-center justify-center rounded-full",
-                    isLandingPage && !user ? "bg-white text-accent" : "bg-primary text-primary-foreground"
+                    isLandingPage && !user ? "bg-white text-primary" : "bg-primary text-primary-foreground"
                 )}>
                     <AppLogoIcon />
                 </div>
                 <span className={cn(
                   "font-headline text-xl font-bold",
-                  isLandingPage && !user && "text-primary"
-                  )}>AVIT Ground Booker</span>
+                  isLandingPage && !user && "text-white"
+                  )}><span className={cn(isLandingPage && !user && "text-primary")}>AVIT</span> Ground Booker</span>
             </Link>
             {user && (
                 <nav className="hidden md:flex items-center gap-4">
