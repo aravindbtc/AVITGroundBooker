@@ -175,7 +175,7 @@ export function Header() {
                 <UserProfileDropdown />
              ) : (
                 <>
-                    <Button asChild variant="outline" className={cn("hidden sm:flex", isLandingPage && "bg-transparent border-white text-white hover:bg-white hover:text-primary")}>
+                    <Button asChild className={cn("hidden sm:flex", isLandingPage ? "bg-primary hover:bg-primary/90" : "")}>
                         <Link href="/login">
                             Sign Up
                         </Link>
