@@ -60,13 +60,18 @@ export default function LoginPage() {
         }
     }, [user, isUserLoading, router, firestore]);
 
+    // This function runs after any successful sign-in or sign-up.
     const createProfileIfNotExists = async (user: FirebaseUser) => {
         if (!firestore) return;
         const userDocRef = doc(firestore, "users", user.uid);
         const docSnap = await getDoc(userDocRef);
 
+        // It only creates a profile document if one doesn't already exist.
         if (!docSnap.exists()) {
+            // *** ADMIN ROLE LOGIC IS HERE ***
+            // It checks if the user's email is exactly 'admin@avit.ac.in'.
             const isPotentialAdmin = user.email === 'admin@avit.ac.in';
+            // If it matches, the 'role' field in Firestore is set to 'admin'. Otherwise, it's 'user'.
             const userRole = isPotentialAdmin ? 'admin' : 'user';
 
             await setDoc(userDocRef, {
@@ -93,6 +98,7 @@ export default function LoginPage() {
 
         try {
             const result = await signInWithPopup(auth, authProvider);
+            // After Google sign-in, check if we need to create their profile and assign a role.
             await createProfileIfNotExists(result.user);
             toast({ title: "Sign In Successful", description: "Welcome!" });
         } catch (error: any) {
@@ -107,6 +113,8 @@ export default function LoginPage() {
         if (!auth || !firestore) return;
         setIsProcessing(true);
         try {
+            // When a user logs in, their password is NOT sent to our server.
+            // It is sent directly to Firebase, which verifies the securely stored hash.
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             await createProfileIfNotExists(userCredential.user);
             toast({ title: "Login Successful", description: "Welcome back!" });
@@ -121,145 +129,4 @@ export default function LoginPage() {
     const handleSignUp = async () => {
         if (!firestore || !auth) return;
         setIsProcessing(true);
-        try {
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            await createProfileIfNotExists(userCredential.user);
-            toast({ title: "Sign Up Successful", description: "Your account has been created." });
-        } catch (error: any) {
-            toast({ variant: "destructive", title: "Sign Up Failed", description: error.message });
-        } finally {
-            setIsProcessing(false);
-        }
-    };
-
-    const handlePasswordReset = async () => {
-        if (!auth) return;
-        if (!resetEmail) {
-            toast({ variant: "destructive", title: "Email required", description: "Please enter your email address to reset your password." });
-            return;
-        }
-        setIsProcessing(true);
-        try {
-            await sendPasswordResetEmail(auth, resetEmail);
-            toast({ title: "Password Reset Email Sent", description: "Please check your inbox for instructions." });
-        } catch (error: any) {
-            toast({ variant: "destructive", title: "Failed to Send Email", description: error.message });
-        } finally {
-            setIsProcessing(false);
-        }
-    };
-
-    if (isUserLoading) {
-        return (
-            <div className="flex justify-center items-center" style={{height: 'calc(100vh - 8rem)'}}>
-                <div className="text-center">
-                    <Loader2 className="h-12 w-12 animate-spin mx-auto" />
-                    <p className="ml-4 mt-4 text-muted-foreground">Initializing...</p>
-                </div>
-            </div>
-        );
-    }
-
-    if (user) {
-         return (
-            <div className="flex justify-center items-center" style={{height: 'calc(100vh - 8rem)'}}>
-                <div className="text-center">
-                    <Loader2 className="h-12 w-12 animate-spin mx-auto" />
-                    <p className="ml-4 mt-4 text-muted-foreground">Redirecting...</p>
-                </div>
-            </div>
-        );
-    }
-
-    return (
-        <div className="flex justify-center items-center py-12">
-            <Tabs defaultValue="login" className="w-[400px]">
-                <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="login">Login</TabsTrigger>
-                    <TabsTrigger value="signup">Sign Up</TabsTrigger>
-                </TabsList>
-                <TabsContent value="login">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Login</CardTitle>
-                            <CardDescription>Enter your credentials to login.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="login-email">Email</Label>
-                                <Input id="login-email" type="email" placeholder="user@avit.ac.in" value={email} onChange={e => setEmail(e.target.value)} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="login-password">Password</Label>
-                                <Input id="login-password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
-                            </div>
-                             <div className="relative">
-                                <Separator className="my-6" />
-                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 px-2 bg-background text-sm text-muted-foreground">OR</div>
-                            </div>
-                             <Button variant="outline" className="w-full" onClick={() => handleOAuthSignIn('google')} disabled={isProcessing}>
-                                <GoogleIcon />
-                                Sign in with Google
-                            </Button>
-                        </CardContent>
-                        <CardFooter>
-                            <Button onClick={handleLogin} disabled={isProcessing}>
-                                {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Login
-                            </Button>
-                        </CardFooter>
-                    </Card>
-                     <Card className="mt-4">
-                        <CardHeader>
-                            <CardTitle>Forgot Password?</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                             <div className="space-y-2">
-                                <Label htmlFor="reset-email">Email</Label>
-                                <Input id="reset-email" type="email" placeholder="Enter your email" value={resetEmail} onChange={e => setResetEmail(e.target.value)} />
-                            </div>
-                        </CardContent>
-                        <CardFooter>
-                             <Button variant="outline" onClick={handlePasswordReset} disabled={isProcessing}>
-                                {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
-                                Send Reset Link
-                            </Button>
-                        </CardFooter>
-                    </Card>
-                </TabsContent>
-                <TabsContent value="signup">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Sign Up</CardTitle>
-                            <CardDescription>Create a new account to start booking.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="signup-email">Email</Label>
-                                <Input id="signup-email" type="email" placeholder="user@avit.ac.in" value={email} onChange={e => setEmail(e.target.value)} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="signup-password">Password</Label>
-                                <Input id="signup-password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
-                            </div>
-                             <div className="relative">
-                                <Separator className="my-6" />
-                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 px-2 bg-background text-sm text-muted-foreground">OR</div>
-                            </div>
-                             <Button variant="outline" className="w-full" onClick={() => handleOAuthSignIn('google')} disabled={isProcessing}>
-                                <GoogleIcon />
-                                Sign up with Google
-                            </Button>
-                        </CardContent>
-                        <CardFooter>
-                             <Button onClick={handleSignUp} disabled={isProcessing}>
-                                {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Sign Up
-                            </Button>
-                        </CardFooter>
-                    </Card>
-                </TabsContent>
-            </Tabs>
-        </div>
-    );
-}
+        try
