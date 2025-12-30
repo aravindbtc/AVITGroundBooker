@@ -1,6 +1,6 @@
 
 import { NextResponse } from 'next/server';
-import { getAdminDb } from '@/lib/firebase-admin';
+import { getAdminDb, getAdminAuth } from '@/lib/firebase-admin';
 import crypto from 'crypto';
 import { FieldValue } from 'firebase-admin/firestore';
 
@@ -18,7 +18,7 @@ const finalizeBooking = async (bookingId: string, razorpayPaymentId: string) => 
         }
         const bookingData = bookingDoc.data()!;
 
-        // Idempotency Check: if already paid (by client verification or another webhook), do nothing.
+        // Idempotency Check: if already paid, do nothing.
         if (bookingData.status === 'paid') {
             console.log(`FinalizeBooking (Webhook): Booking ${bookingId} is already paid.`);
             // Also check if this specific payment ID has been recorded.
@@ -108,6 +108,13 @@ export async function POST(req: Request) {
             }
       
             const bookingData = bookingDoc.data()!;
+            
+            // Hardened Idempotency Check
+            if (bookingData.status === 'paid' && bookingData.payment?.razorpayPaymentId === payment.id) {
+                console.log(`Webhook: Payment ID ${payment.id} for booking ${bookingId} has already been processed.`);
+                return new Response('ok (already processed)', { status: 200 });
+            }
+
             if (bookingData.totalAmount * 100 !== order.amount) {
                 console.error(`Webhook: Amount mismatch for booking ${bookingId}. Expected ${bookingData.totalAmount * 100}, got ${order.amount}`);
                 await db.collection('bookings').doc(bookingId).update({ status: 'failed', 'payment.status': 'failed', 'payment.error': 'Amount mismatch' });
