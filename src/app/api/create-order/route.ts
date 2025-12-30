@@ -1,8 +1,10 @@
 
 import { NextResponse } from 'next/server';
-import { admin, db } from '@/firebase/server';
+import { getAdminDb } from '@/lib/firebase-admin';
 import Razorpay from 'razorpay';
-import { FieldValue } from 'firebase-admin/firestore';
+import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+
+export const dynamic = "force-dynamic";
 
 const PENDING_BOOKING_EXPIRY_MINUTES = 10;
 
@@ -15,6 +17,7 @@ const razorpay = new Razorpay({
 
 export async function POST(req: Request) {
     try {
+        const db = getAdminDb();
         const { slots, addons = [], totalAmount, user } = await req.json();
 
         if (!user || !user.uid) {
@@ -54,8 +57,8 @@ export async function POST(req: Request) {
                  const overlapQuery = db.collection('slots')
                     .where('dateString', '==', bookingDateString)
                     .where('status', 'in', ['booked', 'pending']) // Check against booked and other pending slots
-                    .where('startAt', '<', admin.firestore.Timestamp.fromDate(proposedEnd))
-                    .where('endAt', '>', admin.firestore.Timestamp.fromDate(proposedStart));
+                    .where('startAt', '<', Timestamp.fromDate(proposedEnd))
+                    .where('endAt', '>', Timestamp.fromDate(proposedStart));
                 
                 const existingSlotsSnap = await transaction.get(overlapQuery);
                 if (!existingSlotsSnap.empty) {
@@ -101,8 +104,8 @@ export async function POST(req: Request) {
                     dateString: startAt.toISOString().split('T')[0],
                     startTime: startAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit'}),
                     endTime: endAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit'}),
-                    startAt: admin.firestore.Timestamp.fromDate(startAt),
-                    endAt: admin.firestore.Timestamp.fromDate(endAt),
+                    startAt: Timestamp.fromDate(startAt),
+                    endAt: Timestamp.fromDate(endAt),
                     price: slot.price,
                     status: 'pending',
                     bookingId: bookingRef.id,
@@ -123,7 +126,7 @@ export async function POST(req: Request) {
                 totalAmount: totalAmount,
                 status: 'pending',
                 createdAt: FieldValue.serverTimestamp(),
-                expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
+                expiresAt: Timestamp.fromDate(expiresAt),
                 payment: {
                     orderId: order.id,
                     status: 'created',

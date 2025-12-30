@@ -1,10 +1,13 @@
 
 import { NextResponse } from 'next/server';
-import { admin, db } from '@/firebase/server';
+import { getAdminDb } from '@/lib/firebase-admin';
 import crypto from 'crypto';
 import { FieldValue } from 'firebase-admin/firestore';
 
+export const dynamic = "force-dynamic";
+
 const finalizeBooking = async (bookingId: string, razorpayPaymentId: string) => {
+    const db = getAdminDb();
     const bookingRef = db.collection('bookings').doc(bookingId);
 
     return db.runTransaction(async (transaction) => {
@@ -54,6 +57,7 @@ const finalizeBooking = async (bookingId: string, razorpayPaymentId: string) => 
 
 export async function POST(req: Request) {
      try {
+        const db = getAdminDb();
         const { razorpay_payment_id, razorpay_order_id, razorpay_signature, bookingId, user } = await req.json();
 
         if (!user || !user.uid) {
