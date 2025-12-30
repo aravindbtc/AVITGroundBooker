@@ -144,7 +144,7 @@ export function Header() {
             <Link href="/" className="flex items-center gap-2">
                 <div className={cn(
                     "flex h-8 w-8 items-center justify-center rounded-full",
-                    isLandingPage && !user ? "bg-white text-primary" : "bg-primary text-primary-foreground"
+                    isLandingPage && !user ? "bg-white text-accent" : "bg-primary text-primary-foreground"
                 )}>
                     <AppLogoIcon />
                 </div>
