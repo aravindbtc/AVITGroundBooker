@@ -177,12 +177,12 @@ export function Header() {
                 <>
                     <Button asChild variant="outline" className={cn("hidden sm:flex", isLandingPage && "bg-transparent border-white text-white hover:bg-white hover:text-primary")}>
                         <Link href="/login">
-                            Login
+                            Sign Up
                         </Link>
                     </Button>
-                    <Button asChild className="bg-primary hover:bg-primary/90">
+                    <Button asChild className={cn(isLandingPage ? "bg-accent hover:bg-accent/90" : "bg-primary hover:bg-primary/90")}>
                         <Link href="/login">
-                            Sign Up
+                            Login
                         </Link>
                     </Button>
                 </>
