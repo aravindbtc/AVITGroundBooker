@@ -68,8 +68,11 @@ export default function LoginPage() {
 
         // It only creates a profile document if one doesn't already exist.
         if (!docSnap.exists()) {
-            // *** ADMIN ROLE LOGIC IS HERE ***
-            // It checks if the user's email is exactly 'admin@avit.ac.in'.
+            // *** ADMIN ROLE LOGIC & PASSWORD HANDLING ***
+            // The user's password is NOT stored here. Firebase Authentication handles it securely.
+            // We only store profile information like name, email, and role in our database.
+            //
+            // The system identifies the admin by checking if the user's email is exactly 'admin@avit.ac.in'.
             const isPotentialAdmin = user.email === 'admin@avit.ac.in';
             // If it matches, the 'role' field in Firestore is set to 'admin'. Otherwise, it's 'user'.
             const userRole = isPotentialAdmin ? 'admin' : 'user';
@@ -113,8 +116,8 @@ export default function LoginPage() {
         if (!auth || !firestore) return;
         setIsProcessing(true);
         try {
-            // When a user logs in, their password is NOT sent to our server.
-            // It is sent directly to Firebase, which verifies the securely stored hash.
+            // When a user logs in with a password, it's sent directly to Firebase for verification.
+            // We never see or handle the actual password, only the secure authentication state.
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             await createProfileIfNotExists(userCredential.user);
             toast({ title: "Login Successful", description: "Welcome back!" });
@@ -129,4 +132,10 @@ export default function LoginPage() {
     const handleSignUp = async () => {
         if (!firestore || !auth) return;
         setIsProcessing(true);
-        try
+        try {
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            await createProfileIfNotExists(userCredential.user);
+            toast({ title: "Account Created", description: "Welcome! You can now log in." });
+        } catch (error: any) {
+]
+    
