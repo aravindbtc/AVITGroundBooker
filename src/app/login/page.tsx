@@ -68,13 +68,13 @@ export default function LoginPage() {
 
         // It only creates a profile document if one doesn't already exist.
         if (!docSnap.exists()) {
-            // *** ADMIN ROLE LOGIC & PASSWORD HANDLING ***
-            // The user's password is NOT stored here. Firebase Authentication handles it securely.
+            // *** ADMIN ROLE & PASSWORD HANDLING ***
+            // Passwords are NOT stored in Firestore. They are securely managed by Firebase Authentication.
             // We only store profile information like name, email, and role in our database.
             //
-            // The system identifies the admin by checking if the user's email is exactly 'admin@avit.ac.in'.
+            // The system identifies the admin by checking if the new user's email is exactly 'admin@avit.ac.in'.
+            // This is a simple but effective way to assign the admin role upon creation.
             const isPotentialAdmin = user.email === 'admin@avit.ac.in';
-            // If it matches, the 'role' field in Firestore is set to 'admin'. Otherwise, it's 'user'.
             const userRole = isPotentialAdmin ? 'admin' : 'user';
 
             await setDoc(userDocRef, {
@@ -116,8 +116,8 @@ export default function LoginPage() {
         if (!auth || !firestore) return;
         setIsProcessing(true);
         try {
-            // When a user logs in with a password, it's sent directly to Firebase for verification.
-            // We never see or handle the actual password, only the secure authentication state.
+            // When a user logs in, the password is sent directly to Firebase for verification.
+            // We never handle or store the actual password in our code.
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             await createProfileIfNotExists(userCredential.user);
             toast({ title: "Login Successful", description: "Welcome back!" });
@@ -134,8 +134,139 @@ export default function LoginPage() {
         setIsProcessing(true);
         try {
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            // After sign-up, create their profile with the appropriate role (admin or user).
+            // This happens in a separate, secure function.
             await createProfileIfNotExists(userCredential.user);
             toast({ title: "Account Created", description: "Welcome! You can now log in." });
         } catch (error: any) {
-]
-    
+            toast({ variant: "destructive", title: "Sign Up Failed", description: error.message });
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const handlePasswordReset = async () => {
+        if (!auth) return;
+        if (!resetEmail) {
+            toast({ variant: "destructive", title: "Email Required", description: "Please enter your email to reset your password." });
+            return;
+        }
+        setIsProcessing(true);
+        try {
+            await sendPasswordResetEmail(auth, resetEmail);
+            toast({ title: "Password Reset Email Sent", description: "Check your inbox for instructions." });
+        } catch (error: any) {
+            toast({ variant: "destructive", title: "Reset Failed", description: error.message });
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+
+    if (!isUserLoading && user) {
+        return (
+            <div className="flex h-screen w-full items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex justify-center items-center py-12">
+            <Tabs defaultValue="login" className="w-[400px]">
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="login">Login</TabsTrigger>
+                    <TabsTrigger value="signup">Sign Up</TabsTrigger>
+                </TabsList>
+                <TabsContent value="login">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Login to your Account</CardTitle>
+                            <CardDescription>
+                                Welcome back! Please enter your details.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <Button variant="outline" className="w-full" onClick={() => handleOAuthSignIn('google')} disabled={isProcessing}>
+                                {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GoogleIcon />}
+                                Sign in with Google
+                            </Button>
+                            <div className="relative">
+                                <div className="absolute inset-0 flex items-center">
+                                    <span className="w-full border-t" />
+                                </div>
+                                <div className="relative flex justify-center text-xs uppercase">
+                                    <span className="bg-background px-2 text-muted-foreground">
+                                    Or continue with
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="login-email">Email</Label>
+                                <Input id="login-email" type="email" placeholder="m@example.com" required value={email} onChange={(e) => setEmail(e.target.value)} disabled={isProcessing} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="login-password">Password</Label>
+                                <Input id="login-password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} disabled={isProcessing} />
+                            </div>
+                        </CardContent>
+                        <CardFooter className="flex flex-col gap-4">
+                            <Button className="w-full" onClick={handleLogin} disabled={isProcessing}>
+                                {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Sign In
+                            </Button>
+                            <Separator />
+                            <CardDescription className="w-full text-center">Forgot your password?</CardDescription>
+                            <div className="w-full space-y-2">
+                                <Input type="email" placeholder="Enter your email to reset" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} disabled={isProcessing} />
+                                <Button variant="secondary" className="w-full" onClick={handlePasswordReset} disabled={isProcessing}>
+                                    <Mail className="mr-2 h-4 w-4" /> Send Reset Link
+                                </Button>
+                            </div>
+                        </CardFooter>
+                    </Card>
+                </TabsContent>
+                <TabsContent value="signup">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Create an Account</CardTitle>
+                            <CardDescription>
+                                Sign up to start booking the AVIT cricket ground.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <Button variant="outline" className="w-full" onClick={() => handleOAuthSignIn('google')} disabled={isProcessing}>
+                                {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GoogleIcon />}
+                                Sign up with Google
+                            </Button>
+                            <div className="relative">
+                                <div className="absolute inset-0 flex items-center">
+                                    <span className="w-full border-t" />
+                                </div>
+                                <div className="relative flex justify-center text-xs uppercase">
+                                    <span className="bg-background px-2 text-muted-foreground">
+                                    Or continue with
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="signup-email">Email</Label>
+                                <Input id="signup-email" type="email" placeholder="" required value={email} onChange={(e) => setEmail(e.target.value)} disabled={isProcessing} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="signup-password">Password</Label>
+                                <Input id="signup-password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} disabled={isProcessing}/>
+                            </div>
+                        </CardContent>
+                        <CardFooter>
+                            <Button className="w-full" onClick={handleSignUp} disabled={isProcessing}>
+                                {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Create Account
+                            </Button>
+                        </CardFooter>
+                    </Card>
+                </TabsContent>
+            </Tabs>
+        </div>
+    );
+}
