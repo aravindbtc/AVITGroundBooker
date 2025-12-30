@@ -1,6 +1,6 @@
 
 import { NextResponse } from 'next/server';
-import { getAdminDb } from '@/lib/firebase-admin';
+import { getAdminDb, getAdminAuth } from '@/lib/firebase-admin';
 import crypto from 'crypto';
 import { FieldValue } from 'firebase-admin/firestore';
 
@@ -61,13 +61,24 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: false, error: "Payment processing is not configured on the server." }, { status: 500 });
     }
 
+    const authHeader = req.headers.get("authorization");
+    const token = authHeader?.replace("Bearer ", "");
+    if (!token) {
+        return NextResponse.json({ success: false, error: 'Authentication is required.' }, { status: 401 });
+    }
+
+    let uid: string;
+    try {
+        const decodedToken = await getAdminAuth().verifyIdToken(token);
+        uid = decodedToken.uid;
+    } catch (error) {
+        console.error("Firebase Auth Error:", error);
+        return NextResponse.json({ success: false, error: 'Invalid authentication token.' }, { status: 403 });
+    }
+
      try {
         const db = getAdminDb();
-        const { razorpay_payment_id, razorpay_order_id, razorpay_signature, bookingId, user } = await req.json();
-
-        if (!user || !user.uid) {
-            return NextResponse.json({ success: false, error: 'Authentication is required.' }, { status: 401 });
-        }
+        const { razorpay_payment_id, razorpay_order_id, razorpay_signature, bookingId } = await req.json();
 
         if (!razorpay_payment_id || !razorpay_order_id || !razorpay_signature || !bookingId) {
             return NextResponse.json({ success: false, error: 'Missing payment verification details.' }, { status: 400 });
@@ -76,11 +87,15 @@ export async function POST(req: Request) {
         const bookingRef = db.collection('bookings').doc(bookingId);
         const bookingDoc = await bookingRef.get();
 
-        if (!bookingDoc.exists || bookingDoc.data()?.uid !== user.uid) {
+        if (!bookingDoc.exists || bookingDoc.data()?.uid !== uid) {
             return NextResponse.json({ success: false, error: 'Booking not found or permission denied.' }, { status: 404 });
         }
         if (bookingDoc.data()?.payment.orderId !== razorpay_order_id) {
             return NextResponse.json({ success: false, error: 'Order ID mismatch.' }, { status: 400 });
+        }
+        if (bookingDoc.data()?.status === 'paid') {
+            console.log(`Client verification for booking ${bookingId} already completed.`);
+            return NextResponse.json({ success: true, message: 'Already processed' });
         }
 
         const secret = process.env.RAZORPAY_KEY_SECRET!;

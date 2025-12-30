@@ -4,20 +4,22 @@ import { getFirestore, Firestore } from "firebase-admin/firestore"
 import { getAuth, Auth } from "firebase-admin/auth"
 
 function initializeAdminApp(): App {
+    // If an app is already initialized, return it.
     if (getApps().length > 0) {
         return getApps()[0];
     }
 
-    const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT 
-      ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
-      : {
+    // Otherwise, create a new app.
+    const serviceAccount = {
         projectId: process.env.FIREBASE_PROJECT_ID,
         clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        // The private key needs to have newlines escaped in the environment variable.
         privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-      };
+    };
 
-    if (!serviceAccount.projectId) {
-      throw new Error("Firebase Admin SDK not initialized. Missing FIREBASE_PROJECT_ID or FIREBASE_SERVICE_ACCOUNT environment variables.");
+    if (!serviceAccount.projectId || !serviceAccount.clientEmail || !serviceAccount.privateKey) {
+        // This will be caught by the calling function and should only happen if env vars are missing.
+        throw new Error("Firebase Admin SDK environment variables are not set.");
     }
     
     return initializeApp({
@@ -25,6 +27,7 @@ function initializeAdminApp(): App {
     });
 }
 
+// These are cached instances to avoid re-initialization on every call.
 let adminDb: Firestore;
 let adminAuth: Auth;
 

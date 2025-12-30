@@ -1,6 +1,6 @@
 
 import { NextResponse } from 'next/server';
-import { getAdminDb } from '@/lib/firebase-admin';
+import { getAdminDb, getAdminAuth } from '@/lib/firebase-admin';
 import Razorpay from 'razorpay';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 
@@ -14,13 +14,27 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: false, error: "Payment processing is not configured on the server." }, { status: 500 });
     }
 
-    try {
-        const db = getAdminDb();
-        const { slots, addons = [], totalAmount, user } = await req.json();
+    const authHeader = req.headers.get("authorization");
+    const token = authHeader?.replace("Bearer ", "");
+    if (!token) {
+        return NextResponse.json({ success: false, error: 'Authentication is required.' }, { status: 401 });
+    }
 
-        if (!user || !user.uid) {
-            return NextResponse.json({ success: false, error: 'Authentication is required.' }, { status: 401 });
-        }
+    let uid: string;
+    try {
+        const decodedToken = await getAdminAuth().verifyIdToken(token);
+        uid = decodedToken.uid;
+    } catch (error) {
+        console.error("Firebase Auth Error:", error);
+        return NextResponse.json({ success: false, error: 'Invalid authentication token.' }, { status: 403 });
+    }
+
+    const db = getAdminDb();
+    const bookingRef = db.collection('bookings').doc();
+    const tempSlotIds: string[] = [];
+
+    try {
+        const { slots, addons = [], totalAmount } = await req.json();
         
         if (!slots || !Array.isArray(slots) || slots.length === 0) {
             return NextResponse.json({ success: false, error: 'Slot information is required.' }, { status: 400 });
@@ -31,8 +45,6 @@ export async function POST(req: Request) {
 
         const bookingDateString = new Date(slots[0].startAt).toISOString().split('T')[0];
         const manpowerAddons = addons.filter((a: any) => a.type === 'manpower');
-        const bookingRef = db.collection('bookings').doc();
-        const tempSlotIds: string[] = [];
     
         // Run Firestore transaction FIRST to validate and reserve slots
         await db.runTransaction(async (transaction) => {
@@ -104,7 +116,7 @@ export async function POST(req: Request) {
             expiresAt.setMinutes(expiresAt.getMinutes() + PENDING_BOOKING_EXPIRY_MINUTES);
 
             transaction.set(bookingRef, {
-                uid: user.uid,
+                uid: uid,
                 groundId: 'avit-ground',
                 date: bookingDateString,
                 slots: tempSlotIds,
@@ -113,33 +125,45 @@ export async function POST(req: Request) {
                 status: 'pending',
                 createdAt: FieldValue.serverTimestamp(),
                 expiresAt: Timestamp.fromDate(expiresAt),
-                // Payment object will be updated after order creation
             });
         });
 
         // If transaction succeeds, create the Razorpay order
-        const razorpay = new Razorpay({
-            key_id: process.env.RAZORPAY_KEY_ID!,
-            key_secret: process.env.RAZORPAY_KEY_SECRET!,
-        });
+        let order;
+        try {
+            const razorpay = new Razorpay({
+                key_id: process.env.RAZORPAY_KEY_ID!,
+                key_secret: process.env.RAZORPAY_KEY_SECRET!,
+            });
 
-        const options = {
-            amount: totalAmount * 100, // Amount in paise
-            currency: 'INR',
-            receipt: bookingRef.id, // Use our Firestore booking ID as the receipt
-            notes: {
-                bookingId: bookingRef.id,
-                uid: user.uid,
-            }
-        };
-        const order = await razorpay.orders.create(options);
+            const options = {
+                amount: totalAmount * 100, // Amount in paise
+                currency: 'INR',
+                receipt: bookingRef.id, // Use our Firestore booking ID as the receipt
+                notes: {
+                    bookingId: bookingRef.id,
+                    uid: uid,
+                }
+            };
+            order = await razorpay.orders.create(options);
 
-        // Now, update the pending booking with the Razorpay order ID
-        await bookingRef.update({
-            'payment.orderId': order.id,
-            'payment.status': 'created',
-            'payment.createdAt': FieldValue.serverTimestamp(),
-        });
+            // Now, update the pending booking with the Razorpay order ID
+            await bookingRef.update({
+                'payment.orderId': order.id,
+                'payment.status': 'created',
+                'payment.createdAt': FieldValue.serverTimestamp(),
+            });
+
+        } catch (razorpayError) {
+             console.error("Razorpay order creation failed, rolling back Firestore changes:", razorpayError);
+             // Cleanup: Delete the pending booking and associated slots
+             await db.runTransaction(async (rollbackTx) => {
+                 rollbackTx.delete(bookingRef);
+                 tempSlotIds.forEach(id => rollbackTx.delete(db.collection('slots').doc(id)));
+             });
+             throw razorpayError; // Re-throw the error to be caught by the outer catch block
+        }
+
 
         return NextResponse.json({ success: true, orderId: order.id, bookingId: bookingRef.id, amount: order.amount });
 

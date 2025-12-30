@@ -13,14 +13,19 @@ const finalizeBooking = async (bookingId: string, razorpayPaymentId: string) => 
     return db.runTransaction(async (transaction) => {
         const bookingDoc = await transaction.get(bookingRef);
         if (!bookingDoc.exists) {
-            console.error(`FinalizeBooking: Booking ${bookingId} not found.`);
+            console.error(`FinalizeBooking (Webhook): Booking ${bookingId} not found.`);
             return;
         }
         const bookingData = bookingDoc.data()!;
 
+        // Idempotency Check: if already paid (by client verification or another webhook), do nothing.
         if (bookingData.status === 'paid') {
-            console.log(`FinalizeBooking: Booking ${bookingId} is already paid.`);
-            return;
+            console.log(`FinalizeBooking (Webhook): Booking ${bookingId} is already paid.`);
+            // Also check if this specific payment ID has been recorded.
+            if (bookingData.payment.razorpayPaymentId === razorpayPaymentId) {
+                console.log(`FinalizeBooking (Webhook): Payment ID ${razorpayPaymentId} already processed.`);
+                return;
+            }
         }
 
         transaction.update(bookingRef, {
@@ -114,7 +119,9 @@ export async function POST(req: Request) {
 
         } else if (event === 'payment.failed') {
             const payment = payload.payment.entity;
-            const bookingId = payment.notes?.bookingId;
+            // The booking ID should be in the order receipt, which is available in payment notes
+            const bookingId = payment.notes?.bookingId || payload.order?.entity?.receipt;
+
             if (bookingId) {
                 const bookingRef = db.collection('bookings').doc(bookingId);
                 const bookingDoc = await bookingRef.get();
@@ -131,6 +138,8 @@ export async function POST(req: Request) {
                     await batch.commit();
                     console.log(`Payment failed for booking ${bookingId}. Pending slots released.`);
                 }
+            } else {
+                 console.warn("Webhook: Payment failed event received without a bookingId.");
             }
         }
 

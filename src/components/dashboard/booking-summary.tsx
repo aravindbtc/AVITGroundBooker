@@ -1,3 +1,4 @@
+
 'use client';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -79,6 +80,8 @@ export function BookingSummary({ slots, addons, onBookingSuccess }: Props) {
       toast({title: "Initializing Payment..."});
 
       try {
+        const idToken = await user.getIdToken();
+
         const bookingPayload = {
           slots: slots.map(slot => ({
             ...slot,
@@ -87,13 +90,15 @@ export function BookingSummary({ slots, addons, onBookingSuccess }: Props) {
           })),
           addons,
           totalAmount,
-          user: { uid: user.uid }
         };
 
         // 1. Create a pending booking and a Razorpay Order via our new API Route
         const orderResponse = await fetch('/api/create-order', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${idToken}`,
+            },
             body: JSON.stringify(bookingPayload)
         });
 
@@ -117,15 +122,18 @@ export function BookingSummary({ slots, addons, onBookingSuccess }: Props) {
                 // 3. Verify payment on the backend for quick UI feedback
                 toast({ title: "Verifying Payment..."});
                  try {
+                     const verificationToken = await user.getIdToken();
                      const verificationResponse = await fetch('/api/verify-payment', {
                          method: 'POST',
-                         headers: { 'Content-Type': 'application/json' },
+                         headers: { 
+                            'Content-Type': 'application/json',
+                             'Authorization': `Bearer ${verificationToken}`,
+                         },
                          body: JSON.stringify({
                             razorpay_payment_id: response.razorpay_payment_id,
                             razorpay_order_id: response.razorpay_order_id,
                             razorpay_signature: response.razorpay_signature,
                             bookingId: bookingId,
-                            user: { uid: user.uid }
                          })
                      });
                     const verificationResult = await verificationResponse.json();
@@ -160,7 +168,7 @@ export function BookingSummary({ slots, addons, onBookingSuccess }: Props) {
         const rzp = new window.Razorpay(options);
         rzp.on('payment.failed', function () {
             toast({ variant: 'destructive', title: 'Payment Failed', description: 'Your payment could not be processed. Please try again.' });
-            // Cleanup of pending booking can be handled by a scheduled function or webhook
+            // Cleanup of pending booking is handled by the webhook or a scheduled function
         });
         rzp.open();
 
