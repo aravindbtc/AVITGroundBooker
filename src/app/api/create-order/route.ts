@@ -8,14 +8,13 @@ export const dynamic = "force-dynamic";
 
 const PENDING_BOOKING_EXPIRY_MINUTES = 10;
 
-// Initialize Razorpay with server-side environment variables
-const razorpay = new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID!,
-    key_secret: process.env.RAZORPAY_KEY_SECRET!,
-});
-
-
 export async function POST(req: Request) {
+    // LAZY INITIALIZATION: Create Razorpay instance inside the handler
+    const razorpay = new Razorpay({
+        key_id: process.env.RAZORPAY_KEY_ID!,
+        key_secret: process.env.RAZORPAY_KEY_SECRET!,
+    });
+
     try {
         const db = getAdminDb();
         const { slots, addons = [], totalAmount, user } = await req.json();
