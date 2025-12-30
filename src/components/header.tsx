@@ -1,3 +1,4 @@
+
 "use client"
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -26,8 +27,6 @@ const AppLogoIcon = () => (
         <path d="M6 6v12" />
         <path d="M12 6v12" />
         <path d="M18 6v12" />
-        <path d="M7 6h4" />
-        <path d="M13 6h4" />
     </svg>
 )
 
@@ -133,7 +132,7 @@ export function Header() {
   return (
     <header className={cn(
         "sticky top-0 z-40 w-full border-b backdrop-blur-sm",
-        isLandingPage && !user ? "bg-transparent border-transparent text-white" : "bg-background/95 border-border text-foreground"
+        isLandingPage && !user ? "bg-transparent border-transparent" : "bg-background/95 border-border text-foreground"
     )}>
       <div className={cn(
         "container flex h-16 items-center justify-between px-4"
@@ -141,15 +140,15 @@ export function Header() {
         <div className="flex items-center gap-6">
             <Link href="/" className="flex items-center gap-2">
                 <div className={cn(
-                    "flex h-8 w-8 items-center justify-center rounded-full",
-                    isLandingPage && !user ? "bg-white text-primary" : "bg-primary text-primary-foreground"
+                    "flex h-8 w-8 items-center justify-center rounded-full p-1",
+                    isLandingPage && !user ? "bg-primary text-primary-foreground" : "bg-primary text-primary-foreground"
                 )}>
                     <AppLogoIcon />
                 </div>
                 <span className={cn(
                   "font-headline text-xl font-bold",
-                  isLandingPage && !user && "text-white"
-                  )}><span className={cn(isLandingPage && !user && "text-primary")}>AVIT</span> Ground Booker</span>
+                  isLandingPage && !user ? "text-primary" : "text-foreground"
+                  )}>AVIT Ground Booker</span>
             </Link>
             {user && (
                 <nav className="hidden md:flex items-center gap-4">
