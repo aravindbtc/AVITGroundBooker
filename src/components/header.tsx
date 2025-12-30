@@ -148,7 +148,10 @@ export function Header() {
                 )}>
                     <AppLogoIcon />
                 </div>
-                <span className="font-headline text-xl font-bold">AVIT Ground Booker</span>
+                <span className={cn(
+                  "font-headline text-xl font-bold",
+                  isLandingPage && !user && "text-primary"
+                  )}>AVIT Ground Booker</span>
             </Link>
             {user && (
                 <nav className="hidden md:flex items-center gap-4">
