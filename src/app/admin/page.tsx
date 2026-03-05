@@ -14,6 +14,7 @@ import { writeBatch, doc, collection, Timestamp, query, orderBy, updateDoc, addD
 import { useToast } from "@/hooks/use-toast";
 import { format } from 'date-fns';
 import { VenueManagement } from '@/components/admin/venue-management';
+import { SlotGeneration } from '@/components/admin/slot-generation';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -570,6 +571,7 @@ export default function AdminPage() {
         <div className="container mx-auto px-4 py-12">
           <div className="space-y-8">
             <VenueManagement />
+            <SlotGeneration />
             <PriceStockManagement />
             <AllBookings />
             <UserManagement />
