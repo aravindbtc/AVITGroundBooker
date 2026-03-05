@@ -1,0 +1,317 @@
+
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the AVIT Ground Booker app.",
+      "properties": {
+        "fullName": {
+          "type": "string",
+          "description": "User's full name."
+        },
+        "collegeId": {
+          "type": "string",
+          "description": "User's college ID for verification."
+        },
+        "phone": {
+          "type": "string",
+          "description": "User's contact phone number."
+        },
+        "email": {
+          "type": "string",
+          "description": "User's email address.",
+          "format": "email"
+        },
+        "role": {
+          "type": "string",
+          "description": "User's role.",
+          "enum": ["user", "admin"]
+        },
+        "loyaltyPoints": {
+          "type": "number",
+          "description": "User's current loyalty points balance."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the user was created."
+        }
+      },
+      "required": ["fullName", "email", "role", "createdAt"]
+    },
+    "Slot": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Slot",
+      "type": "object",
+      "description": "Represents an hourly time slot for booking the cricket ground.",
+      "properties": {
+        "groundId": {
+          "type": "string",
+          "description": "Identifier for the ground, e.g., 'avit-ground'."
+        },
+        "dateString": {
+          "type": "string",
+          "description": "Date of the slot in YYYY-MM-DD format for querying."
+        },
+        "startTime": {
+          "type": "string",
+          "description": "Start time of the slot in HH:MM format."
+        },
+        "endTime": {
+          "type": "string",
+          "description": "End time of the slot in HH:MM format."
+        },
+        "startAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The exact start timestamp of the slot."
+        },
+        "endAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The exact end timestamp of the slot."
+        },
+        "price": {
+          "type": "number",
+          "description": "Price for this specific slot."
+        },
+        "isPeak": {
+          "type": "boolean",
+          "description": "Indicates if this is a peak hour slot."
+        },
+        "status": {
+          "type": "string",
+          "description": "The current status of the slot.",
+          "enum": ["available", "booked", "blocked"]
+        },
+        "bookingId": {
+          "type": ["string", "null"],
+          "description": "Reference to the booking if the slot is booked."
+        }
+      },
+      "required": ["groundId", "dateString", "startTime", "endTime", "startAt", "endAt", "price", "isPeak", "status"]
+    },
+    "Booking": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Booking",
+      "type": "object",
+      "description": "Represents a booking made by a user.",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "The UID of the user who made the booking."
+        },
+        "groundId": {
+          "type": "string",
+          "description": "Identifier for the ground, e.g., 'avit-ground'."
+        },
+        "date": {
+          "type": "string",
+          "description": "The date of the booking in YYYY-MM-DD format."
+        },
+        "slots": {
+          "type": "array",
+          "description": "Array of slot IDs included in the booking.",
+          "items": { "type": "string" }
+        },
+        "addons": {
+          "type": "array",
+          "description": "Array of accessories or manpower included in the booking.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "quantity": { "type": "number" },
+              "price": { "type": "number" },
+              "contact": { "type": "string" }
+            },
+            "required": ["id", "name", "quantity", "price"]
+          }
+        },
+        "totalAmount": {
+          "type": "number",
+          "description": "The total cost of the booking."
+        },
+        "payment": {
+          "type": "object",
+          "description": "Payment details for the booking.",
+          "properties": {
+            "orderId": { "type": "string" },
+            "razorpayPaymentId": { "type": "string" },
+            "status": {
+              "type": "string",
+              "enum": ["pending", "created", "paid", "failed"]
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "required": ["orderId", "status", "createdAt"]
+        },
+        "status": {
+          "type": "string",
+          "description": "Overall status of the booking.",
+          "enum": ["pending", "paid", "cancelled", "failed"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the booking was created."
+        }
+      },
+      "required": ["uid", "groundId", "date", "slots", "totalAmount", "payment", "status", "createdAt"]
+    },
+    "Accessory": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Accessory",
+      "type": "object",
+      "description": "Represents an accessory or manpower that can be booked.",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "price": {
+          "type": "number"
+        },
+        "stock": {
+          "type": "number"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["item", "manpower"]
+        },
+        "contact": {
+          "type": "string",
+          "description": "Contact number, primarily for manpower services."
+        }
+      },
+      "required": ["name", "price", "stock", "type"]
+    },
+    "Venue": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Venue",
+      "type": "object",
+      "description": "Represents the cricket ground venue details.",
+      "properties": {
+        "fullName": {
+          "type": "string"
+        },
+        "address": {
+          "type": "string"
+        },
+        "contact": {
+          "type": "object",
+          "properties": {
+              "primary": { "type": "string", "description": "The main contact number for the venue, used for the 'Call Venue' button." },
+              "secondary": { "type": "string", "description": "A secondary contact number, e.g., for admissions." },
+              "email": { "type": "string", "description": "The primary contact email address." }
+          }
+        },
+        "googleMapsUrl": {
+          "type": "string",
+          "format": "uri"
+        },
+        "basePrice": {
+          "type": "number"
+        },
+        "morningPrice": {
+            "type": "number",
+            "description": "Price for a morning slot (e.g., 6am-12pm)."
+        },
+        "afternoonPrice": {
+            "type": "number",
+            "description": "Price for an afternoon slot (e.g., 12pm-6pm)."
+        },
+        "eveningPrice": {
+            "type": "number",
+            "description": "Price for an evening slot (peak hours, e.g., 6pm-10pm)."
+        },
+        "rating": {
+          "type": "number"
+        },
+        "images": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "required": ["fullName", "address", "contact", "basePrice"]
+    },
+    "Rating": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Rating",
+      "type": "object",
+      "description": "Represents a rating given by a user for a service or item after a booking.",
+      "properties": {
+        "bookingId": {
+          "type": "string",
+          "description": "The ID of the booking this rating is associated with."
+        },
+        "userId": {
+          "type": "string",
+          "description": "The UID of the user giving the rating."
+        },
+        "ratedItemId": {
+          "type": "string",
+          "description": "The ID of the item being rated (e.g., 'avit-ground', accessory ID)."
+        },
+        "ratedItemType": {
+          "type": "string",
+          "enum": ["ground", "item", "manpower"],
+          "description": "The type of the item being rated."
+        },
+        "rating": {
+          "type": "number",
+          "description": "The star rating given by the user (1-5)."
+        },
+        "comment": {
+          "type": "string",
+          "description": "An optional comment from the user."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the rating was submitted."
+        }
+      },
+      "required": ["bookingId", "userId", "ratedItemId", "ratedItemType", "rating", "createdAt"]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "google.com"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{uid}",
+        "definition": { "schema": { "$ref": "#/entities/User" } }
+      },
+      {
+        "path": "/slots/{slotId}",
+        "definition": { "schema": { "$ref": "#/entities/Slot" } }
+      },
+      {
+        "path": "/bookings/{bookingId}",
+        "definition": { "schema": { "$ref": "#/entities/Booking" } }
+      },
+      {
+        "path": "/accessories/{id}",
+        "definition": { "schema": { "$ref": "#/entities/Accessory" } }
+      },
+      {
+        "path": "/venue/avit-ground",
+        "definition": { "schema": { "$ref": "#/entities/Venue" } }
+      },
+      {
+        "path": "/ratings/{ratingId}",
+        "definition": { "schema": { "$ref": "#/entities/Rating" } }
+      }
+    ]
+  }
+}

@@ -1,0 +1,61 @@
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      // Check if the user's document in Firestore has the 'admin' role.
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // USERS: Users can read/write their own profile. Admins can read all users.
+    match /users/{userId} {
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+      allow list: if isAdmin();
+    }
+    
+    // SLOTS: Slots are read-only for clients. All writes are handled by secure Cloud Functions.
+    match /slots/{slotId} {
+      allow read: if isSignedIn();
+      allow write: if false; // All writes must go through Cloud Functions
+    }
+    
+    // BOOKINGS: This is the definitive fix.
+    match /bookings/{bookingId} {
+      // Admins have full read/write access to all bookings.
+      allow read, write: if isAdmin();
+      
+      // A regular user can ONLY read a booking document if their UID matches the 'uid' field in that document.
+      // This rule is what allows the filtered query from the "My Bookings" page to succeed.
+      // Firestore checks this rule against every document the query tries to return.
+      allow read: if isSignedIn() && resource.data.uid == request.auth.uid;
+      
+      // Deny all other operations for non-admins at the document level.
+      // List is implicitly denied by not having a rule for it. Create/update/delete are handled by functions.
+    }
+    
+    // ACCESSORIES: Read for all signed-in users, write for admins.
+    match /accessories/{id} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // VENUE: Publicly readable for the landing page, but only writable by admins.
+    match /venue/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // RATINGS: Users can create their own ratings. Admins can read all ratings.
+    match /ratings/{ratingId} {
+        allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+        allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+        allow list: if isAdmin();
+        allow update, delete: if isAdmin();
+    }
+  }
+}
